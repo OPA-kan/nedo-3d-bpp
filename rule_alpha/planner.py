@@ -180,21 +180,25 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
 
 def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
               planned: list, deadline: float, log=None, row_lines: list | None = None,
-              layout_index: int = 0, deep_first: bool = False) -> list:
+              layout_index: int = 0, deep_first: bool = False,
+              y_top: float | None = None, y_bottom: float | None = None) -> list:
     """Fills one container with the given items in layers of rows: rows from
     the back wall to the opening, each row from the left to the right, each
     layer on whatever the last one left (poses drop onto the packed tops);
     a pass over the floor is a layer, and passes repeat until one places
     nothing.  Every pose is checked by the validator, so the order in which
     the rows are built is an order the simulator can carry in.  Placed items
-    are removed from ``items``."""
+    are removed from ``items``.  ``y_top`` / ``y_bottom`` narrow the floor's
+    depth the rows are laid in (the typed-standing gallery's rows take the
+    rest, ``pack_typed_gallery``)."""
     model = board.model(container_idx)
     rect = model.floor_rect
     gap = config.settled_clearance + config.anchor_slack
     slack = config.anchor_slack
     wall = config.inclusion_clearance + slack
     x_right = rect.x_max - slack
-    y_front = rect.y_min + slack
+    y_front = rect.y_min + slack if y_bottom is None else max(rect.y_min + slack, float(y_bottom))
+    y_start = rect.y_max - slack if y_top is None else min(rect.y_max - slack, float(y_top))
     # (back line, depth) of every row, shared by all layers of the container
     row_lines = row_lines if row_lines is not None else []
     # count first: the smallest box that fits a slot, and the layout with
@@ -323,7 +327,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
                 if budget[0] <= 0:
                     return
 
-        search(list(pool), rect.y_max - slack - y_front, [], 0.0)
+        search(list(pool), y_start - y_front, [], 0.0)
         # a prefix of a longer sequence is not a different layout
         ranked = sorted(found.items(), key=lambda kv: -kv[1][0])
         out = []
@@ -429,7 +433,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             # keeps the same row lines, so its boxes rest on whole rows
             layouts = best_layouts(list(items), x_left, layout_index + 1)
             layout = layouts[min(layout_index, len(layouts) - 1)] if layouts else []
-            y_back = rect.y_max - slack
+            y_back = y_start
             for depth, _row in layout:
                 row_lines.append((y_back, depth))
                 y_back -= depth + gap
@@ -636,6 +640,10 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         from .count_secure import secure_count
 
         chosen = secure_count(agent, item_list, deadline, chosen, longest, log)
+    if getattr(config, "plan_typed_standing", False) and chosen is not None:
+        # under the count gate: the typed-standing plans (the count
+        # frame's soft and priority cargo standing on the floor first)
+        chosen = plan_typed_standing(agent, item_list, deadline, chosen, orders[0] if orders else "mixed", log)
     order, plan = chosen[1], chosen[2]
     if getattr(config, "plan_soft_after_hard_rows", False) and plan:
         # every container's hard rows before any soft gallery: a decline
@@ -1131,3 +1139,440 @@ def mix_row_lines(agent, board: layer1.Board, container_idx: int, config, second
     lines: list = []
     pack_rows(agent, scratch, container_idx, hard, config, [], [], time.perf_counter() + seconds, row_lines=lines)
     return lines
+
+
+# -- the typed-standing plan (config.plan_typed_standing) ----------------------
+#
+# On a dense manifest the ordinary plan places the hard cargo first and the
+# soft cargo last, and the soft boxes -- the smallest items of the manifest
+# -- find no room on the hard stacks' tops (the mid-height transport band
+# ends the flat layers at about 0.94 m, the soft headroom reserve keeps the
+# hard rows under the cap, and the soft rows on the uneven tops place 1 of 21
+# on a-c1x60-s0002): the count falls short.  The typed-standing plan puts
+# the soft and priority cargo of the count frame (the smallest items, the
+# priority cargo always) on the floor first, standing on their smallest face
+# in rows against a wall, and lays the hard rows in the rest of the floor.
+
+
+def count_frame(profiles: list, size: int) -> set:
+    """The indices of the count frame: every priority item, then the
+    smallest items by volume (any class) until ``size`` items are in."""
+    def volume(p):
+        o = p.orientations[0]
+        return o.dx * o.dy * o.dz
+
+    prio = [p for p in profiles if p.is_prioritized]
+    rest = sorted((p for p in profiles if not p.is_prioritized), key=lambda p: (volume(p), p.index))
+    return {p.index for p in prio} | {p.index for p in rest[:max(0, int(size) - len(prio))]}
+
+
+def _gallery_poses(profile, mode: str, max_top: float) -> list:
+    """The gallery's orientations of an item: the tallest pose under
+    ``max_top`` (the smallest face down), the shallow side along y first;
+    in a ``tower`` gallery a soft item's flat poses (its tower is stacked
+    from them)."""
+    fits = [o for o in profile.orientations if o.dz <= max_top + 1e-9]
+    if not fits:
+        return []
+    if mode == "tower" and profile.is_soft:
+        dz = min(o.dz for o in fits)
+    else:
+        dz = max(o.dz for o in fits)
+    return sorted((o for o in fits if abs(o.dz - dz) < 1e-9), key=lambda o: (o.dy, o.dx))
+
+
+def _tower_height(profile, orientation, mode: str) -> int:
+    """How many items of the class a slot of the gallery holds: one, or in
+    a ``tower`` gallery as many flat soft boxes as stack while the
+    supporting top stays under the soft structure cap."""
+    if mode != "tower" or not profile.is_soft:
+        return 1
+    from . import stability
+
+    cap = stability.SOFT_STRUCTURE_MAX_TOP
+    if cap is None:
+        return 4
+    return 1 + int(max(0.0, float(cap)) / max(orientation.dz, 1e-6) + 1e-9)
+
+
+def _class_key(profile) -> tuple:
+    o = profile.orientations[0]
+    return (tuple(sorted((round(o.dx, 3), round(o.dy, 3), round(o.dz, 3)))), bool(profile.is_soft),
+            bool(profile.is_prioritized))
+
+
+def _commit_pose(board, container_idx: int, profile, orientation, box, plan: list, planned: list, items: list):
+    model = board.model(container_idx)
+    cand = _Pose(box, orientation, model.z_floor)
+    placement = _placement(cand, 1, profile, container_idx, model)
+    placement.step = len(planned) + 1
+    board.apply(placement)
+    planned.append(profile.index)
+    items.remove(profile)
+    plan.append({"step": len(planned), "index": profile.index, "container_idx": int(container_idx),
+                 "orientation": int(orientation.index),
+                 "center": [float(v) for v in box.center], "size": [float(v) for v in box.size],
+                 "bottom": float(box.minimum[2]), "on_floor": bool(float(box.minimum[2]) <= model.z_floor + 1e-6),
+                 "archetype": ARCHETYPE})
+
+
+def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
+                       planned: list, deadline: float, log=None, mode: str = "stand", max_rows: int = 2,
+                       y_top: float | None = None, y_bottom: float | None = None) -> float | None:
+    """The typed-standing gallery: ``items`` (consumed as placed) in up to
+    ``max_rows`` rows from ``y_top`` (default: the back wall) towards the
+    opening, each row left to right.  ``stand``: every box on its smallest
+    face, its top under ``plan_typed_standing_max_top``.  ``tower``: the
+    soft boxes flat, every row's floor laid first (the soft floor share the
+    support rule asks), then towers of the same class on each base while
+    the supporting top stays under the soft structure cap; the priority
+    boxes stand.  A row's depth is the one that holds the most items per
+    metre of depth; the priority cargo is taken first.  Returns the y of
+    the gallery's front edge (None when nothing was placed)."""
+    model = board.model(container_idx)
+    rect = model.floor_rect
+    gap = config.settled_clearance + config.anchor_slack
+    slack = config.anchor_slack
+    wall = config.inclusion_clearance + slack
+    x_right = rect.x_max - slack
+    y_front = rect.y_min + slack if y_bottom is None else max(rect.y_min + slack, float(y_bottom))
+    y_back = rect.y_max - slack if y_top is None else min(rect.y_max - slack, float(y_top))
+    x_left = max(model.x_limit_at_height(model.z_floor) + wall, rect.x_min)
+    max_top = float(getattr(config, "plan_typed_standing_max_top", 0.7))
+    stand_cap = model.z_floor + max_top
+    step = 0.02
+    edge = None
+    bases: list = []   # (box, orientation, class key) of every floor slot
+    refusals: dict = {}
+
+    def poses(p):
+        return _gallery_poses(p, mode, max_top)
+
+    def row_count(depth: float) -> int:
+        pool = list(items)
+        cursor, n = x_left, 0
+        while pool:
+            width = x_right - cursor
+            fit = [(o.dx, k, o) for k, p in enumerate(pool) for o in poses(p)
+                   if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9]
+            if not fit:
+                break
+            dx, k, o = min(fit, key=lambda t: t[:2])
+            p = pool.pop(k)
+            key = _class_key(p)
+            same = [q for q in pool if _class_key(q) == key][:_tower_height(p, o, mode) - 1]
+            for q in same:
+                pool.remove(q)
+            cursor += dx + gap
+            n += 1 + len(same)
+        return n
+
+    def attempt(profile, o, x: float, y: float, z_cap):
+        box, why = _try_pose(board, container_idx, profile, o, x, y, config, z_cap)
+        if box is None:
+            refusals[why] = refusals.get(why, 0) + 1
+        return box
+
+    def slide(profile, o, x_cursor: float, y_line: float):
+        y = y_line - o.dy / 2.0
+        if y - o.dy / 2.0 < y_front - 1e-9:
+            return None
+        x = x_cursor + o.dx / 2.0
+        cap = None if (mode == "tower" and profile.is_soft) else stand_cap
+        while x + o.dx / 2.0 <= x_right + 1e-9:
+            if time.perf_counter() >= deadline:
+                return None
+            box = attempt(profile, o, x, y, cap)
+            if box is not None:
+                return box
+            x += step
+        return None
+
+    def fill(y_line: float, depth: float) -> int:
+        cursor, n = x_left, 0
+        while items and time.perf_counter() < deadline:
+            width = x_right - cursor
+            choices = [(not p.is_prioritized, abs(o.dy - depth) > 1e-6, o.dx, k, o, p)
+                       for k, p in enumerate(items) for o in poses(p)
+                       if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9]
+            if not choices:
+                break
+            choices.sort(key=lambda t: t[:4])
+            box = None
+            for _p, _e, _w, _k, o, p in choices[:8]:
+                box = slide(p, o, cursor, y_line)
+                if box is not None:
+                    _commit_pose(board, container_idx, p, o, box, plan, planned, items)
+                    bases.append((box, o, _class_key(p), p))
+                    break
+            if box is None:
+                break
+            n += 1
+            cursor = float(box.maximum[0]) + gap
+        return n
+
+    for _row in range(max(0, int(max_rows))):
+        if not items or time.perf_counter() >= deadline:
+            break
+        depths = sorted({round(o.dy, 4) for p in items for o in poses(p)})
+        ranked = []
+        for d in depths:
+            if y_back - d < y_front - 1e-9:
+                continue
+            n = row_count(d)
+            if n:
+                ranked.append((-n / (d + gap), -n, d))
+        if not ranked:
+            break
+        ranked.sort()
+        depth = ranked[0][2]
+        placed = fill(y_back, depth)
+        if log:
+            log(f"  [typed] container {container_idx} row at y {y_back:+.2f} depth {depth:.2f}: {placed} on the floor, "
+                f"{len(items)} gallery items left")
+        if not placed:
+            break
+        edge = y_back - depth
+        y_back = edge - gap
+    if mode == "tower":
+        # the towers: each soft base takes boxes of its own class on top,
+        # a layer over all bases at a time
+        tops = {id(b): b for b, _o, _k, _p in bases}
+        for _layer in range(5):
+            stacked = 0
+            for n, (box, o, key, p0) in enumerate(bases):
+                if not p0.is_soft or time.perf_counter() >= deadline:
+                    continue
+                top = tops[id(box)]
+                if _layer + 1 >= _tower_height(p0, o, mode):
+                    continue
+                same = [q for q in items if _class_key(q) == key]
+                if not same:
+                    continue
+                q = same[0]
+                oq = next((oo for oo in q.orientations if abs(oo.dx - o.dx) < 1e-9 and abs(oo.dy - o.dy) < 1e-9
+                           and abs(oo.dz - o.dz) < 1e-9), None)
+                if oq is None:
+                    continue
+                new = attempt(q, oq, float(top.center[0]), float(top.center[1]), None)
+                if new is None:
+                    continue
+                _commit_pose(board, container_idx, q, oq, new, plan, planned, items)
+                tops[id(box)] = new
+                stacked += 1
+            if log:
+                log(f"  [typed] container {container_idx} tower layer {_layer + 2}: {stacked} placed, {len(items)} left")
+            if not stacked:
+                break
+    if log and refusals:
+        log(f"  [typed] container {container_idx} gallery refusals: " + ", ".join(
+            f"{k} {v}" for k, v in sorted(refusals.items(), key=lambda kv: -kv[1])))
+    return edge
+
+
+def _least_footprint_key(c, m):
+    """Deepest first (by the decimetre, so nothing placed later is carried
+    over it), then the smallest footprint (the box on its smallest face),
+    then the lowest, then the leftmost."""
+    return (-round(float(c.box.center[1]), 1), round(float(c.dims[0]) * float(c.dims[1]), 3), round(c.bottom, 2),
+            round(float(c.box.center[0]), 2))
+
+
+def _plan_tail(agent, board, profiles: dict, by_index: dict, order: list, plan: list, planned: list,
+               deadline: float, log=None, least_footprint: bool = False) -> list:
+    """The greedy pose search of ``_plan_once`` over what the rows left
+    (``order``), deepest first then lowest (``least_footprint``: then the
+    smallest footprint); returns the unplanned."""
+    from wedge_rl.stack import stack_candidates
+
+    config = agent.config
+    key = _least_footprint_key if least_footprint else _key("walls", 0.22)
+    left: list[int] = []
+    longest = 0.0
+    for n, index in enumerate(order):
+        now = time.perf_counter()
+        if now + longest >= deadline:
+            left.extend(order[n:])
+            break
+        t0 = now
+        profile = profiles[index]
+        item = by_index[index]
+        chosen = None
+        for container_idx in layer1.routing_order(profile, board, config):
+            model = board.model(container_idx)
+            container = board.container(container_idx)
+            reserve = agent._soft_headroom_reserve(board.containers, container_idx) if not profile.is_soft else 0.0
+            z_top = model.z_ceiling - reserve if reserve > 0 else None
+            cands = stack_candidates(model, container, config, profile, max_candidates=10 ** 6,
+                                     mass=float(item.get("mass", 0.0)), z_top=z_top)
+            if cands:
+                best = min(cands, key=lambda c: key(c, model))
+                chosen = (container_idx, model, best, len(cands))
+                break
+        longest = max(longest, time.perf_counter() - t0)
+        if chosen is None:
+            left.append(index)
+            continue
+        container_idx, model, cand, count = chosen
+        placement = _placement(cand, count, profile, container_idx, model)
+        placement.step = len(planned) + 1
+        board.apply(placement)
+        planned.append(index)
+        plan.append({"step": len(planned), "index": index, "container_idx": int(container_idx),
+                     "orientation": int(cand.orientation),
+                     "center": [float(v) for v in cand.box.center], "size": [float(v) for v in cand.box.size],
+                     "bottom": float(cand.bottom), "on_floor": bool(cand.on_floor), "archetype": ARCHETYPE})
+    return left
+
+
+def _plan_typed_once(agent, item_list: list[dict], deadline: float, priority: str, gate: int, at: str = "back",
+                     mode: str = "stand", rows: int = 2, log=None,
+                     with_priority: bool | None = None) -> tuple[list[int], list[dict]]:
+    """One typed-standing plan: per normal container, the count frame's
+    soft and priority cargo in the gallery (``pack_typed_gallery``) against
+    the back wall (``at`` ``back``: braced by the wall behind and the first
+    hard row in front) or at the opening (``front``: the hard rows first,
+    the gallery in front of them, open on its front side), the hard rows in
+    the rest of the floor, then the soft cargo left on the hard rows and
+    the greedy pose search over what remains.  The priority container
+    (if any) is planned as ``_plan_once`` plans it."""
+    config = agent.config
+    containers = copy.deepcopy(agent.board.containers)
+    for container in containers:
+        container.setdefault("packed_items", [])
+    board = layer1.Board(containers, config)
+    by_index = {int(item["index"]): item for item in item_list}
+    profiles = {p.index: p for p in (cls.classify_item(int(i["index"]), i, config) for i in item_list)}
+    has_priority = any(m.is_prioritized for m in board.models)
+    order = planning_order(list(profiles.values()), config, has_priority, priority)
+    frame = count_frame(list(profiles.values()), gate)
+    if with_priority is None:
+        with_priority = bool(getattr(config, "plan_typed_standing_priority", True))
+    planned: list[int] = []
+    plan: list[dict] = []
+    remaining = [profiles[i] for i in order]
+    priority_idx = [i for i, m in enumerate(board.models) if m.is_prioritized]
+    normal_idx = [i for i, m in enumerate(board.models) if not m.is_prioritized] or list(range(len(board.models)))
+    priority_lines: dict[int, list] = {}
+    for ci in priority_idx:
+        items = [p for p in remaining if p.is_prioritized]
+        priority_lines[ci] = pack_rows(agent, board, ci, items, config, plan, planned, deadline, log,
+                                       deep_first=bool(getattr(config, "plan_priority_deep_first", False)))
+        remaining = [p for p in remaining if p.index not in set(planned)]
+    gallery = [p for p in remaining if p.index in frame
+               and (p.is_soft or (with_priority and p.is_prioritized and not priority_idx))]
+    # the priority cargo first (nothing but priority may rest on it, so it
+    # is worth the most standing), then the smallest standing footprint
+    gallery.sort(key=lambda p: (not p.is_prioritized,
+                                min((o.dx * o.dy for o in _gallery_poses(p, mode, 10.0)), default=9.0), p.index))
+    share = int(math.ceil(len(gallery) / max(1, len(normal_idx))))
+    gap = config.settled_clearance + config.anchor_slack
+    for ci in normal_idx:
+        done = set(planned)
+        g = [p for p in gallery if p.index not in done][:share]
+        items = [p for p in remaining if p.index not in done and not (p.is_prioritized and priority_idx)]
+        g_set = {p.index for p in g}
+        hard = [p for p in items if not p.is_soft and p.index not in g_set]
+        if at == "top":
+            # no floor gallery: the hard rows over the whole floor, then the
+            # gallery's items at their least-footprint legal pose anywhere
+            # (standing on the hard rows' tops, where the flat soft rows
+            # find no room)
+            lines = pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log)
+            _plan_tail(agent, board, profiles, by_index, [p.index for p in g], plan, planned, deadline, log,
+                       least_footprint=True)
+        elif at == "front":
+            # the gallery's depth from a scratch plan at the back wall, the
+            # hard rows behind it, then the gallery in front of them
+            model = board.model(ci)
+            scratch = layer1.Board(copy.deepcopy(board.containers), config)
+            edge = pack_typed_gallery(agent, scratch, ci, list(g), config, [], [], deadline, None, mode, rows)
+            y_line = None
+            if edge is not None:
+                depth = (model.floor_rect.y_max - config.anchor_slack) - edge
+                y_line = model.floor_rect.y_min + config.anchor_slack + depth
+            lines = pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log,
+                              y_bottom=None if y_line is None else y_line + gap)
+            if y_line is not None:
+                pack_typed_gallery(agent, board, ci, g, config, plan, planned, deadline, log, mode, rows, y_top=y_line)
+        else:
+            edge = pack_typed_gallery(agent, board, ci, g, config, plan, planned, deadline, log, mode, rows)
+            lines = pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log,
+                              y_top=None if edge is None else edge - gap)
+        done = set(planned)
+        soft = [p for p in items if p.is_soft and p.index not in done]
+        soft_lines = None if getattr(config, "plan_soft_own_rows", False) else lines
+        pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log, row_lines=soft_lines)
+        remaining = [p for p in remaining if p.index not in set(planned)]
+    if priority_idx and getattr(config, "plan_normal_in_priority_container", False):
+        for ci in priority_idx:
+            hard = [p for p in remaining if not p.is_soft and not p.is_prioritized]
+            pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, row_lines=priority_lines.get(ci))
+            remaining = [p for p in remaining if p.index not in set(planned)]
+    left = _plan_tail(agent, board, profiles, by_index, [p.index for p in remaining], plan, planned, deadline, log)
+    return planned + left, plan
+
+
+def plan_typed_standing(agent, item_list: list[dict], deadline: float, base, priority: str, log=None):
+    """config.plan_typed_standing: when the ordinary plan (``base``, an
+    entry ``((score, count), order, plan)``) holds fewer than the count
+    threshold plus ``plan_value_margin`` items, the typed-standing plans of
+    ``plan_typed_standing_variants`` ("<at>-<mode>-<rows>[-soft|-prio]
+    [-noreserve]", e.g. "back-stand-2") are planned while the budget lasts, and the plan
+    that holds the count, then scores the highest, is returned (``base``
+    when none beats it; ``plan_typed_standing_force``: the best typed plan
+    whatever the base holds)."""
+    config = agent.config
+    try:
+        threshold = agent._count_threshold()
+    except Exception:
+        threshold = None
+    if threshold is None or base is None:
+        return base
+    gate = int(threshold) + int(getattr(config, "plan_value_margin", 2))
+    force = bool(getattr(config, "plan_typed_standing_force", False))
+    if len(base[2]) >= gate and not force:
+        return base
+    import re
+
+    scorer = getattr(agent, "plan_score", None)
+    specs = [s for s in re.split(r"[,+|;]", str(getattr(config, "plan_typed_standing_variants", "") or "")) if s]
+
+    def rank(entry):
+        return (len(entry[2]) >= gate, entry[0])
+
+    best, longest = (None if force else base), 0.0
+    for spec in specs:
+        parts = spec.split("-")
+        at = parts[0] if parts and parts[0] in ("back", "front", "top") else "back"
+        mode = parts[1] if len(parts) > 1 and parts[1] in ("stand", "tower") else "stand"
+        rows = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 2
+        tokens = set(parts[3:])
+        with_priority = True if "prio" in tokens else (False if "soft" in tokens else None)
+        t0 = time.perf_counter()
+        if t0 + 1.2 * longest >= deadline:
+            break
+        if "noreserve" in tokens:
+            # the hard rows to the ceiling: the gallery holds the soft cargo
+            agent.config = dataclasses.replace(config, reserve_headroom_for_soft=False)
+        try:
+            order, plan = _plan_typed_once(agent, item_list, deadline, priority, gate, at, mode, rows, log,
+                                           with_priority=with_priority)
+        finally:
+            agent.config = config
+        longest = max(longest, time.perf_counter() - t0)
+        if time.perf_counter() >= deadline:
+            # cut short: not a plan to play
+            break
+        volume = sum(e["size"][0] * e["size"][1] * e["size"][2] for e in plan)
+        score = scorer(plan) if scorer is not None else volume
+        entry = ((score, len(plan)), order, plan)
+        if log:
+            by_index = {int(i["index"]): i for i in item_list}
+            n_soft = sum(1 for e in plan if by_index[int(e["index"])].get("is_soft"))
+            n_prio = sum(1 for e in plan if by_index[int(e["index"])].get("is_prioritized"))
+            log(f"  [typed] {spec}: {len(plan)} planned (soft {n_soft}, priority {n_prio}) against the gate {gate} "
+                f"(base {len(base[2])}), {volume:.3f} m^3, score {score:.3f}")
+        if best is None or rank(entry) > rank(best):
+            best = entry
+    return best if best is not None else base
