@@ -466,16 +466,21 @@ episode:
 | b-s0056 (76) | 47 | 66 | 66 | 66 | 66 |
 | b-s0081 (62) | 36 | 44 | 49 | 44 | 49 |
 | b-s0081 (62) | 45 | 46 | 46 | 46 | 46 |
-| b-s0030 (79) | 53 | 65 | 65 | 65 | 62 |
-| b-s0073 (105) | 78 | 87 | 87 | 87 | 86 |
+| b-s0030 (79) | 53 | 62 | 65 | 65 | 65 |
+| b-s0073 (105) | 78 | 86 | 87 | 87 | 87 |
 | b-s0075 (109) | 58 | 78 | 78 | 78 | 78 |
 
-- **`seal_check_all_surfaces` moves 4 of 9 boards:** +4 (b-s0055), +5
-  (b-s0081 t36) and +1 (b-s0007) up, and -4 (b-s0009) down.  It crosses
-  nowhere.
-- **`seal_ranks_terraces` alone changes nothing,** apart from -1 on b-s0009.
-- The cheap fix prices a real effect.  The veto with its fallback buys a few
-  items on some boards, costs some on others, and rescues none of these.
+- **`seal_check_all_surfaces` raises 6 of 9 boards and crosses on none:**
+  - b-s0081 t36 +5, b-s0055 +4, b-s0030 +3, b-s0007 +1, b-s0073 +1;
+  - b-s0009 -4, the one board whose baseline crosses;
+  - b-s0056, b-s0075 and b-s0081 t45 unchanged.
+- **`seal_ranks_terraces` alone:** b-s0030 +3, b-s0073 +1, b-s0009 -1, the
+  rest unchanged.
+- **Noise.** The baselines here are single runs on most boards, and the
+  noise elsewhere is ±1-2.  Only the +3 to +5 moves stand out.
+- **Reading.** The cheap fix prices a real effect.  The veto keeps its
+  fallback, buys a few items on long boards, costs four on b-s0009, and
+  rescues none of these.
 
 ### The shade veto handing the seal to a rescue stage (C)
 
