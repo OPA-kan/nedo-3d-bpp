@@ -375,11 +375,11 @@ def det_arm(arm):
 # ---------------------------------------------------------------- alternatives
 def alt_action(agent, decision, cand, archetype=None, pool_index=0):
     """The action for survivor ``cand`` of ``decision`` as the agent would emit it."""
-    profile = decision.placement.profile
+    profile = getattr(cand, "profile", None) or decision.placement.profile
     ci = int(cand.container_idx)
     pl = layer1.build_placement(
         cand,
-        archetype or decision.placement.archetype,
+        archetype or (decision.placement.archetype if decision is not None else "max-footprint"),
         agent.board,
         ci,
         profile,
@@ -390,5 +390,5 @@ def alt_action(agent, decision, cand, archetype=None, pool_index=0):
     a["_placement"] = pl
     a["_pos_local"] = [round(float(v), 4) for v in pl.box.center]
     a["_size"] = [round(float(v), 4) for v in pl.box.size]
-    a["_arch"] = "alt:" + (archetype or decision.placement.archetype)
+    a["_arch"] = "alt:" + (archetype or "?")
     return a

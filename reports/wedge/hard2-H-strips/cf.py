@@ -137,9 +137,68 @@ def ladder_alternatives(agent, obs, pool_index, own_center=None, n_rung=2, n_oth
     return out, dec
 
 
+def surface_pool(agent, obs, pool_index):
+    """Every analytically legal pose of the item (all orientations, the floor,
+    the shelf and packed tops, every container; the ladder's generator and
+    validator, no vetoes) with the usable surface it leaves: the area where a
+    0.40 x 0.55 x 0.24 window still has level support and headroom over every
+    level, summed over the containers (the taxonomy's usable-surface measure)."""
+    import strips as S
+    from rule_alpha._reuse import packed_aabbs_local
+    item = obs["pool_list"][pool_index]
+    profile = cls.classify_item(int(item["index"]), item, agent.config)
+    board = agent.board
+    base = []
+    for ci, c in enumerate(obs["container_list"]):
+        st = S.CState(board.model(ci))
+        for box, soft, _p in packed_aabbs_local(c):
+            st.boxes.append((box, bool(soft)))
+        base.append(st)
+    base_u = [float(st.load().usable(*S.WIN, None, 1).sum()) * S.CELL ** 2 for st in base]
+    out = []
+    for ci in range(len(obs["container_list"])):
+        for orient in profile.orientations:
+            for kinds in (("floor",), ("item",), ("shelf",)):
+                try:
+                    cands = layer1.generate_candidates(board, profile, ci, orient, kinds, agent.config)
+                except Exception:  # noqa: BLE001
+                    cands = []
+                for c in cands:
+                    st = base[ci]
+                    st.boxes.append((c.box, bool(profile.is_soft)))
+                    u = float(st.load().usable(*S.WIN, None, 1).sum()) * S.CELL ** 2
+                    st.boxes.pop()
+                    out.append((sum(base_u) - base_u[ci] + u, c))
+    out.sort(key=lambda t: -t[0])
+    return out, sum(base_u)
+
+
+def surface_alternatives(agent, obs, pool_index, own_center=None, n=2):
+    pool, before = surface_pool(agent, obs, pool_index)
+    seen, alts = [], []
+    for u, c in pool:
+        if own_center is not None and np.allclose(c.box.center, own_center, atol=0.02):
+            continue
+        k = pose_key(c)
+        if k in seen:
+            continue
+        # distinct places, not the same pose 2 cm apart
+        if any(abs(k[0] - q[0]) <= 3 and abs(k[1] - q[1]) <= 3 and k[3] == q[3] for q in seen):
+            continue
+        seen.append(k)
+        alts.append((f"maxsurf{len(alts) + 1}", u, c))
+        if len(alts) >= n:
+            break
+    return alts, before
+
+
 def find_candidate(agent, obs, pool_index, center, size):
     dec, rung_lists, vetoed = candidates(agent, obs, pool_index)
     if dec is None:
+        pool, _b = surface_pool(agent, obs, pool_index)
+        for _u, c in pool:
+            if np.allclose(c.box.center, center, atol=0.006) and np.allclose(c.box.size, size, atol=0.006):
+                return None, ("max-footprint", c)
         return None, None
     for name, ordered in rung_lists:
         for c in ordered:
@@ -149,6 +208,10 @@ def find_candidate(agent, obs, pool_index, center, size):
         if np.allclose(c.box.center, center, atol=0.006) and np.allclose(c.box.size, size, atol=0.006):
             if not c.archetypes:
                 c.archetypes = layer1.eligible_archetypes(c, agent.config)
+            return dec, ("max-footprint", c)
+    pool, _b = surface_pool(agent, obs, pool_index)
+    for _u, c in pool:
+        if np.allclose(c.box.center, center, atol=0.006) and np.allclose(c.box.size, size, atol=0.006):
             return dec, ("max-footprint", c)
     return dec, None
 
@@ -206,6 +269,7 @@ def main():
     ap.add_argument("--rung", type=int, default=2)
     ap.add_argument("--other", type=int, default=2)
     ap.add_argument("--vetoed", type=int, default=3)
+    ap.add_argument("--maxsurf", type=int, default=2)
     ap.add_argument(
         "--tf", action="store_true", help="continue with the time-faithful arm instead"
     )
@@ -258,6 +322,9 @@ def main():
             listing["alts"] = [
                 (lab, rung, rnd(c.box.center), rnd(c.box.size)) for lab, rung, c in alts
             ]
+            salts, before = surface_alternatives(agent, obs, pi, own, args.maxsurf)
+            listing["alts"] += [(lab, "max-footprint", rnd(c.box.center), rnd(c.box.size)) for lab, _u, c in salts]
+            listing["surface"] = {"before": round(before, 3), "alts": [(lab, round(u, 3)) for lab, u, _c in salts]}
             listing["pi"] = pi
             listing["agent"] = (
                 None
@@ -275,6 +342,7 @@ def main():
             B["null"] = summarise(res, k)
             B["_alts"] = listing.get("alts", [])
             B["_pi"] = listing.get("pi")
+            B["_surface"] = listing.get("surface")
             save()
             print(
                 f"[{args.scene}] k={k} null placed {res['placed']} margin {res['margin']} ({res['seconds']}s) alts {len(B['_alts'])}",

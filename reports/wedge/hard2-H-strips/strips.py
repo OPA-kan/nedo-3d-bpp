@@ -55,6 +55,9 @@ def cls_of(item):
         (0.45, 0.3, 0.2): "E",
         (0.65, 0.35, 0.23): "F",
         (0.6, 0.3, 0.25): "G",
+        (0.8, 0.6, 0.5): "H",
+        (0.35, 0.25, 0.15): "I",
+        (0.6, 0.4, 0.4): "J",
     }.get(tuple(round(d, 2) for d in dims), "?")
     if item["is_soft"] and item["is_prioritized"]:
         return "softprio-" + tag
