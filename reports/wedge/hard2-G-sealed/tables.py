@@ -515,6 +515,7 @@ def sec_cf_summary(md, data):
         return
     res = [json.loads(l) for l in open(path) if l.strip()]
     res = [r for r in res if 'placed' in r]
+    res = [r for r in res if not r.get('arm') and not r.get('arm_extra') and not r.get('soft_equal') and r['mode'] != 'first_item']
     by = collections.defaultdict(lambda: collections.defaultdict(list))
     for r in res:
         by[r['scene']][r['t']].append(r)

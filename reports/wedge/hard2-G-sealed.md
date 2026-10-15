@@ -350,11 +350,25 @@ brackets; controls are the ladder ranks 2-3 and the 2nd-3rd distinct poses):
 | b-s0064 (30) | 25-26 | t24: 26, 26 / 26 (4) / 26 / 26 / 26 | t21: 26 / 26 (4) / 26 | no.  Nothing moves the count |
 
 **Persistent protection.** `noseal2` held from the sealing step until the
-patch is filled gives c-s0059 47 (t8), c-s0013 7 and 10 (t5, t2; a control
-at t2 also gives 10), b-s0007 20 (t15) and b-s0064 26 (t24, t21).  The
-remaining persistent branches are in `tables.md`.  None of them crosses.
-Keeping the path clear does not rescue a board if nothing is carried
-through it.
+patch is filled:
+
+- **Crosses on two boards, each time with flat controls:**
+  - b-s0026 from t4: 16, at the threshold.  The baseline is 14/14 and the
+    controls 14-15.
+  - c-s0027 from t18, protecting patch 3: 30.  The baseline is 26/26 and the
+    controls 26-27.  Protecting patch 0 instead gives 26.
+- **Crosses on boards where the controls cross too:**
+  - c-s0027 t6 40, t12 38.
+  - b-s0007 t10 21.
+- **Does not cross:**
+  - c-s0059 47 (t16) and 47 (t8).
+  - c-s0013 7, 10 and 7 (t5, t2, t0); a control at t2 also gives 10.
+  - b-s0007 20 (t15, t14), 21 (t12).
+  - b-s0077 20 (t3) and 19 (t1).
+  - b-s0064 26 (t24, t21).
+
+Sparing a patch for the rest of the episode is weaker than filling it, but it
+is not empty: it can be worth one or two items.
 
 What the branches say:
 
@@ -374,7 +388,8 @@ What the branches say:
 
   Barring the seal for one decision (`noseal2`) gives +0 to +2 and crosses
   nowhere on its own.  The agent's next pose seals the patch, or the patch
-  stays empty and unreachable later.
+  stays empty and unreachable later.  Barring it for the rest of the episode
+  reaches the threshold on b-s0026 (16) and c-s0027 (30, patch 3) only.
 - **Would filling the sealed patch first have crossed?** Yes on c-s0027
   (+5), b-s0077 (+2) and b-s0026 (+4 at t2, +0 at t4).  No on c-s0013,
   b-s0064 and c-s0059 (the slot).  b-s0007 and b-s0009 cannot be read: their
@@ -384,6 +399,111 @@ What the branches say:
   move has nothing to do with the patch.  Single-branch gains early in an
   episode are not evidence about the patch unless the controls stay flat, as
   they do on b-s0077 and c-s0027 t18.
+
+### Choosing among the pool on B (cause 6)
+
+At each B near-miss sealing step, and at the earlier steps where filling
+rescued, every pool item was tried first.  The `first_item` mode moves it to
+the front of `pool_order` for that one decision.  If it gets no pose, the
+agent goes on as usual.  Each branch was rolled out to the end
+(`tables.md`, "Choosing among the pool").
+
+| scene (thr) | step | agent | items tried | items that cross | best | which items cross |
+|---|---|---:|---:|---:|---:|---|
+| b-s0007 (21) | t12 (seal) | 17, 17 | 10 | 6 | 21 | every soft item that got a pose (soft-edge, 0.65 x 0.35 x 0.23 flat on the floor where the hard 0.65 x 0.25 x 0.45 stood) |
+| b-s0007 (21) | t15 (seal) | 17, 17 | 10 | 0 | 18 | none: the soft items get no pose, and the terrace item is placed regardless |
+| b-s0077 (21) | t3 (seal) | 20, 20 | 10 | 4 | 22 | soft 3 and 7 (22), soft 1 (21), priority 9 (21) |
+| b-s0077 (21) | t1 | 20 | 10 | 1 | 21 | soft 1 |
+| b-s0026 (16) | t2 | 14 | 10 | 3 | 17 | priority-hard 4 (17), soft 1 and soft-priority 6 (16) |
+| b-s0026 (16) | t4 (seal) | 14, 14 | 10 | 0 | 15 | none; 9 of 10 give 15 |
+| b-s0064 (30) | t24 (seal) | 26, 26 | 7 | 0 | 26 | none |
+| b-s0009 (53) | t20 (seal) | 53, 53 | 11 | 11 | 54 | all (the baseline crosses too) |
+
+- **The pool choice rescues three of the five readable B near misses**
+  (b-s0007, b-s0077, b-s0026).  At b-s0077 t3 the 8 controls and the 3
+  baseline repeats all stay at 20, while two pool choices give 22.
+- **The rescuing choice is almost always a soft box placed early.**
+  - The agent's fixed order (hard, then priority, then soft, smallest
+    footprint first) would have reached that box only after the board
+    closed.
+  - At b-s0007 t12 the soft box goes on the floor at the door like the hard
+    box it replaces, but 0.23 m tall instead of 0.45.  So the rescue is not
+    always "keep the patch reachable".  It can be "put the low box there".
+- **The step matters.** At the second sealing step of b-s0007 (t15) and at
+  b-s0026 t4 no pool choice crosses.  The choice has to be made one to three
+  placements before the seal, while the soft box still has a pose.
+
+### The soft deferral on B
+
+For the oldest soft box still in the pool at the end of each B G board,
+`softtime.py` records every prefix from the step it entered the pool (exact
+sweep; soft support up to 0.7 m allowed).
+
+- **12 of 13 boards had a reachable level spot for it.** In the near misses
+  it had one from the moment it entered the pool:
+  - b-s0007 prefixes 0-12, b-s0077 0-10, b-s0026 0-8, b-s0055 0-12,
+    b-s0004 0-11, b-s0064 10-20;
+  - b-s0009 0-49, b-s0075 0-58, b-s0086 29-63.
+- **The agent kept trying hard items first** until those spots were sealed.
+  The last reachable spot disappeared 6-8 placements before the end on the
+  short boards.
+- **Exception:** b-s0056's last soft box never had one.
+- **Interleaving from the start.** The whole episode was re-run with soft
+  boxes interleaved: `soft_first_when_free`, and a pool order with soft in
+  the hard bucket (`soft_equal`).  PLACEHOLDER-SOFT
+
+### Pricing the seal on every surface (cause 3)
+
+The record arm, with `seal_check_all_surfaces` and/or `seal_ranks_terraces`
+appended from the B terrace-extension sealing step to the end of the
+episode:
+
+| scene (thr) | t | agent | seal_check_all_surfaces | seal_ranks_terraces | both |
+|---|---:|---:|---:|---:|---:|
+| b-s0007 (21) | 15 | 17, 17 | 18 | 18 | 18 |
+| b-s0009 (53) | 20 | 53, 53 | 49 | 52 | 49 |
+| b-s0055 (30) | 10 | 18 | 22 | 18 | 22 |
+| b-s0056 (76) | 47 | 66 | 66 | 66 | 66 |
+| b-s0081 (62) | 36 | 44 | 49 | 44 | 49 |
+| b-s0081 (62) | 45 | 46 | 46 | 46 | 46 |
+| b-s0030 (79) | 53 | 65 | 65 | 65 | 62 |
+| b-s0073 (105) | 78 | 87 | 87 | 87 | 86 |
+| b-s0075 (109) | 58 | 78 | 78 | 78 | 78 |
+
+- **`seal_check_all_surfaces` moves 4 of 9 boards:** +4 (b-s0055), +5
+  (b-s0081 t36) and +1 (b-s0007) up, and -4 (b-s0009) down.  It crosses
+  nowhere.
+- **`seal_ranks_terraces` alone changes nothing,** apart from -1 on b-s0009.
+- The cheap fix prices a real effect.  The veto with its fallback buys a few
+  items on some boards, costs some on others, and rescues none of these.
+
+### The shade veto handing the seal to a rescue stage (C)
+
+On C, `shadepath.py` takes every G sealing step.  It finds the poses the
+re-run's shadow refused, recomputes their `shade_area`, and checks whether a
+rescue stage then placed:
+
+- **3 of 15 C sealing placements came through this path:**
+  - c-s0027 t18: hole-fill 0.46 and stack-rl 0.37 refused, then the physics
+    resort.
+  - c-s0027 t19: terrace-extension 0.49 and stack-rl 0.27 refused, then the
+    physics resort in the record (the grid rescue in the re-run).
+  - c-s0087 t13: terrace-extension 0.21 and stack-rl 0.25 refused, then the
+    physics resort.
+- **Two more come close:**
+  - c-s0060 t65: the ladder's terrace pose (0.86) and stack-rl (0.27) were
+    refused; the record's pose came from the grid rescue.
+  - c-s0063 t14: the ladder's pocket-soft pose (0.38) was refused and the
+    stack option placed.
+
+  With these, the ladder's own pose was shade-vetoed at 5 of 15 C sealing
+  steps.
+- **6 of the 15 C sealing placements were made by a rescue stage** in the
+  record.
+- On c-s0027 t18 the counterfactual shows what the path cost: a shade-0.0
+  pose on the patch existed, and placing it gives 34 against 26.
+
+PLACEHOLDER-SHIP
 
 PLACEHOLDER-OTHERS
 
