@@ -12,27 +12,44 @@ such an episode (``reports/wedge/stability-lattice.md``, the findings
 section "Why Task A episodes fall under the count").
 
 When the planner's best plan holds fewer than the count threshold plus
-``plan_value_margin`` items, this module plans the manifest again around a
-count frame: the threshold plus the margin smallest items across classes
-(the priority cargo always in it, in the priority container first as the
-row planner does):
+``plan_value_margin`` items, this module plans the manifest again, one plan
+per token of ``plan_count_secure_blocks``:
 
-1. the frame's soft cargo as a block on a strip of the floor (along the
-   left or right wall, or at the back), in layers of rows -- soft on soft
-   under the configured soft-structure cap -- so it covers the floor the
-   hard rows do not need (hard cargo may not rest on soft cargo);
-2. the frame's hard cargo in rows on the rest of the floor (the normal
-   hard cargo, then the priority hard cargo on top of it where no priority
-   container takes it);
-3. only then the rest of the manifest for fill: the bigger hard cargo on
-   the hard rows, the rest of the soft cargo on whatever top takes it, and
-   the planner's greedy pose search for what the rows leave.
+* ``plain``: the row planner itself with the count-secured overrides
+  (``plan_count_secure_standing_rows``: the hard cargo the flat rows leave
+  in standing rows of their own, the soft cargo on its own rows);
+* ``left`` / ``right`` / ``back`` / ``top``: a count frame -- the
+  threshold plus the margin smallest items across classes, the priority
+  cargo always in it (in the priority container first, as the row planner
+  does) -- planned before the rest:
+
+  1. the frame's soft cargo as a block on a strip of the floor (along the
+     left or right wall, or at the back), in layers of rows -- soft on
+     soft under the configured soft-structure cap -- so it keeps off the
+     floor the hard rows need (hard cargo may not rest on soft cargo);
+     ``top``: no block, the frame's soft cargo on its own rows over the
+     frame's hard rows;
+  2. the frame's hard cargo in rows on the rest of the floor (the normal
+     hard cargo, then the priority hard cargo on top of it where no
+     priority container takes it);
+  3. only then the rest of the manifest for fill: the bigger hard cargo on
+     the hard rows, the rest of the soft cargo on whatever top takes it,
+     and the planner's greedy pose search for what the rows leave.
+
+Measured on the dense manifests (``reports/wedge/a-count-secure.md``):
+the soft block loses to the hard columns.  Soft carries soft only to the
+0.7 m cap, a top in the mid-height transport band (0.70-0.80 m) is not
+carried in, so a soft block is two layers of 0.25 m, about 11 items a
+square metre, where a hard column of the smallest boxes holds two flat
+layers, a standing layer and the soft cargo on top, 18-27; the frame plans
+hold 15-30 items against the ``plain`` plan's 26-34 on c1x50-c1x80.
 
 Every pose goes through the planner's own checks (the validator with the
 transport sweep, the cover rule, the soft support ratio), so the count a
 plan holds is the analytic replay's.  The plans are ranked first by
-whether they hold the threshold plus the margin, then by the plan score;
-the planner's ordinary plan stands whenever it holds the count.
+whether they hold the threshold plus the margin, then by the plan score
+(under the threshold, by the count); the planner's ordinary plan stands
+whenever it holds the threshold plus the margin.
 """
 
 from __future__ import annotations
