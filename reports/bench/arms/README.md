@@ -21,3 +21,7 @@ To measure a change, append `,field=value` to the ship arm's line.
   `task_a` overrides `submission/agent.py` applies in `optimize`), field for
   field (only the plan-score weights string differs, in form not value).
   Baselines: `reports/bench/ship-core-a`, `ship-hard-a`, `ship-dense-a`.
+- `arm_acount_a.txt` / `arm_acount0_a.txt`: the shipped A arm with the
+  count-secured re-plan (`plan_count_secure`) under the threshold plus 2 /
+  under the threshold itself (`reports/wedge/a-count-secure.md`). Records:
+  `reports/bench/acount-*`, `acount0-*`.
