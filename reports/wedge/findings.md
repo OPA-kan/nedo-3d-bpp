@@ -4693,3 +4693,21 @@ The spots are real. A scan of every declining board in the v50 records (two-poin
 The rescue reaches them only with time C does not have. Replaying c-c1-s0003 (margin 0) and re-asking the declining call: 4.5 s declines (grid rescue 1 try), 6.5 s declines (5 tries), 8.0 s places by the grid rescue at 7.8 s exactly the scan's bridge (bottom 0.86 m, 0.27 x 0.75 x 0.56 standing, contact 0.48, dip 0.82 m, among 10 grid poses) and the shadow world accepts it; 7.8 s is over Task C's platform limit. The other core C re-asks found nothing under 12 s (count pass at 12.8 and 17.8 s).
 
 Price and verdict: one item on about a tenth of the sample-like declining boards (fill, soft where the item is soft; about +0.02 to +0.05 total), no platform crossing (k is 19 of 19), one or two hard2 near misses. Cheap to build (slide the bridge anchors along the gap at 2 cm; or give the grid rescue its window before the ladder's 2 s and the stack option's 1.2 s in a declining call; or drop the rescue's 0.5 contact filter to the count path's 0.25), and worth doing only as an addition to a soft-surface lever. The miss taxonomy's level-patch check undercounts these boards (its "no level patch" includes them); the correction does not change its ranking.
+
+## **The bridge rescue: the low phase's rescue reserve is a Task C time lever, costs B a crossing, and the contact filter is neutral**
+
+Two flags on the declining call's rescue path (`reports/wedge/bridge-rescue.md`; records `reports/bench/bresc-*`; scripts, arms and replays under `reports/wedge/bridge-rescue/`), measured with `stack_deadline=true` added to every arm and to the concurrent baselines. `grid_rescue_min_support` lowers the grid rescue's 0.5 contact filter (the old support-ratio rule; the validator's convex hull decides stability) and changes nothing measurable: with the phase switch on, every low-phase call already takes the count path's 0.25. `low_phase_rescue_seconds` was built as "the ladder's and the stack option's time to the rescue" and redesigned after the stage timers. On Task C the low phase's ladder (one item, 0.2-0.5 s) and stack option (0.1-0.4 s) are cheap; the grid rescue was starved by the count pass's failed shadow checks (about 0.45 s each, nine in c-c1-s0003's decline). So the reserve also goes to the grid rescue out of the resort's window.
+
+The replays place c-c2p-s0001's declining call inside the budget (grid rescue, 4.8 s at 1.5 s of reserve, 2.5 s at 2.0), where the base declines even at 8 s. c-c1-s0003's bridge stays out of reach: the grid tries its ten covers in contact-share order and the bridge (0.36) is the 7th.
+
+| arm (vs concurrent base) | core C crossings | core C placed | C placing calls > 5.3 s | C 1.5x cut episodes | core B crossings | core B placed |
+|---|---|---|---|---|---|---|
+| base (v50 + stack deadline) | 48 | 37.98 | 13 | 11 (45 crossings left) | 48 | 39.35 |
+| filter 0.25 | 48 | +0.33 | 7 | 4 | 48 | +0.02 |
+| reserve 1.5 s | 48 | -0.08 | 1 | 1 (48) | **47** | +0.15 |
+| both | 48 | +0.38 | 0 | 0 (48) | **46** | +0.44 |
+
+- On C the reserve is a time lever, not an items lever. The slowest call goes 6.30 -> 5.26 s and the grid rescue's placements 5 -> 58-107 a suite, with no crossing lost. hard2 C (both flags): sample 33 -> 34, stretch 9 -> 9, placing calls over 5.3 s 95 -> 8, against a record without the stack deadline.
+- On B the reserve loses b-c2-s0002 (50 -> 41, the same in both arms). With the filter, b-c2p-s0002 (45 -> 40) goes too. The low phase covers most of a B episode, so a ladder cut from 2.7 s to 1.8 s changes the course. B's grid rescue already had its 1.5 s (`grid_rescue_pool_seconds`). hard2-b is flat within its two baselines.
+- To ship on C only, a gate was added after the runs: `low_phase_rescue_single=True` acts with a pool of one and reproduces the base on B. Proposed B/C overrides: `grid_rescue_min_support=0.25, low_phase_rescue_seconds=1.5, low_phase_rescue_single=True`. The platform refit prices no crossing to gain; what C gains is the tail of placing calls near the 8 s limit.
+- Next cheap step toward the bridges: order the grid rescue's poses by the centre of mass's margin inside the contact hull instead of the contact share.

@@ -1008,7 +1008,8 @@ class RuleAlphaAgent:
         # earlier inside the same call
         low_cut = False
         rescue_reserve = float(getattr(self.config, "low_phase_rescue_seconds", 0.0) or 0.0)
-        if rescue_reserve > 0.0 and self._phase_low:
+        if (rescue_reserve > 0.0 and self._phase_low
+                and (len(pool) <= 1 or not getattr(self.config, "low_phase_rescue_single", False))):
             low_cut = True
             stage_budget = max(budget - rescue_reserve, 0.0)
             ladder_deadline = min(ladder_deadline, started + 0.6 * stage_budget)
