@@ -2824,6 +2824,28 @@ class RuleAlphaConfig:
     gate only where the re-plan ran (the planner's plan under the
     trigger); elsewhere the shipped race (the plan score) stands."""
 
+    plan_count_secure_race_chosen: bool = False
+    """With ``plan_count_secure_choice``: the count rule decides the race
+    only where a re-plan completed and was chosen, and it hands the
+    episode to the dry-run's plan only when the planner's plan is under
+    the threshold itself (it prefers the planner's plan when that holds
+    the threshold plus ``plan_value_margin`` and the dry-run's does not).
+    The v51 form decided the race by the count wherever the base plan was
+    under the trigger, re-planned or not; a dry-run plan over the gate
+    then replaced planner plans that replay to the count (a-c1s-s0006 24
+    -> 19 placed, a-hard-s0028 62 -> 51), and v51 lost a counted A
+    episode on the platform (stability 19 -> 18 lattice steps)."""
+
+    plan_count_secure_early: bool = False
+    """The re-plan runs right after the planner's first complete plan,
+    before its other variants and layouts take the budget; the variants'
+    choice stands where it holds the trigger, else the higher-ranked of it
+    and the re-plan's pick."""
+
+    plan_count_secure_start_factor: float = 1.2
+    """A re-plan starts only when this many times the longest plan so far
+    fits in what is left of the offline budget."""
+
     plan_count_secure_extra: int = 0
     """Items added to the count frame beyond the threshold plus
     ``plan_value_margin``."""
