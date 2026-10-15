@@ -4773,3 +4773,16 @@ The Task A pipeline (the v50 arm of `adrop-core-a`) on dense single-container ma
 Where the count goes: on the 60-item seed 2 manifest the planner places the hard cargo smallest first (volume ranks 33-44, then 18-27), the soft cargo last, and 5 of the 21 soft items get in; 16 soft boxes of 45-73 L, the smallest items of the manifest, stay out while 3 items were missing for the count. The hard-A suite's 21 misses (`adrop-hard-a`) show the same shape: in 14 of 21 the unplaced soft cargo alone outnumbers the margin, and in 14 the smallest missing items would need at most 48 fill points in total (the pipeline's maximum); the soft placed share on the misses is 0-30 % (s0019 5 of 69 soft, margin -2; s0047 18 of 59, -4; s0032 2 of 27, -9; s0027 5 of 39, -10). The rest (s0020 need 0.70, s0030 0.56, s0037 big items only) are volume-bound.
 
 The platform's per-episode A quality is the best of the three tasks (cog 72-90, placement 65-82, soft 66-84 across the readings), so the A lever is the count alone: a count-secured plan for manifests the plan does not hold (the plan's items under the threshold plus `plan_value_margin`): the smallest items of every class first, the soft cargo in its own block (columns to 0.7 m, or a gallery along one wall with the hard rows elsewhere), hard rows after the count is secured, the plan judged first by its count. Measure on hard-a (27 of 48), a dense-A suite of single containers with 50-80 items, and core-a (48 of 48 to hold). Each platform A episode recovered is about 2.3 points.
+
+## **The shipped Task A form on the bench, and the dense-a suite: the count plateaus at 29 items whatever the manifest holds**
+
+The shipped A arm (`reports/bench/arms/arm_ship_a.txt`) on core-a, hard-a and the new dense-a suite (the c1 container with 50 / 60 / 70 / 80 items, 12 seeds each; records `reports/bench/ship-core-a`, `ship-hard-a`, `ship-dense-a`):
+
+| suite | crossings | placed | fill | soft placed / covered | priority placed / covered | topples |
+|---|---:|---:|---:|---|---|---:|
+| core-a | 48 of 48 | 37.5 | 36.2 | 381 / 0 | 255 / 1 | 4 |
+| hard-a | 26 of 48 | 46.8 | 35.4 | 389 / 7 | 386 / 13 | 19 |
+| dense-a | 10 of 48 | 28.1 | 41.5 | 296 / 37 | 188 / 23 | 8 |
+| dense-a by count | 50: 8 of 12 (placed 25.8, threshold 26); 60: 2 of 12 (28.7, 31); 70: 0 (28.7, 36); 80: 0 (29.2, 41) | | | | | |
+
+The placed count sits at 28-29 items from 60 items up whatever the manifest holds, at a fill of 41-43: the container is full by volume long before the count. The shipped form also places fewer than the bench's old A arm (`adrop-core-a` 39.3 and 419 soft placed against 37.5 and 381), the difference of the soft columns' floor-share gate and the headroom share the shipped A keeps. These three records are the baselines for the Task A count levers (the count-secured plan with a soft block, soft cargo as a floor under hard cargo, standing soft and priority poses), each measured on the same three suites.
