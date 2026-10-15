@@ -4749,3 +4749,15 @@ C is unaffected except that the stack deadline removes the bench's 10 s calls (t
 ## **The Task B diagnostic: 11 B episodes counted, the means are plain, N is about 23, and the uncounted episodes are in A or C**
 
 The build surrendering every Task B item at the first call scored 26.31 against v50's 56.04 (`reports/submission/official-results.md`; `reports/wedge/stability-lattice.md`, section 6). The stability drop is 10.98 lattice steps, so 11 Task B episodes were counted in v50 and 8 A or C episodes remain counted, with v50's -1.2 residual staying (the topples are in A or C). The placed fraction fell to 0.347, which no mean over counted episodes can give, so the fraction and the fill are plain means over every episode. With 11 B episodes placing a sample-like 0.60-0.65, the fraction's drop puts N at 22-24 (N = 19 would need B at 0.51 and A/C at 0.82 with a fill of 48): about 23 episodes, 12 of them A or C, 8 of those counted. **Three to five platform episodes in A or C are not counted; B is fully counted or at most one short.** Per counted B episode (N = 23) cog 77, placement 48, soft 51. The platform's policy time is a plain mean (6.75 -> 5.07 s with B's 0.7 ms calls), not the slowest call. The Task C diagnostic splits A from C.
+
+## **The shipped B form's two ablations: the sealing pass restores the bench's crossings, the headroom share does not**
+
+Against the shipped-form B baselines (`ship-core-b`, `ship-hard2-b`), the shipped B arm with the deep-first / sealing pass back on B (`rescue_order_gate=low`, records `shipseal-*`) and with the old soft headroom share (`soft_headroom_volume_share=0.75`, `shiphead-*`):
+
+| arm | core B crossings | core B placed | core B policy max | hard2 B sample / stretch | hard2 B placed (sample / stretch) | priced (continuous) |
+|---|---:|---:|---:|---|---|---:|
+| shipped B form | 47 | 38.98 | 7.41 s | 34 / 9 | 43.58 / 47.97 | - |
+| + sealing pass on B | 48 (b-c2-s0002 41 -> 50) | +0.50 | 7.08 s | 35 / 11 (s0014, s0040, s0053, s0076 in; s0048 out) | +0.62 / +1.78 | -0.17 (cog) / -0.08 |
+| + headroom share 0.75 | 47 | -0.58 | 7.33 s | 36 / 9 (s0007, s0014, s0040 in; s0021 out) | +0.27 / +0.59 | -0.04 / +0.01 |
+
+The sealing pass is what the bench's B arm had and the shipped form lacks: it accounts for the lost sample crossing and three of the four hard2 crossings, with more items and a lower slowest call. It does not pay on the continuous reading (cog -0.17 on core B), and the Task B diagnostic says every platform B episode is already counted, so a B crossing buys nothing there; v48's decision to keep it off B stands on the platform's terms, and the bench's B readings since v44 were taken on the better-crossing form. The headroom share moves nothing that survives the hard2 replicate's spread.
