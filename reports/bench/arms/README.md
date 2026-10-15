@@ -21,3 +21,9 @@ To measure a change, append `,field=value` to the ship arm's line.
   `task_a` overrides `submission/agent.py` applies in `optimize`), field for
   field (only the plan-score weights string differs, in form not value).
   Baselines: `reports/bench/ship-core-a`, `ship-hard-a`, `ship-dense-a`.
+- `arm_astand_a.txt`: the shipped A arm with the typed-standing plans under
+  the count gate (`plan_typed_standing`, `reports/wedge/a-standing.md`);
+  records `reports/bench/astand-*`. `arm_astandf_back_a.txt` /
+  `arm_astandf_front_a.txt`: the gallery forced on every manifest, braced
+  (against the back wall, the hard rows in front) and at the opening
+  (braced on one side), for the stability cost; records `astandf*-*`.

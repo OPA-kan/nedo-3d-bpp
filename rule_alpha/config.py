@@ -2509,6 +2509,55 @@ class RuleAlphaConfig:
     x 0.27 box on its side is 0.56 or 0.75 m of top-heavy stack, and the
     platform's v19 result priced height and topples above the count."""
 
+    plan_typed_standing: bool = False
+    """Task A: when the ordinary plan holds fewer than the count threshold
+    plus ``plan_value_margin`` items, the planner also plans the
+    typed-standing plans of ``plan_typed_standing_variants``: the count
+    frame (every priority item, then the smallest items of any class up
+    to the threshold plus the margin) has its soft and priority cargo
+    planned first, on the floor, standing on the smallest face in rows
+    against the back wall (``planner.pack_typed_gallery``), and the hard
+    rows take the rest of the floor; the soft left over goes on the hard
+    rows as before.  A plan that holds the count replaces the ordinary
+    one; between two that do (or two that do not), the plan score
+    decides.  On a dense manifest the hard rows end at the mid-height
+    band (0.94 m) and the soft rows on their uneven tops place 1 of 21
+    soft boxes (a-c1x60-s0002: 27 planned against the 33 asked).
+    Off: the shipped planner."""
+
+    plan_typed_standing_variants: str = "back-stand-2;back-stand-1"
+    """The typed-standing plans, "<at>-<mode>-<rows>" separated by ";":
+    ``at`` ``back`` (the gallery against the back wall, braced by the
+    wall and the first hard row), ``front`` (the hard rows first, the
+    gallery in front of them at the opening, braced on one side) or
+    ``top`` (no floor gallery: the hard rows over the whole floor, then
+    the gallery's items at their least-footprint legal pose anywhere,
+    standing on the hard rows' tops where the headroom allows);
+    ``mode`` ``stand`` (the smallest face down) or ``tower`` (soft flat
+    in towers of one class while the supporting top is under the soft
+    structure cap, priority standing); ``rows`` the most gallery rows a
+    container gets; optional further parts: ``soft`` keeps the priority
+    cargo out of the gallery, ``prio`` puts it in (default:
+    ``plan_typed_standing_priority``), ``noreserve`` plans the hard rows
+    without the soft headroom reserve (the gallery holds the soft)."""
+
+    plan_typed_standing_force: bool = False
+    """Measurement switch: the best typed-standing plan plays on every
+    manifest, whatever the ordinary plan holds (the stability cost of the
+    standing gallery read on the scenes the gate would leave alone)."""
+
+    plan_typed_standing_max_top: float = 0.7
+    """Highest top (m over the floor) of a gallery box: the standing pose
+    is the tallest one under it (a 0.75 m standing box lies on its 0.56
+    side), and towers stop under it (soft on soft: the 0.7 m cap of
+    ``soft_structure_max_top``)."""
+
+    plan_typed_standing_priority: bool = True
+    """The priority cargo of the count frame stands in the gallery too
+    (in a layout without a priority container): nothing but priority
+    cargo may rest on it, so on a hard row's floor it kills the column
+    above it.  Off: the gallery holds the soft cargo alone."""
+
     plan_soft_own_rows: bool = False
     """The soft cargo's rows come from their own layout search over the
     hard stack's top instead of the hard rows' lines.  The hard rows are

@@ -305,5 +305,106 @@ class AgreementTests(unittest.TestCase):
         self.assertEqual(out["by_analytic_reason"]["no-support"]["physics_accepted"], 1)
 
 
+class TypedStandingTests(unittest.TestCase):
+    """config.plan_typed_standing: the count frame's soft and priority cargo
+    standing in a gallery against the back wall, the hard rows in front."""
+
+    ARM = ("ladder-stable@offline_planner=rows,plan_variants=after-hard,reserve_headroom_for_soft=true,"
+           "no_cover_other_attribute=true,count_mode=true,count_mode_strict=true,soft_is_structure=true,"
+           "soft_structure_max_top=0.7,offline_budget_seconds=60")
+
+    def _agent(self, scene, extra=""):
+        agent = make_arm(self.ARM + ("," + extra if extra else ""))(scene)
+        containers = scene.rule_alpha_containers()
+        agent.get_init_states({"container_list": containers})
+        items = [dict(i) for i in scene.items]
+        agent._prepare_manifest(items)
+        agent._manifest_total = len(items)
+        agent._manifest = {int(i["index"]): i for i in items}
+        agent.plan_score = lambda plan: float(len(plan))
+        agent.plan_source = "planner"
+        return agent, containers, items
+
+    def test_flags_default_off(self):
+        config = config_from_spec("")
+        self.assertFalse(config.plan_typed_standing)
+        self.assertFalse(config.plan_typed_standing_force)
+
+    def test_count_frame_holds_the_priority_cargo_and_the_smallest_items(self):
+        from rule_alpha import classify as cls
+        from rule_alpha.planner import count_frame
+
+        scene = make_scene(2, "c1x60", "A")
+        config = config_from_spec("")
+        profiles = [cls.classify_item(int(i["index"]), i, config) for i in scene.items]
+        frame = count_frame(profiles, 33)
+        self.assertEqual(len(frame), 33)
+        self.assertTrue({p.index for p in profiles if p.is_prioritized} <= frame)
+        volume = {p.index: p.orientations[0].dx * p.orientations[0].dy * p.orientations[0].dz for p in profiles}
+        inside = max(volume[i] for i in frame if not next(p for p in profiles if p.index == i).is_prioritized)
+        outside = min(volume[p.index] for p in profiles if p.index not in frame)
+        self.assertLessEqual(inside, outside + 1e-12)
+
+    def test_gallery_stands_the_soft_boxes_against_the_back_wall(self):
+        from rule_alpha import layer1
+        from rule_alpha.planner import pack_typed_gallery
+
+        scene = make_scene(2, "c1x60", "A")
+        agent, containers, _items = self._agent(scene)
+        board = layer1.Board([dict(c, packed_items=[]) for c in containers], agent.config)
+        soft = [p for p in agent.profiles.values() if p.is_soft and min(p.orientations[0].dx, p.orientations[0].dy,
+                                                                          p.orientations[0].dz) <= 0.25][:6]
+        plan, planned = [], []
+        edge = pack_typed_gallery(agent, board, 0, list(soft), agent.config, plan, planned, 1e18, mode="stand",
+                                  max_rows=1)
+        self.assertGreaterEqual(len(plan), 4)
+        model = board.model(0)
+        back = model.floor_rect.y_max - agent.config.anchor_slack
+        for entry in plan:
+            size = entry["size"]
+            # on the floor, on the smallest face (the tallest pose under the 0.7 m cap)
+            self.assertTrue(entry["on_floor"])
+            self.assertAlmostEqual(size[2], max(size), places=6)
+            self.assertLessEqual(size[2], 0.7 + 1e-9)
+            self.assertAlmostEqual(entry["center"][1] + size[1] / 2.0, back, places=6)
+        self.assertAlmostEqual(edge, back - max(e["size"][1] for e in plan), places=6)
+
+    def test_typed_plan_is_legal_step_by_step_and_leaves_room_for_the_hard_rows(self):
+        from rule_alpha import layer1
+        from rule_alpha.geometry import AABB
+        from rule_alpha.planner import _placement, _plan_typed_once, _Pose
+
+        scene = make_scene(2, "c1x60", "A")
+        agent, containers, items = self._agent(scene)
+        order, plan = _plan_typed_once(agent, items, 1e18, "after-hard", 33, "back", "stand", 1)
+        self.assertEqual(sorted(order), sorted(int(i["index"]) for i in items))
+        by_index = {int(i["index"]): i for i in items}
+        self.assertTrue(by_index[plan[0]["index"]]["is_soft"] or by_index[plan[0]["index"]]["is_prioritized"])
+        self.assertTrue(any(not by_index[e["index"]]["is_soft"] for e in plan))
+        board = layer1.Board([dict(c, packed_items=[]) for c in containers], agent.config)
+        for entry in plan:
+            model = board.model(entry["container_idx"])
+            box = AABB(tuple(entry["center"]), tuple(entry["size"]), "plan")
+            ok, why = layer1.validate(box, model, board.container(entry["container_idx"]), agent.config)
+            self.assertTrue(ok, why)
+            profile = agent.profiles[entry["index"]]
+            orientation = next(o for o in profile.orientations if o.index == entry["orientation"])
+            board.apply(_placement(_Pose(box, orientation, model.z_floor), 1, profile, entry["container_idx"], model))
+
+    def test_the_ordinary_plan_stands_when_it_holds_the_count(self):
+        from rule_alpha.planner import plan_typed_standing
+
+        scene = make_scene(2, "c1x60", "A")
+        agent, _containers, items = self._agent(scene, "plan_typed_standing=true")
+        gate = agent._count_threshold() + agent.config.plan_value_margin
+        base = ((1.0, gate), [int(i["index"]) for i in items], [{"index": i} for i in range(gate)])
+        self.assertIs(plan_typed_standing(agent, items, 1e18, base, "after-hard"), base)
+        # under the count, a typed plan is planned and the better-ranked one kept
+        short = ((0.0, 3), base[1], [{"index": i, "size": [0.1, 0.1, 0.1]} for i in range(3)])
+        chosen = plan_typed_standing(agent, items, 1e18, short, "after-hard")
+        self.assertIsNot(chosen, short)
+        self.assertGreater(len(chosen[2]), 3)
+
+
 if __name__ == "__main__":
     unittest.main()
