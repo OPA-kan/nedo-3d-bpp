@@ -11,18 +11,20 @@ Each branch forces the reference run up to step k, changes the placement at k, a
 | b-hard2-s0067 | -3 | 68 | - (-) | - | 67:-3, 65:-3, 59:-4, 58:-4, 57:-4, 55:-4 |
 | b-hard2-s0083 | -2 | 58 | - (-) | - | 57:-2, 55:-2, 53:-2, 50:-2 |
 | c-hard2-s0007 | -1 | 20 | 12 (8) | a pose the ladder vetoed, ladder pick (vetoed downstream), most usable surface left, next in the rung, veto (agent's next answer) | 19:-1, 18:-1, 17:-1, 15:-1, 13:-1, 12:-1, 11:-1, 9:-1 |
+| c-hard2-s0026 | +0 | 16 | - (-) | - | 15:+0 |
 | c-hard2-s0028 | -1 | 13 | 12 (1) | a pose the ladder vetoed, another rung's best, most usable surface left, next in the rung, veto (agent's next answer) | 12:-1, 10:-1, 8:-1, 5:-1 |
 | c-hard2-s0039 | -1 | 21 | 10 (11) | a pose the ladder vetoed, most usable surface left, veto (agent's next answer) | 20:-1, 18:-1, 10:-1, 9:-1, 8:-1, 6:-1 |
 | c-hard2-s0076 | -1 | 21 | 13 (8) | most usable surface left, veto (agent's next answer) | 20:-1, 18:-1, 13:-1, 12:-1, 11:-1, 9:-1 |
-| c-hard2-s0078 | -3 | 46 | - (-) | - | 45:-3 |
+| c-hard2-s0078 | -3 | 46 | 36 (10) | most usable surface left | 45:-3, 43:-3, 36:-3, 35:-3, 34:-3, 32:-3 |
+| b-hard2-s0039 | -2 | 20 | - (-) | - | 13:-4 |
 
 | alternative kind | branches | crossing | better than null |
 |---|---:|---:|---:|
-| veto (agent's next answer) | 100 | 9 | 15 |
-| most usable surface left | 38 | 12 | 14 |
+| veto (agent's next answer) | 112 | 9 | 15 |
+| most usable surface left | 47 | 13 | 17 |
 | next in the rung | 36 | 5 | 8 |
-| a pose the ladder vetoed | 30 | 9 | 12 |
-| ladder pick (vetoed downstream) | 18 | 1 | 1 |
+| a pose the ladder vetoed | 32 | 9 | 13 |
+| ladder pick (vetoed downstream) | 20 | 1 | 1 |
 | another rung's best | 8 | 2 | 2 |
 
 ## b-hard2-s0039: reference placed 20 (thr 22, margin -2); record placed 20
@@ -80,6 +82,12 @@ Each branch forces the reference run up to step k, changes the placement at k, a
 | 11 (9) | pocket-soft | -1 | veto1 -1; veto2 -1; veto3 -2; rung1 +0; vetoed:wall-front-strip -1; vetoed:none -3; vetoed:seals-usable-ground-behind,wall-front-strip -3; maxsurf1 +2; maxsurf2 -1 | +2 | 2 of 9 |
 | 9 (11) | soft-edge | -1 | veto1 -1; veto2 -1; veto3 -1; rung1 -1; rung2 -1; rung4 -1; vetoed:would-wall-off-the-back +0; maxsurf1 -1; maxsurf2 -1 | +0 | 1 of 9 |
 
+## c-hard2-s0026: reference placed 16 (thr 16, margin +0); record placed 16
+
+| k (lead) | at k the agent placed | null | alternatives: label -> margin (pose at k ok?) | best | crossing branches |
+|---|---|---:|---|---:|---:|
+| 15 (1) | count-mode | +0 |  | +0 | 0 of 0 |
+
 ## c-hard2-s0028: reference placed 13 (thr 14, margin -1); record placed 13
 
 | k (lead) | at k the agent placed | null | alternatives: label -> margin (pose at k ok?) | best | crossing branches |
@@ -115,5 +123,16 @@ Each branch forces the reference run up to step k, changes the placement at k, a
 
 | k (lead) | at k the agent placed | null | alternatives: label -> margin (pose at k ok?) | best | crossing branches |
 |---|---|---:|---|---:|---:|
-| 45 (1) | physics-resort | -3 |  | -3 | 0 of 0 |
+| 45 (1) | physics-resort | -3 | veto1 -3; veto2 -3 | -3 | 0 of 2 |
+| 43 (3) | physics-resort | -3 | veto1 -3; veto2 -3; maxsurf1 -1 | -1 | 0 of 3 |
+| 36 (10) | max-footprint | -3 | veto1 -3; veto2 -5; maxsurf1 +0; maxsurf2 -3 | +0 | 1 of 4 |
+| 35 (11) | wedge-step | -3 | veto1 -3; veto2 -3; maxsurf1 -3; maxsurf2 -3 | -3 | 0 of 4 |
+| 34 (12) | max-footprint | -3 | veto1 -5; veto2 -3; rung1 -3; vetoed:overhangs-the-shelf -4; maxsurf1 -3; maxsurf2 -1 | -1 | 0 of 6 |
+| 32 (14) | max-footprint | -3 | veto1 -3; veto2 -3; rung1 -5; vetoed:overhangs-the-shelf -1; maxsurf1 -6; maxsurf2 -6 | -1 | 0 of 6 |
+
+## b-hard2-s0039: reference placed 20 (thr 22, margin -2); record placed 20
+
+| k (lead) | at k the agent placed | null | alternatives: label -> margin (pose at k ok?) | best | crossing branches |
+|---|---|---:|---|---:|---:|
+| 13 (7) | soft-edge | -4 |  | -4 | 0 of 0 |
 
