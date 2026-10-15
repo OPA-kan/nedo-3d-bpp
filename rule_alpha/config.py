@@ -2612,6 +2612,93 @@ class RuleAlphaConfig:
     episode ended in the soft block, the second container's rows never
     reached (74 -> 43 placed)."""
 
+    plan_soft_floor_under_count: bool = False
+    """Task A: when the planner's plan holds fewer than the count threshold
+    plus ``plan_value_margin`` items, the manifest is planned once more
+    with the soft cargo as a floor under the hard cargo: the soft boxes of
+    at most ``plan_soft_floor_max_height`` go first, one storey on the
+    floor from the back wall in level rows, and the hard rows ride on them
+    (the cover rule waived for the soft floor alone, the soft floor
+    carrying load), the hard stacks over it capped at
+    ``plan_soft_floor_hard_max_top``; the rest of the soft cargo goes on
+    top as before.  The soft-floor plan plays when it holds more items.
+    On dense manifests the hard cargo overfills the container and the
+    soft boxes, the smallest items, stay out (60 items -> 28 placed
+    against a threshold of 31, 16 soft boxes left); a covered soft box
+    costs about 1 / soft_total of the soft score, the count the four
+    components.  The limits come from the official simulator
+    (``scripts/soft_floor_probe.py``, ``reports/wedge/a-soft-floor.md``)."""
+
+    plan_soft_floor_max_height: float = 0.30
+    """The soft-floor storey takes soft boxes whose flattest pose is at most
+    this tall (m): the sample's E, F and G classes (0.20-0.25 m); the
+    0.40 m D boxes stay for the top (a hard box bridging a 0.40 and a
+    0.25 m soft box tilted 17-24 degrees in the probe)."""
+
+    plan_soft_floor_level_tolerance: float = 0.005
+    """The soft floor is one height band this wide (m), the band with the
+    most footprint: the analytic support reads contact within 6 mm, so a
+    hard box over two heights rests on the taller alone, and in the probe
+    a hard box bridging soft boxes 2-3 cm apart in height settled at 2-4
+    degrees, 5 cm apart at 5-17."""
+
+    plan_soft_floor_hard_max_top: float = 1.0
+    """The top (m, container frame) of the hard cargo standing over the soft
+    floor.  Probe: a soft floor two to four rows deep under three
+    hard layers (tops 0.94-0.99 m) settled within 3 degrees with no topple
+    under the shake; isolated soft rows or columns under three and four
+    hard layers toppled."""
+
+    plan_soft_floor_depth_share: float = 1.0
+    """The share of the floor's depth, from the back wall, the soft floor
+    may take."""
+
+    plan_soft_floor_replay_drop: float = 0.06
+    """``plan_replay_drop`` for the poses planned over the soft floor: a
+    soft box sinks 1-3 cm into the floor under its first hard layer and up
+    to 5 cm under three (probe), and every pose above it with it."""
+
+    plan_soft_floor_sink: float = 0.03
+    """The planner rests the hard rows on the soft floor this far (m) below
+    its nominal top: the soft boxes sink into the floor under their own
+    weight (1.2 cm) and under the hard rows (a local run: the first hard
+    layer settled 3.4-5.4 cm below the nominal top; the probe's blocks
+    2-5 cm under three hard layers).  The replay meets the difference
+    either way within ``plan_soft_floor_replay_drop``."""
+
+    plan_soft_floor_contact_tolerance: float = 0.03
+    """At replay, the poses over the soft floor read their supports within
+    this tolerance (m; ``contact_tolerance`` elsewhere, 6 mm): under their
+    loads the soft boxes sink 1-4 cm and unevenly (a local run: 2.0-3.6 cm
+    under one hard layer), so a planned pose bridging two columns meets
+    tops a few centimetres apart and the replay missed it, the episode
+    ending in the soft block (a-c1x50-s0006: 12 placed of 26 planned)."""
+
+    plan_soft_floor_online: bool = True
+    """Once a soft-floor plan plays, the online stages (the ladder, the
+    stack option, the rescues) read the soft floor as hard cargo: the
+    cover rule no longer refuses every pose over it and the boxes carry
+    load.  Off, a replay miss over the soft floor leaves the ladder no
+    pose over most of the floor and the episode declines."""
+
+    plan_soft_floor_keep_reserve: bool = False
+    """The soft-floor variant keeps the soft headroom reserve
+    (``reserve_headroom_for_soft``).  Off: the variant plans without it,
+    the floor already holding the soft class that tiles it best; with the
+    reserve the hard rows stop under the cap over the soft floor and the
+    variant held fewer items than the plan on 7 of 11 dense scenes
+    (analytic, c1x50 / c1x60 seeds 1-6: 313 -> 315 items best-of, against
+    313 -> 336 without the reserve)."""
+
+    plan_soft_floor_overrides: str = ""
+    """Config fields the soft-floor variant is planned with on top of the
+    plan's own, as ``field=value`` pairs separated by ";" (an arm spec's
+    overrides are comma-separated), e.g. ``reserve_headroom_for_soft=false``."""
+
+    plan_soft_floor_active: bool = False
+    """Set by the planner while it plans the soft-floor variant, not by
+    hand."""
+
     plan_layout_variants: str = ""
     """Layout scorings the planner tries as variants, each against the
     whole budget like the priority orders: "floor" (the floor layer's
