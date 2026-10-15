@@ -705,6 +705,16 @@ def soft_floor_yields(agent, plan: list, other: list) -> bool:
     the dry-run's 63 with 6)."""
     if not plan or not any(e.get("soft_floor") for e in plan):
         return False
+    # only while the soft-floor plan does not hold the count itself: over
+    # it the plan score decides as before (core-a, first CI round: three
+    # c1 / c2p plans of 21-22 items over a threshold of 21 yielded to
+    # dry-runs with 0-3 soft boxes, the suite's soft share 7.94 -> 7.60)
+    try:
+        threshold = agent._count_threshold()
+    except Exception:
+        threshold = None
+    if threshold is not None and len(plan) >= threshold:
+        return False
     return len(other) > len(plan)
 
 

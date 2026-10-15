@@ -802,7 +802,11 @@ class SoftFloorPlanTests(unittest.TestCase):
         agent.plan_source = "dry-run"
         self.assertIs(soft_floor_board_view(agent, containers), containers)
         plan = [{"index": 1, "soft_floor": True}, {"index": 2}]
+        agent._count_threshold = lambda: 3
         self.assertTrue(soft_floor_yields(agent, plan, [{}, {}, {}]))
+        agent._count_threshold = lambda: 2   # the soft-floor plan holds the count: the score decides
+        self.assertFalse(soft_floor_yields(agent, plan, [{}, {}, {}]))
+        agent._count_threshold = lambda: None
         self.assertFalse(soft_floor_yields(agent, plan, [{}, {}]))
         self.assertFalse(soft_floor_yields(agent, [{"index": 2}], [{}, {}, {}]))
 
