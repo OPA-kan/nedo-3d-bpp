@@ -379,7 +379,36 @@ this machine's physics leave the end board one item from the line either way.
   shelf layer is where the late soft and hard boxes went (not traced).
 - **c-s0006 is decided late, and by a margin smaller than the board's own noise.**
 
-<!-- CF36 -->
+**c-hard2-s0036** (all-soft stream, 3 normal ULDs, threshold 83, record 82). The
+replay breaks at step 60, so the branches stop at k = 59. The agent's own
+continuations read:
+- k = 0: −3;
+- k = 16: −17 (a settle ending);
+- k = 30: −1;
+- k = 45: −3;
+- k = 59: 0.
+
+| k | move | pose | margin | baseline at k | shipped arm: alt / baseline |
+|---:|---|---|---:|---:|---|
+| 16 (a time-cut floor box) | soft:0 | soft top 0.39 m | −3 | −17 | |
+| 30 | soft:0 | soft top 0.39 m | **0** | −1 | −2 / −2 (both settle) |
+| 45 | soft:0 | soft top 0.22 m | **0** | −3 | −10 / −3 |
+
+The record-arm rescues at k = 30 and 45 **do not survive the shipped arm**. Read
+c-s0036 as a board that sits on the line, not as one rescued by a move.
+
+**b-hard2-s0036** (threshold 83, record 79). Baselines:
+- k = 0: −9;
+- k = 15: −5;
+- k = 25: −54 (settle);
+- k = 34: −41 (settle).
+
+The two settle endings on the replayed board show that it drifts out of the
+record's state after step 25 (the replay breaks at 35). Branches: soft:0 at k = 15
+reads −5 (baseline −5); soft:0 at k = 25 reads −53 (baseline −54). No rescue.
+
+<!-- CONTROL -->
+
 
 
 ## 4. Area or shape?
