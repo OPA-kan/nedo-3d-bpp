@@ -348,7 +348,7 @@ def main():
     sec_end_states(md, data)
     sec_g_patches(md, data)
     sec_crossings(md, data)
-    for extra in ("sec_census", "sec_why", "sec_cf_summary", "sec_cf", "sec_vsim"):
+    for extra in ("sec_census", "sec_why", "sec_cf_summary", "sec_pool", "sec_seal", "sec_ship", "sec_soft", "sec_cf", "sec_vsim"):
         f = globals().get(extra)
         if f is not None:
             f(md, data)
@@ -555,6 +555,119 @@ def sec_cf_summary(md, data):
                               'noseal2 persistent', 'fill2 (patches)', 'defer', 'some branch crosses']))
     md.append('')
     data['cf_summary'] = rows
+
+
+
+def _cf_rows():
+    path = os.path.join(SCRATCH, 'cf_near.jsonl')
+    return [json.loads(l) for l in open(path) if l.strip()] if os.path.exists(path) else []
+
+
+def sec_pool(md, data):
+    res = [r for r in _cf_rows() if 'placed' in r]
+    by = collections.defaultdict(list)
+    for r in res:
+        if r['mode'] == 'first_item' and not r.get('arm'):
+            by[(r['scene'], r['t'])].append(r)
+    if not by:
+        return
+    rows = []
+    for (sc, t), rs in sorted(by.items()):
+        ep = ep_of('gate0-hard2-b', sc)
+        base = [r['placed'] for r in res if r['scene'] == sc and r['t'] == t and r['mode'] == 'agent' and not r.get('arm') and not r.get('arm_extra') and not r.get('soft_equal')]
+        cells = []
+        for r in sorted(rs, key=lambda r: r['defer_item']):
+            it = ep.byidx[r['defer_item']]
+            got = (r.get('note') or {}).get('item_placed')
+            tag = ('s' if it['is_soft'] else 'h') + ('p' if it['is_prioritized'] else '')
+            cells.append(f"{r['defer_item']}{tag}{'' if got == r['defer_item'] else '>' + str(got)}:{r['placed']}")
+        best = max(r['placed'] for r in rs)
+        n_cross = sum(1 for r in rs if r['placed'] >= r['thr'])
+        rows.append([sc, t, rs[0]['thr'], '/'.join(map(str, base)), ' '.join(cells), best, f"{n_cross}/{len(rs)}"])
+    md.append('## Choosing among the pool (B): every pool item tried first\n')
+    md.append('`first_item`: the pool item is moved to the front of `pool_order` for that one decision (every stage that walks '
+              'the order sees it first; if it gets no pose the agent goes on as usual).  Cell = item index, s/h (soft/hard), p '
+              '(priority), `>n` when another item was placed instead, then the final count.\n')
+    md.append(md_table(rows, ['scene', 't', 'threshold', 'agent', 'item first: placed', 'best', 'crossing items']))
+    md.append('')
+    data['pool'] = rows
+
+
+def sec_seal(md, data):
+    res = [r for r in _cf_rows() if 'placed' in r]
+    by = collections.defaultdict(dict)
+    for r in res:
+        if r['scene'].startswith('b-') and r['mode'] == 'agent' and not r.get('arm') and not r.get('soft_equal') and r['t'] > 0:
+            by[(r['scene'], r['t'])].setdefault(r.get('arm_extra') or 'agent', []).append(r['placed'])
+    rows = []
+    for (sc, t), d in sorted(by.items()):
+        if not any(k != 'agent' for k in d):
+            continue
+        thr = next(r['thr'] for r in res if r['scene'] == sc)
+        rows.append([sc, t, thr, '/'.join(map(str, d.get('agent', []))),
+                     '/'.join(map(str, d.get('seal_check_all_surfaces=true', []))),
+                     '/'.join(map(str, d.get('seal_ranks_terraces=true', []))),
+                     '/'.join(map(str, d.get('seal_check_all_surfaces=true,seal_ranks_terraces=true', [])))])
+    if rows:
+        md.append('## Pricing the seal on every surface (B terrace-extension sealing steps)\n')
+        md.append('The record arm with the flags appended for the rest of the episode from the sealing step.\n')
+        md.append(md_table(rows, ['scene', 't', 'threshold', 'agent', 'seal_check_all_surfaces', 'seal_ranks_terraces', 'both']))
+        md.append('')
+        data['seal'] = rows
+
+
+def sec_ship(md, data):
+    res = [r for r in _cf_rows() if 'placed' in r]
+    rec = {}
+    for r in res:
+        if not r.get('arm') and not r.get('arm_extra') and not r.get('soft_equal'):
+            key = (r['scene'], r['t'], r['mode'], r.get('k'), r.get('patch'), bool(r.get('persistent')), r.get('defer_item'))
+            rec.setdefault(key, []).append(r['placed'])
+    rows = []
+    for r in res:
+        if not r.get('arm'):
+            continue
+        key = (r['scene'], r['t'], r['mode'], r.get('k'), r.get('patch'), bool(r.get('persistent')), r.get('defer_item'))
+        rows.append([r['scene'], r['t'], r['mode'] + ('' if r['mode'] == 'agent' else f" k{r.get('k')} p{r.get('patch')}{' pers' if r.get('persistent') else ''}{' item ' + str(r.get('defer_item')) if r.get('defer_item') is not None else ''}"),
+                     r['thr'], '/'.join(map(str, rec.get(key, []))), r['placed'], 'yes' if r['placed'] >= r['thr'] else ''])
+    if rows:
+        rows.sort(key=lambda x: (x[0], -x[1], x[2]))
+        md.append('## The rescuing branches on the shipped arm (`arm_ship_c` / `arm_ship_b`)\n')
+        md.append('Every branch that reached the threshold on the record arm, and the unchanged continuation at the same step, '
+                  're-run with the shipped-form arm from `origin/claude/rl-packing-policy-ftogt3` (9e4ada85, '
+                  '`reports/bench/arms/`).\n')
+        md.append(md_table(rows, ['scene', 't', 'branch', 'threshold', 'record arm', 'shipped arm', 'crosses (shipped)']))
+        md.append('')
+        data['ship'] = rows
+
+
+def sec_soft(md, data):
+    res = [r for r in _cf_rows() if 'placed' in r and r['t'] == 0 and r['scene'].startswith('b-')]
+    by = collections.defaultdict(dict)
+    for r in res:
+        k = 'soft_equal' if r.get('soft_equal') else (r.get('arm_extra') or 'agent')
+        by[r['scene']][k] = r['placed']
+    rows = []
+    for sc, d in sorted(by.items()):
+        thr = next(r['thr'] for r in res if r['scene'] == sc)
+        rec_placed = next(r['record_placed'] for r in res if r['scene'] == sc)
+        rows.append([sc, thr, rec_placed, d.get('agent', ''), d.get('soft_first_when_free=true', ''), d.get('soft_equal', '')])
+    p = os.path.join(HERE, 'data', 'softtime.json')
+    if os.path.exists(p):
+        st = {x['scene']: x for x in json.load(open(p))}
+        md.append('## The oldest deferred soft box on the B G boards\n')
+        md.append(md_table([[x['scene'], x['item'], 'x'.join(map(str, x['dims'])), x['enter'], x['T'], x['first_reach'], x['last_reach'],
+                             x['reach_steps'], x['end_soft_share']] for x in st.values()],
+                           ['scene', 'item', 'dims', 'in the pool from', 'placements', 'first reachable spot', 'last reachable spot',
+                            'prefixes with one', 'end pool soft share']))
+        md.append('')
+    if rows:
+        md.append('## Soft boxes interleaved from the start (B G scenes, whole episodes on the analytic board)\n')
+        md.append('`soft_first_when_free`: the shipped flag (off) that lets a soft item go first when its pose costs the hard '
+                  'cargo nothing; `soft_equal`: the pool order with soft in the hard bucket (footprint order only).\n')
+        md.append(md_table(rows, ['scene', 'threshold', 'record', 'agent (analytic)', 'soft_first_when_free', 'soft_equal']))
+        md.append('')
+        data['soft'] = rows
 
 if __name__ == "__main__":
     main()
