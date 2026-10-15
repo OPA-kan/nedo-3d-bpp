@@ -184,8 +184,8 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
 def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
               planned: list, deadline: float, log=None, row_lines: list | None = None,
               layout_index: int = 0, deep_first: bool = False,
-              y_top: float | None = None, y_bottom: float | None = None) -> list:
-              layout_index: int = 0, deep_first: bool = False, floor_only: bool = False) -> list:
+              y_top: float | None = None, y_bottom: float | None = None,
+              floor_only: bool = False) -> list:
     """Fills one container with the given items in layers of rows: rows from
     the back wall to the opening, each row from the left to the right, each
     layer on whatever the last one left (poses drop onto the packed tops);

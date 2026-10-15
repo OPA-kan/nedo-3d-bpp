@@ -458,12 +458,11 @@ class RuleAlphaAgent:
                 # config.plan_count_secure_choice: the plan that holds the
                 # count threshold plus the margin wins the race outright
                 prefer = race == "planner"
-            if not prefer and (planned is None or race == "dry-run"
-                               or (race is None and score_of(dry_plan) > score_of(planned[1]) + 1e-9)):
             from .planner import soft_floor_yields
 
-            if not prefer and (planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9
-                               or soft_floor_yields(self, planned[1], dry_plan)):
+            if not prefer and (planned is None or race == "dry-run"
+                               or (race is None and (score_of(dry_plan) > score_of(planned[1]) + 1e-9
+                                                     or soft_floor_yields(self, planned[1], dry_plan)))):
                 order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
                 planned = None
         if planned is not None:
