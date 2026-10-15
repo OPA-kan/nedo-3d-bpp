@@ -15,9 +15,11 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from alts import action_for  # noqa: E402
 from common import load_record  # noqa: E402
+from alts import action_for  # noqa: E402
 from physbranch import run_branch  # noqa: E402
+
+from bench.arms import make_arm  # noqa: E402
 
 SCRATCH = "/home/user/inv-D-scratch/cf"
 COMPACT = os.path.join(HERE, "data", "cf_results.jsonl")
@@ -31,6 +33,7 @@ def key(e):
         e["spec"],
         e.get("extra", ""),
         int(e.get("pi", -1)),
+        e.get("arm", "record"),
     )
 
 
@@ -59,6 +62,13 @@ def run_one(e):
 
     extra = "deterministic_budgets=true" + ("," + e["extra"] if e.get("extra") else "")
     t0 = time.perf_counter()
+    arm = None
+    if e.get("arm") == "ship":
+        # the shipped form (submission/agent.py) as the bench arm files of
+        # origin/claude/rl-packing-policy-ftogt3 (9e4ada85) give it; duplicate keys, last wins
+        task = r["scene_spec"]["task"].lower()
+        spec = open(os.path.join(HERE, "arms", f"arm_ship_{task}.txt")).read().strip()
+        arm = make_arm(spec + "," + extra)
     out = run_branch(
         e["rec"],
         e["scene"],
@@ -66,6 +76,7 @@ def run_one(e):
         override=None if e["spec"] == "agent-native" else override,
         extra=extra,
         r=r,
+        arm=arm,
     )
     after = [
         s
@@ -81,6 +92,7 @@ def run_one(e):
         "extra": e.get("extra", ""),
         "pi": int(e.get("pi", -1)),
         "tag": e.get("tag", ""),
+        "arm": e.get("arm", "record"),
         "placed": out["placed"],
         "thr": out["thr"],
         "mg": out["mg"],
