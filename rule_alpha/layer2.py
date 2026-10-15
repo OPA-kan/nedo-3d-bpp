@@ -204,6 +204,171 @@ def bridge_anchors(members: list[tuple[Rect, float]], dx: float,
     return out
 
 
+def _clamped_unique(values, low: float, high: float) -> list[float]:
+    out: list[float] = []
+    for value in values:
+        value = min(max(float(value), low), high)
+        if all(abs(value - other) > 1e-3 for other in out):
+            out.append(value)
+    return out
+
+
+def _spread_order(values: list[float]) -> list[float]:
+    """A slide's positions, coarse first: every fourth, then every second,
+    then the rest, so a cap taken off the front still spans the gap."""
+    out, taken = [], set()
+    for stride in (4, 2, 1):
+        for i in range(0, len(values), stride):
+            if i not in taken:
+                taken.add(i)
+                out.append(values[i])
+    return out
+
+
+def bridge_slide_anchors(members: list[tuple[Rect, float]], level: float,
+                         dx: float, dy: float, step: float,
+                         contact_tolerance: float,
+                         min_overlap: float = 0.03,
+                         full_share: float = 0.95) -> list[tuple[float, float]]:
+    """Centres that rest a box on two hard tops of one level across the
+    lower ground between them, slid along the gap (``config.bridge_slide``).
+
+    ``bridge_anchors`` offers one point per pair: the middle of the gap and
+    the middle of the two tops' shared interval.  The two-point-support spots
+    the declining boards really have (``reports/wedge/bridge-spots.md``) are a
+    box spanning the slot between two columns, set off along the slot from
+    that middle, often longer than the shared interval or reaching a top past
+    the nearest one -- and the one point overlaps a neighbour 805 times in
+    1191.  Here, for every pair of members *in contact at the level* (any two,
+    not only neighbours, so a box over a run of tops that reaches two of them
+    with lower ground between is a pair too) and each axis on which they have
+    a gap the box can cross with ``min_overlap`` on both sides:
+
+    - along the spanning axis: the gap's middle, the box flush with each
+      member's outer edge, and the two extremes of the crossing range;
+    - along the slot: every ``step`` metres over the range in which the box
+      overlaps *each* member by ``min_overlap`` (each member's own extent,
+      not the shared interval, so offset tops still pair), plus the box flush
+      with either edge of either member and the shared interval's middle.
+
+    A pose that would rest on the members over ``full_share`` of its
+    footprint is not a bridge (no lower ground under it) and is dropped.
+    Order: round-robin over the pairs, and within a pair the middle and the
+    flush poses before the slide, the slide coarse first -- so a cap taken off
+    the front covers every pair.  Whether a pose is legal is still the
+    validator's call; this only proposes."""
+    if step <= 0.0:
+        return []
+    on = [(rect, top) for rect, top in members
+          if abs(top - level) <= contact_tolerance]
+    if len(on) < 2:
+        return []
+    size = (dx, dy)
+    queues: list[list[tuple[float, float]]] = []
+    for i in range(len(on)):
+        for j in range(i + 1, len(on)):
+            a, b = on[i][0], on[j][0]
+            for axis in (0, 1):
+                lo, hi = (a, b) if _low(a, axis) <= _low(b, axis) else (b, a)
+                gap_lo, gap_hi = _high(lo, axis), _low(hi, axis)
+                if gap_hi <= gap_lo:
+                    continue  # touching or overlapping on this axis
+                length = size[axis]
+                s_min = gap_hi + min_overlap - length / 2.0
+                s_max = gap_lo - min_overlap + length / 2.0
+                if s_max < s_min:
+                    continue  # cannot reach both
+                along = _clamped_unique(
+                    (0.5 * (gap_lo + gap_hi),
+                     _low(lo, axis) + length / 2.0,
+                     _high(hi, axis) - length / 2.0,
+                     s_min, s_max),
+                    s_min, s_max,
+                )
+                other = 1 - axis
+                width = size[other]
+                t_min = max(_low(a, other), _low(b, other)) + min_overlap - width / 2.0
+                t_max = min(_high(a, other), _high(b, other)) - min_overlap + width / 2.0
+                if t_max < t_min:
+                    continue  # no pose overlaps both
+                shared_mid = 0.5 * (max(_low(a, other), _low(b, other))
+                                    + min(_high(a, other), _high(b, other)))
+                fixed = _clamped_unique(
+                    (shared_mid,
+                     _low(a, other) + width / 2.0, _high(a, other) - width / 2.0,
+                     _low(b, other) + width / 2.0, _high(b, other) - width / 2.0),
+                    t_min, t_max,
+                )
+                count = int((t_max - t_min) / step + 1e-9) + 1
+                slide = [t_min + k * step for k in range(count)]
+                if t_max - slide[-1] > 1e-3:
+                    slide.append(t_max)
+                cross = fixed + [t for t in _spread_order(slide)
+                                 if all(abs(t - f) > 1e-3 for f in fixed)]
+                queue = []
+                for t in cross:
+                    for s in along:
+                        x, y = (s, t) if axis == 0 else (t, s)
+                        rect = Rect(x - dx / 2.0, x + dx / 2.0,
+                                    y - dy / 2.0, y + dy / 2.0)
+                        touched, contact = 0, 0.0
+                        for member, _top in on:
+                            w = min(rect.x_max, member.x_max) - max(rect.x_min, member.x_min)
+                            h = min(rect.y_max, member.y_max) - max(rect.y_min, member.y_min)
+                            if w > 0.0 and h > 0.0:
+                                touched += 1
+                                contact += w * h
+                        if touched < 2 or contact >= full_share * dx * dy:
+                            continue
+                        queue.append((x, y))
+                if queue:
+                    queues.append(queue)
+    out: list[tuple[float, float]] = []
+    seen = set()
+    depth = max((len(q) for q in queues), default=0)
+    for k in range(depth):
+        for queue in queues:
+            if k < len(queue):
+                x, y = queue[k]
+                key = (round(x, 3), round(y, 3))
+                if key not in seen:
+                    seen.add(key)
+                    out.append((x, y))
+    return out
+
+
+def clear_of_obstacles(anchors: list[tuple[float, float]], bottom: float,
+                       dx: float, dy: float, dz: float, obstacles: np.ndarray,
+                       clearance: float, contact_tolerance: float,
+                       eps: float = 1e-9) -> np.ndarray:
+    """Which of ``anchors`` (a box of ``dx, dy, dz`` resting at ``bottom``)
+    keep ``clearance`` laterally from every obstacle they overlap vertically.
+
+    The validator's own penetration rule (``penetrates_with_lateral_clearance``)
+    vectorised over all the anchors at once, so a slide of a few hundred
+    poses costs one array operation instead of a few hundred validations:
+    three quarters of the old bridge anchors died on exactly this.
+    ``obstacles`` is an ``(n, 6)`` array of ``min xyz, max xyz``."""
+    if not anchors:
+        return np.zeros(0, dtype=bool)
+    centres = np.asarray(anchors, dtype=np.float64)
+    if obstacles.size == 0:
+        return np.ones(len(anchors), dtype=bool)
+    lo = np.stack([centres[:, 0] - dx / 2.0, centres[:, 1] - dy / 2.0], axis=1)
+    hi = np.stack([centres[:, 0] + dx / 2.0, centres[:, 1] + dy / 2.0], axis=1)
+    top = bottom + dz
+    vertical_gap = np.maximum(obstacles[:, 2] - top, bottom - obstacles[:, 5])
+    relevant = obstacles[vertical_gap < -contact_tolerance]
+    if relevant.size == 0:
+        return np.ones(len(anchors), dtype=bool)
+    x_gap = np.maximum(relevant[None, :, 0] - hi[:, None, 0],
+                       lo[:, None, 0] - relevant[None, :, 3])
+    y_gap = np.maximum(relevant[None, :, 1] - hi[:, None, 1],
+                       lo[:, None, 1] - relevant[None, :, 4])
+    hits = (x_gap < clearance - eps) & (y_gap < clearance - eps)
+    return ~hits.any(axis=1)
+
+
 def _low(rect: Rect, axis: int) -> float:
     return rect.x_min if axis == 0 else rect.y_min
 

@@ -1574,6 +1574,196 @@ class PlateauDepthTest(unittest.TestCase):
         self.assertTrue(allowed)
 
 
+class BridgeSlideTest(unittest.TestCase):
+    """The sliding bridge generator (``config.bridge_slide``): two columns of
+    one height with a slot between them, and a column standing in the middle
+    of the slot where the one-point bridge anchor lands."""
+
+    ITEM = (0.60, 0.40, 0.20)
+
+    def _profile(self, index, dims):
+        return cls.classify_item(
+            index,
+            {"index": index, "length": dims[0], "width": dims[1],
+             "height": dims[2], "mass": 10.0, "is_soft": False,
+             "is_prioritized": False},
+            DEFAULT_CONFIG,
+        )
+
+    def _place(self, board, x, y, bottom, dims):
+        box = AABB((x, y, bottom + dims[2] / 2.0), dims, "packed")
+        profile = self._profile(0, dims)
+        board.apply(layer1.Placement(
+            box=box, profile=profile, orientation=profile.orientations[0],
+            container_idx=0, surface="floor", surface_name="floor",
+            role=cls.ROLE_NONE, archetype=layer1.A_MAX_FOOTPRINT,
+            reason="test fixture",
+            layer=layer1.stack_level(box, board.container(0), cls.ROLE_NONE,
+                                     DEFAULT_CONFIG),
+        ))
+
+    def _board(self, storeys, column=True):
+        """Columns 0.4 x 1.0 m, 0.60 m tall in ``storeys`` boxes, 0.30 m apart
+        along x; the slot holds a 1.0 m column at its middle (unless
+        ``column`` is false) and 0.25 m cargo either side of it, so no bare
+        floor is sealed."""
+        board = layer1.Board([make_container_dict(index=0, **ULD)], DEFAULT_CONFIG)
+        model = board.model(0)
+        z, rect = model.z_floor, model.floor_rect
+        cx = 0.5 * (rect.x_min + rect.x_max) + 0.2
+        cy = 0.5 * (rect.y_min + rect.y_max)
+        h = 0.60 / storeys
+        for k in range(storeys):
+            self._place(board, cx - 0.40, cy, z + k * h, (0.40, 1.00, h))
+            self._place(board, cx + 0.30, cy, z + k * h, (0.40, 1.00, h))
+        if column:
+            self._place(board, cx - 0.05, cy, z, (0.20, 0.20, 1.00))
+        self._place(board, cx - 0.05, cy + 0.315, z, (0.22, 0.37, 0.25))
+        self._place(board, cx - 0.05, cy - 0.315, z, (0.22, 0.37, 0.25))
+        return board, z + 0.60
+
+    def _bridges(self, board, config):
+        profile = self._profile(9, self.ITEM)
+        orientation = next(
+            o for o in profile.orientations
+            if np.allclose((o.dx, o.dy, o.dz), self.ITEM)
+        )
+        return [
+            c for c in layer1.generate_layer2_candidates(
+                board, profile, 0, orientation, config
+            )
+            if c.family == l2.FAMILY_BRIDGE
+        ]
+
+    def test_the_old_anchor_is_refused_and_the_slide_finds_the_bridge(self):
+        board, level = self._board(storeys=1)
+        model, container = board.model(0), board.container(0)
+        tops = l2.hard_tops(container, model, DEFAULT_CONFIG)
+        groups = [
+            members for top, members in l2.level_groups(
+                tops, DEFAULT_CONFIG.layer2_bridge_level_tolerance
+            ) if abs(top - level) < 1e-6
+        ]
+        self.assertEqual(len(groups), 1)
+        old = l2.bridge_anchors(groups[0], self.ITEM[0], self.ITEM[1])
+        self.assertTrue(old)
+        for x, y in old:
+            box = AABB((x, y, level + self.ITEM[2] / 2.0), self.ITEM, "c")
+            ok, why = layer1.validate(box, model, container, DEFAULT_CONFIG)
+            self.assertFalse(ok)
+            self.assertEqual(why, "overlaps-packed-item")
+        self.assertEqual(self._bridges(board, DEFAULT_CONFIG), [])
+
+        sliding = dataclasses.replace(DEFAULT_CONFIG, bridge_slide=0.02)
+        found = self._bridges(board, sliding)
+        self.assertTrue(found)
+        self.assertLessEqual(len(found), sliding.bridge_slide_max)
+        for candidate in found:
+            self.assertAlmostEqual(float(candidate.box.minimum[2]), level, places=6)
+            self.assertEqual(candidate.role, l2.ROLE_BRIDGE)
+            self.assertTrue(layer1.validate(
+                candidate.box, model, container, sliding
+            )[0])
+            state = stability.evaluate(candidate.box, container, sliding)
+            self.assertEqual(state.contact_count, 2, "rests on both columns")
+            self.assertTrue(layer1.spans_two_supports(
+                candidate.box, container, sliding
+            ))
+
+    def test_off_reproduces_the_old_anchors(self):
+        """With the flag off the bridge family is exactly the old anchors
+        that validate; on, those are still there and come first."""
+        # the middle of the slot free, so the old anchor stands
+        board, _level = self._board(storeys=1, column=False)
+        model, container = board.model(0), board.container(0)
+        self.assertEqual(DEFAULT_CONFIG.bridge_slide, 0.0)
+        tops = l2.hard_tops(container, model, DEFAULT_CONFIG)
+        expected = []
+        for level, members in l2.level_groups(
+            tops, DEFAULT_CONFIG.layer2_bridge_level_tolerance
+        ):
+            for x, y in l2.bridge_anchors(members, self.ITEM[0], self.ITEM[1]):
+                box = AABB((x, y, level + self.ITEM[2] / 2.0), self.ITEM, "c")
+                if layer1.validate(box, model, container, DEFAULT_CONFIG)[0]:
+                    expected.append((round(x, 6), round(y, 6), round(level, 6)))
+        self.assertTrue(expected)
+
+        def centres(found):
+            return [
+                (round(float(c.box.center[0]), 6), round(float(c.box.center[1]), 6),
+                 round(float(c.box.minimum[2]), 6))
+                for c in found
+            ]
+
+        self.assertEqual(centres(self._bridges(board, DEFAULT_CONFIG)), expected)
+        on = centres(self._bridges(
+            board, dataclasses.replace(DEFAULT_CONFIG, bridge_slide=0.02)
+        ))
+        self.assertEqual(on[: len(expected)], expected)
+        self.assertGreater(len(on), len(expected))
+
+    def test_the_plateau_condition_refuses_a_bridge_unless_exempted(self):
+        """On columns two boxes tall the bridge is the third storey, and its
+        largest single plateau carries a quarter of it: refused, unless
+        ``bridge_plateau_exempt`` reads two separated supports as a bridge."""
+        board, level = self._board(storeys=2)
+        sliding = dataclasses.replace(DEFAULT_CONFIG, bridge_slide=0.02)
+        self.assertEqual(self._bridges(board, sliding), [])
+        exempt = dataclasses.replace(sliding, bridge_plateau_exempt=True)
+        found = self._bridges(board, exempt)
+        self.assertTrue(found)
+        allowed, depth = layer1.may_build_here(board, 0, found[0], exempt)
+        self.assertEqual(depth, 3)
+        self.assertTrue(allowed)
+        self.assertFalse(layer1.may_build_here(board, 0, found[0], sliding)[0])
+
+    def test_a_column_and_the_shelf_edge_carry_a_bridge(self):
+        """c-c1-s0003's spot: a column as tall as the small shelf, 4.5 cm off
+        its edge, and the box standing on its side across the two.  Off, the
+        shelf is no member and the pose is a pose past the Layer 2 set."""
+        board = layer1.Board([make_container_dict(index=0, **ULD)], DEFAULT_CONFIG)
+        container = board.container(0)
+        shelf = next(s for s in layer1.shelf_aabbs(container) if s.name == "small_shelf")
+        top, edge = float(shelf.maximum[2]), float(shelf.maximum[0])
+        z = board.model(0).z_floor
+        self._place(board, edge + 0.045 + 0.125, -0.10, z, (0.25, 0.75, top - z))
+        dims = (0.75, 0.56, 0.27)
+        profile = self._profile(9, dims)
+        side = next(o for o in profile.orientations
+                    if np.allclose((o.dx, o.dy, o.dz), (0.27, 0.75, 0.56)))
+        off = layer1.generate_layer2_candidates(board, profile, 0, side, DEFAULT_CONFIG)
+        self.assertEqual([c for c in off if c.family == l2.FAMILY_BRIDGE], [])
+        sliding = dataclasses.replace(DEFAULT_CONFIG, bridge_slide=0.02)
+        found = [c for c in layer1.generate_layer2_candidates(board, profile, 0, side, sliding)
+                 if c.family == l2.FAMILY_BRIDGE]
+        self.assertTrue(found)
+        for candidate in found:
+            self.assertAlmostEqual(float(candidate.box.minimum[2]), top, places=6)
+            self.assertEqual(
+                stability.evaluate(candidate.box, container, sliding).contact_count, 2
+            )
+            self.assertTrue(layer1.spans_two_supports(candidate.box, container, sliding))
+            # the floor under the shelf is not charged to the bridge
+            self.assertLessEqual(
+                layer1.bridge_sealed_floor(board.grid(0), candidate.box, container, sliding),
+                sliding.bridge_max_sealed_floor,
+            )
+
+    def test_slide_anchors_reach_both_tops_and_skip_abutting_ones(self):
+        tops = [(Rect(-0.5, -0.1, -0.5, 0.5), 0.6), (Rect(0.2, 0.6, -0.5, 0.5), 0.6)]
+        anchors = l2.bridge_slide_anchors(tops, 0.6, 0.6, 0.4, 0.02, 0.006)
+        self.assertTrue(anchors)
+        for x, _y in anchors:
+            # the box reaches both tops across the 0.3 m slot
+            self.assertLess(x - 0.3, -0.1 - 0.03 + 1e-9)
+            self.assertGreater(x + 0.3, 0.2 + 0.03 - 1e-9)
+        abutting = [(Rect(-0.5, 0.0, -0.5, 0.5), 0.6), (Rect(0.0, 0.5, -0.5, 0.5), 0.6)]
+        self.assertEqual(
+            l2.bridge_slide_anchors(abutting, 0.6, 0.6, 0.4, 0.02, 0.006), []
+        )
+        self.assertEqual(l2.bridge_slide_anchors(tops, 0.6, 0.6, 0.4, 0.0, 0.006), [])
+
+
 class SealCheckScopeTest(unittest.TestCase):
     """A terrace seals the approach exactly as a wall on the ground does.
 
