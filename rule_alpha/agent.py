@@ -1002,6 +1002,21 @@ class RuleAlphaAgent:
                     self.phase_stats["resort_first_placed"] = self.phase_stats.get("resort_first_placed", 0) + 1
                     return action
 
+        # the rescue's window before the ladder's (config.low_phase_rescue_seconds):
+        # in the low phase the ladder and the stack option take their shares
+        # of the budget less the reserve, and the rescue stages start
+        # earlier inside the same call
+        low_cut = False
+        rescue_reserve = float(getattr(self.config, "low_phase_rescue_seconds", 0.0) or 0.0)
+        if rescue_reserve > 0.0 and self._phase_low:
+            low_cut = True
+            stage_budget = max(budget - rescue_reserve, 0.0)
+            ladder_deadline = min(ladder_deadline, started + 0.6 * stage_budget)
+            option_deadline = min(option_deadline, started + 0.85 * stage_budget)
+            self._option_deadline = option_deadline
+            self.phase_stats["low_rescue"] = self.phase_stats.get("low_rescue", 0) + 1
+        self._low_cut = low_cut
+
         # the wedge option speaks first: a placement in the strip beats the
         # ladder, a pass leaves the item to it
         if self.wedge_option is not None and not exhausted:
@@ -1033,8 +1048,13 @@ class RuleAlphaAgent:
             for n, (pool_index, profile) in enumerate(ordered):
                 if n and not self._can_start(option_deadline):
                     break
+                if (low_cut and not getattr(self.config, "deterministic_budgets", False)
+                        and time.perf_counter() >= option_deadline):
+                    # the ladder took the option's share: the rescue's window
+                    self.phase_stats["low_rescue_skip_stack"] = self.phase_stats.get("low_rescue_skip_stack", 0) + 1
+                    break
                 decision = self._timed(self.stack_option.propose, self.board, profile,
-                                       deadline=option_deadline if getattr(self.config, "stack_deadline", False) else None)
+                                       deadline=option_deadline if (getattr(self.config, "stack_deadline", False) or low_cut) else None)
                 if decision is not None:
                     self.last_decision = decision
                     action = self._emit(pool_index, decision.placement)
@@ -1059,6 +1079,9 @@ class RuleAlphaAgent:
             # cost b-c2p-s0011 a soft-edge decision at 3.7 s and the seven
             # items after it
             end -= float(getattr(self.config, "physics_resort_seconds", 1.8))
+        if low_cut:
+            # the reserve is the rescue stages': the last resort ends where it begins
+            end = min(end, started + budget - rescue_reserve)
         if self.config.last_resort_relax and self._can_start(end):
             action = self._last_resort(containers, ordered, end)
             if action is not None:
@@ -1087,7 +1110,13 @@ class RuleAlphaAgent:
             # rescue (config.grid_rescue_pool_seconds)
             pool_share = float(getattr(self.config, "grid_rescue_pool_seconds", 0.0) or 0.0)
             pooled_grid = grid_on and pool_share > 0.0 and len(pool) > 1
-            action = self._physics_resort(ordered, pool, resort_end - (pool_share if pooled_grid else 0.0), count=under)
+            grid_share = pool_share if pooled_grid else 0.0
+            if low_cut and grid_on:
+                # the low phase's reserve (config.low_phase_rescue_seconds):
+                # the grid rescue gets the last of it out of the resort's
+                # window instead of what the count pass's failed checks leave
+                grid_share = max(grid_share, rescue_reserve)
+            action = self._physics_resort(ordered, pool, resort_end - grid_share, count=under)
             if action is not None:
                 return action
             if grid_on:
@@ -2519,6 +2548,16 @@ class RuleAlphaAgent:
                                veto_counts=decision.veto_counts, considered=decision.considered,
                                ladder=decision.ladder, survivors=decision.survivors, chosen=best)
 
+    def _grid_min_support(self, count: bool) -> float:
+        """The grid rescue's smallest contact share off the floor
+        (config.grid_rescue_min_support; below 0 the old 0.5, or
+        count_mode_min_support on the count path)."""
+        count_share = float(getattr(self.config, "count_mode_min_support", 0.5))
+        own = float(getattr(self.config, "grid_rescue_min_support", -1.0))
+        if own < 0.0:
+            return count_share if count else 0.5
+        return min(own, count_share) if count else own
+
     def _grid_rescue(self, ordered: list, pool: list, deadline: float, count: bool = False,
                      own_window: bool = True) -> dict | None:
         """The declining call's last stage: every pose of a grid of
@@ -2546,7 +2585,7 @@ class RuleAlphaAgent:
             band_lift=max(float(strict.band_lift), float(getattr(strict, "band_lift_rescue", 0.0))),
         )
         allow_cover = bool(getattr(self, "_count_cover", True)) if count else bool(getattr(strict, "allow_cover_other_attribute", False))
-        min_support = float(getattr(strict, "count_mode_min_support", 0.5)) if count else 0.5
+        min_support = self._grid_min_support(count)
         tries_limit = int(getattr(strict, "grid_rescue_tries", 12))
         need = max(self._shadow_longest, 0.2)
         # a window of its own past the resort's deadline, capped so the call

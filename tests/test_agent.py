@@ -650,5 +650,174 @@ class OfflineOptimizationTests(unittest.TestCase):
         self.assertGreater(solver.last_pair_macro_candidates, 0)
 
 
+def _column(index, x, y, w=0.1, d=0.5, h=0.5, z0=0.04):
+    return {"index": index, "length": w, "width": d, "height": h, "mass": 10.0, "is_soft": False,
+            "is_prioritized": False, "pos": (x, y, z0 + h / 2.0), "orn": (0.0, 0.0, 0.0, 1.0)}
+
+
+class BridgeRescueFlagTests(unittest.TestCase):
+    """rule_alpha's declining-call flags (reports/wedge/bridge-rescue.md):
+    the grid rescue's contact filter (config.grid_rescue_min_support) and
+    the low phase's rescue reserve (config.low_phase_rescue_seconds)."""
+
+    ITEM = {"index": 9, "length": 0.6, "width": 0.4, "height": 0.2, "mass": 5.0,
+            "is_soft": False, "is_prioritized": False}
+
+    def _config(self, **over):
+        import dataclasses
+
+        from rule_alpha.config import DEFAULT_CONFIG
+
+        return dataclasses.replace(DEFAULT_CONFIG, **over)
+
+    def _containers(self, columns=True):
+        from bench.scenes import make_scene
+
+        containers = make_scene(1, "c1", "C").rule_alpha_containers()
+        if columns:
+            # two 0.1 m columns 0.5 m tall with a 0.3 m slot between them:
+            # a 0.6 m box across them rests on a third of its footprint
+            containers[0]["packed_items"] += [_column(1, 0.35, 0.4), _column(2, 0.75, 0.4)]
+        return containers
+
+    # -- the contact filter ---------------------------------------------------
+    def test_grid_min_support_default_keeps_the_old_figures(self):
+        from rule_alpha.agent import RuleAlphaAgent
+
+        a = RuleAlphaAgent(config=self._config())
+        self.assertEqual(a._grid_min_support(False), 0.5)
+        self.assertEqual(a._grid_min_support(True), 0.5)
+        a = RuleAlphaAgent(config=self._config(count_mode_min_support=0.25))
+        self.assertEqual(a._grid_min_support(False), 0.5)
+        self.assertEqual(a._grid_min_support(True), 0.25)
+
+    def test_grid_min_support_honours_the_flag(self):
+        from rule_alpha.agent import RuleAlphaAgent
+
+        a = RuleAlphaAgent(config=self._config(grid_rescue_min_support=0.25))
+        self.assertEqual(a._grid_min_support(False), 0.25)
+        self.assertEqual(a._grid_min_support(True), 0.25)
+        a = RuleAlphaAgent(config=self._config(grid_rescue_min_support=0.3, count_mode_min_support=0.25))
+        self.assertEqual(a._grid_min_support(False), 0.3)
+        self.assertEqual(a._grid_min_support(True), 0.25)  # the smaller on the count path
+
+    def _grid_poses_on_the_columns(self, **over):
+        """(validated, accepted) grid-rescue poses resting on the columns'
+        tops, the shadow stubbed out (every check fails)."""
+        from unittest import mock
+
+        from rule_alpha import classify as cls
+        from rule_alpha import layer1
+        from rule_alpha.agent import RuleAlphaAgent
+
+        cfg = self._config(grid_rescue=0.05, no_cover_other_attribute=True, conservative_transport=False, **over)
+        containers = self._containers()
+        a = RuleAlphaAgent(config=cfg)
+        a.board = layer1.Board(containers, cfg)
+        pool = [dict(self.ITEM)]
+        ordered = layer1.pool_order([(0, cls.classify_item(9, self.ITEM, cfg))], cfg)
+        a._shadow_synced = True
+        a._shadow_observation = {"container_list": containers}
+        seen = []
+        real = layer1.validate
+
+        def record(box, model, container, c):
+            ok, why = real(box, model, container, c)
+            seen.append((float(box.center[2]) - float(box.size[2]) / 2.0, ok))
+            return ok, why
+
+        with mock.patch.object(layer1, "validate", side_effect=record), \
+                mock.patch.object(a, "_shadow_sim", return_value=object()), \
+                mock.patch.object(a, "_shadow_verdict", return_value={}), \
+                mock.patch.object(a, "_shadow_hard", return_value=True):
+            self.assertIsNone(a._grid_rescue(ordered, pool, float("inf"), count=False, own_window=False))
+        high = [ok for bottom, ok in seen if bottom > 0.5]
+        return len(high), sum(1 for ok in high if ok)
+
+    def test_grid_rescue_default_filter_refuses_the_bridge(self):
+        _validated, accepted = self._grid_poses_on_the_columns()
+        self.assertEqual(accepted, 0)
+
+    def test_grid_rescue_lower_filter_admits_the_bridge(self):
+        validated0, _ = self._grid_poses_on_the_columns()
+        validated, accepted = self._grid_poses_on_the_columns(grid_rescue_min_support=0.25)
+        self.assertGreater(validated, validated0)
+        self.assertGreater(accepted, 0)  # the validator's convex hull accepts the bridges
+
+    # -- the low phase's rescue reserve ---------------------------------------
+    def _deadlines(self, low: bool, **over):
+        """The deadlines one declining call hands its stages (relative to
+        the call's start): the stack option's, the last resort's, the
+        physics resort's and the grid rescue's."""
+        from unittest import mock
+
+        from rule_alpha import layer1
+        from rule_alpha.agent import RuleAlphaAgent
+
+        got = {}
+
+        class Option:
+            headroom_reserve = 0.0
+
+            def propose(self, board, profile, deadline=None):
+                got["stack"] = deadline
+                return None
+
+        cfg = self._config(phase_switch=True, phase_switch_resort_first=False, shadow_check=True,
+                           physics_resort=True, grid_rescue=0.05, last_resort_relax=True,
+                           policy_budget_seconds=4.5, **over)
+        a = RuleAlphaAgent(config=cfg, stack_option=Option())
+
+        def last_resort(containers, ordered, deadline=float("inf")):
+            got["last_resort"] = deadline
+            return None
+
+        def resort(ordered, pool, deadline, count=False):
+            got["resort"] = deadline
+            return None
+
+        def grid(ordered, pool, deadline, count=False, own_window=True):
+            got["grid"] = deadline
+            return None
+
+        observation = {"container_list": self._containers(columns=False), "pool_list": [dict(self.ITEM)]}
+        with mock.patch.object(layer1, "choose_for_item", return_value=None), \
+                mock.patch.object(a, "_low_phase", return_value=low), \
+                mock.patch.object(a, "_last_resort", side_effect=last_resort), \
+                mock.patch.object(a, "_can_start", return_value=True), \
+                mock.patch.object(a, "_physics_resort", side_effect=resort), \
+                mock.patch.object(a, "_grid_rescue", side_effect=grid):
+            self.assertIsNone(a.policy(observation))
+        started = a._policy_started
+        return {k: (None if v is None else v - started) for k, v in got.items()}, a
+
+    def test_low_phase_reserve_off_by_default(self):
+        for low in (False, True):
+            d, a = self._deadlines(low)
+            self.assertIsNone(d["stack"])  # no stack_deadline
+            self.assertFalse(a._low_cut)
+            self.assertAlmostEqual(d["resort"], d["grid"], places=6)  # the resort's whole window
+
+    def test_low_phase_reserve_untouched_outside_the_low_phase(self):
+        base, _ = self._deadlines(False, stack_deadline=True)
+        d, a = self._deadlines(False, stack_deadline=True, low_phase_rescue_seconds=1.5)
+        self.assertFalse(a._low_cut)
+        self.assertAlmostEqual(d["stack"], 0.85 * 4.5, places=6)
+        self.assertAlmostEqual(d["stack"], base["stack"], places=6)
+        self.assertAlmostEqual(d["resort"], d["grid"], places=6)
+        self.assertAlmostEqual(d["last_resort"], base["last_resort"], delta=0.05)
+
+    def test_low_phase_reserve_shortens_the_stages_in_the_low_phase(self):
+        base, _ = self._deadlines(True)
+        d, a = self._deadlines(True, low_phase_rescue_seconds=1.5)
+        self.assertTrue(a._low_cut)
+        # the stack option's generation stops at its share of the budget less the reserve
+        self.assertAlmostEqual(d["stack"], 0.85 * (4.5 - 1.5), places=6)
+        self.assertLessEqual(d["last_resort"], 4.5 - 1.5 + 1e-6)
+        # the resort hands the reserve to the grid rescue; the end is unchanged
+        self.assertAlmostEqual(d["grid"], base["grid"], places=2)
+        self.assertAlmostEqual(d["grid"] - d["resort"], 1.5, places=6)
+
+
 if __name__ == "__main__":
     unittest.main()

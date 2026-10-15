@@ -832,6 +832,38 @@ class RuleAlphaConfig:
 
     grid_rescue_cap: float = 2.0
 
+    grid_rescue_min_support: float = -1.0
+    """The grid rescue's smallest contact share for a pose off the floor
+    (the share of the footprint window resting at the pose's bottom);
+    below 0 keeps the old figures (0.5, ``count_mode_min_support`` under
+    the count threshold).  At 0 or more the share is this value off the
+    count path and the smaller of it and ``count_mode_min_support`` on
+    it.  The 0.5 is the old support-ratio rule (``min_support_ratio``,
+    not an official rule) living on: the validator's stability is the
+    centre of mass inside the convex hull of the contacts, so a box
+    resting on two columns with a slot between them (contact 0.3-0.5,
+    reports/wedge/bridge-spots.md) is legal and the shadow judges it."""
+
+    low_phase_rescue_seconds: float = 0.0
+    """In the low phase (``phase_switch``'s usable-surface reading), the
+    seconds kept for the rescue stages (the physics resort, the count
+    pass, the grid rescue).  (1) The ladder and the stack option take
+    their usual shares (0.6 and 0.85) of the budget less this, the stack
+    option's generation stops at its deadline (as with
+    ``stack_deadline``) and is skipped when the ladder has passed it, and
+    the last resort ends where the reserve begins.  (2) The physics
+    resort stops this many seconds before its deadline and the grid
+    rescue takes the rest of the resort's window (with a pool: the larger
+    of this and ``grid_rescue_pool_seconds``).  The rescue stages' own
+    end deadlines are unchanged, so they start earlier inside the same
+    call rather than the call growing.  0 is off.  In a Task B call that
+    ends in a rescue or a decline the ladder (about 2 s) and the stack
+    option (about 1.2 s) find nothing; on Task C's low phase the ladder
+    and the option are cheap and the count pass's failed checks spend
+    the window, so the grid rescue got one or two tries with its pose
+    list cut short (reports/wedge/task-b-time-budget.md,
+    bridge-spots.md, bridge-rescue.md)."""
+
     grid_rescue_pool_seconds: float = 0.0
     """With a pool (Task B), the physics resort stops this many seconds
     before its deadline and the grid rescue runs to the resort's deadline
