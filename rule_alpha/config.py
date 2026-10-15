@@ -2684,6 +2684,14 @@ class RuleAlphaConfig:
     load.  Off, a replay miss over the soft floor leaves the ladder no
     pose over most of the floor and the episode declines."""
 
+    plan_soft_floor_needs_gate: bool = True
+    """The soft-floor plan plays only when it holds the count threshold plus
+    ``plan_value_margin`` items itself (off: whenever it holds more items
+    than the plan).  Under the threshold only the fill counts on the
+    platform, and the bench's first two CI rounds read every soft-floor
+    gain under the threshold as soft boxes covered for no crossing, and a
+    plan at the threshold (a-c1-s0012, 21 of 21) replaying under it."""
+
     plan_soft_floor_keep_reserve: bool = False
     """The soft-floor variant keeps the soft headroom reserve
     (``reserve_headroom_for_soft``).  Off: the variant plans without it,
