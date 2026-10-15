@@ -1,0 +1,81 @@
+### ship-dense-a
+  margin2: all        n  48 | crossings 10 -> 21 | placed  28.10 ->  31.04 (+2.94; 36 up, 0 down) | margin 0/+1: 8 -> 9
+  margin2: policy time max: base 5.02s, new 3.97s, episodes over the 8 s limit: 0; slowest new: a-c1x70-s0002 4.0, a-c1x80-s0002 4.0, a-c1x70-s0012 3.5
+  margin0: all        n  48 | crossings 10 -> 20 | placed  28.10 ->  30.65 (+2.54; 33 up, 0 down) | margin 0/+1: 8 -> 11
+  margin0: policy time max: base 5.02s, new 4.17s, episodes over the 8 s limit: 0; slowest new: a-c1x70-s0011 4.2, a-c1x80-s0002 4.0, a-c1x70-s0002 3.9
+== ac_dense vs ship-dense-a n 48
+   placed     28.104 ->   31.042  diff +2.938  (better 36 worse 0)
+   soft        6.167 ->    6.188  diff +0.021  (better 16 worse 15)
+   prio        3.917 ->    4.583  diff +0.667  (better 27 worse 7)
+   fill       41.474 ->   45.369  diff +3.894  (better 39 worse 6)
+   com         0.348 ->    0.363  diff +0.015  (better 37 worse 8)
+   tmax        2.226 ->    1.393  diff -0.833  (better 40 worse 8)
+   soft share 0.338 -> 0.343, prio share 0.581 -> 0.661, prio covered 23 -> 19, soft covered 37 -> 10, topples 8 -> 3
+   priced (this suite's third of the total, continuous reading): fill +0.37 soft +0.02 prio +0.38 cog -0.88 -> -0.10
+   episodes>=0.5: 16 -> 24
+   changed: a-c1x50-s0002+1 a-c1x60-s0001+1 a-c1x70-s0007+1 a-c1x70-s0011+1 a-c1x80-s0001+1 a-c1x80-s0007+1 a-c1x80-s0010+1 a-c1x50-s0007+2 a-c1x60-s0004+2 a-c1x70-s0004+2 a-c1x70-s0012+2 a-c1x60-s0002+3 a-c1x60-s0003+3 a-c1x70-s0006+3 a-c1x80-s0004+3 a-c1x80-s0006+3 a-c1x50-s0009+4 a-c1x70-s0003+4 a-c1x80-s0009+4 a-c1x80-s0011+4 a-c1x50-s0001+5 a-c1x60-s0005+5 a-c1x60-s0006+5 a-c1x70-s0008+5 a-c1x80-s0003+5 a-c1x80-s0008+5 a-c1x50-s0005+6 a-c1x50-s0006+6 a-c1x60-s0008+6 a-c1x70-s0005+6 a-c1x70-s0009+6 a-c1x80-s0005+6 a-c1x60-s0009+7 a-c1x70-s0002+7 a-c1x80-s0002+7 a-c1x50-s0008+8
+== ac0_dense vs ship-dense-a n 48
+   placed     28.104 ->   30.646  diff +2.542  (better 33 worse 0)
+   soft        6.167 ->    6.083  diff -0.083  (better 15 worse 15)
+   prio        3.917 ->    4.458  diff +0.542  (better 25 worse 7)
+   fill       41.474 ->   44.909  diff +3.434  (better 36 worse 6)
+   com         0.348 ->    0.363  diff +0.015  (better 35 worse 7)
+   tmax        2.226 ->    1.483  diff -0.743  (better 37 worse 11)
+   soft share 0.338 -> 0.337, prio share 0.581 -> 0.639, prio covered 23 -> 19, soft covered 37 -> 10, topples 8 -> 5
+   priced (this suite's third of the total, continuous reading): fill +0.33 soft -0.00 prio +0.28 cog -0.85 -> -0.25
+   episodes>=0.5: 16 -> 23
+   changed: a-c1x50-s0002+1 a-c1x60-s0001+1 a-c1x70-s0007+1 a-c1x70-s0011+1 a-c1x80-s0001+1 a-c1x80-s0007+1 a-c1x80-s0010+1 a-c1x50-s0007+2 a-c1x60-s0004+2 a-c1x70-s0004+2 a-c1x70-s0012+2 a-c1x60-s0002+3 a-c1x60-s0003+3 a-c1x70-s0006+3 a-c1x80-s0004+3 a-c1x80-s0006+3 a-c1x50-s0009+4 a-c1x70-s0003+4 a-c1x80-s0009+4 a-c1x80-s0011+4 a-c1x60-s0005+5 a-c1x60-s0006+5 a-c1x70-s0008+5 a-c1x80-s0003+5 a-c1x80-s0008+5 a-c1x50-s0006+6 a-c1x60-s0008+6 a-c1x70-s0005+6 a-c1x70-s0009+6 a-c1x80-s0005+6 a-c1x60-s0009+7 a-c1x70-s0002+7 a-c1x80-s0002+7
+### ship-hard-a
+  margin2: all        n  48 | crossings 26 -> 31 | placed  46.83 ->  48.77 (+1.94; 14 up, 4 down) | margin 0/+1: 6 -> 8
+  margin2: policy time max: base 5.30s, new 5.32s, episodes over the 8 s limit: 0; slowest new: a-hard-s0036 5.3, a-hard-s0046 5.3, a-hard-s0019 5.0
+  margin0: all        n  48 | crossings 26 -> 29 | placed  46.83 ->  48.02 (+1.19; 10 up, 3 down) | margin 0/+1: 6 -> 9
+  margin0: policy time max: base 5.30s, new 5.37s, episodes over the 8 s limit: 0; slowest new: a-hard-s0046 5.4, a-hard-s0019 5.0, a-hard-s0036 4.9
+== ac_hard vs ship-hard-a n 48
+   placed     46.833 ->   48.771  diff +1.938  (better 14 worse 4)
+   soft        8.104 ->   10.354  diff +2.250  (better 11 worse 3)
+   prio        8.042 ->    8.208  diff +0.167  (better 4 worse 1)
+   fill       35.398 ->   35.454  diff +0.057  (better 12 worse 7)
+   com         0.350 ->    0.349  diff -0.001  (better 14 worse 6)
+   tmax        2.989 ->    2.876  diff -0.113  (better 21 worse 27)
+   soft share 0.351 -> 0.423, prio share 0.837 -> 0.832, prio covered 13 -> 13, soft covered 7 -> 14, topples 19 -> 20
+   priced (this suite's third of the total, continuous reading): fill +0.01 soft +0.34 prio -0.02 cog +0.07 -> +0.39
+   episodes>=0.5: 27 -> 31
+   changed: a-hard-s0002-4 a-hard-s0019-1 a-hard-s0023-1 a-hard-s0033-1 a-hard-s0011+1 a-hard-s0043+1 a-hard-s0016+2 a-hard-s0030+2 a-hard-s0038+2 a-hard-s0017+3 a-hard-s0032+6 a-hard-s0015+7 a-hard-s0048+7 a-hard-s0018+8 a-hard-s0029+8 a-hard-s0021+11 a-hard-s0047+16 a-hard-s0036+26
+== ac0_hard vs ship-hard-a n 48
+   placed     46.833 ->   48.021  diff +1.188  (better 10 worse 3)
+   soft        8.104 ->   10.417  diff +2.312  (better 9 worse 4)
+   prio        8.042 ->    8.229  diff +0.188  (better 4 worse 2)
+   fill       35.398 ->   34.823  diff -0.575  (better 7 worse 7)
+   com         0.350 ->    0.343  diff -0.007  (better 10 worse 5)
+   tmax        2.989 ->    2.825  diff -0.164  (better 22 worse 26)
+   soft share 0.351 -> 0.412, prio share 0.837 -> 0.825, prio covered 13 -> 12, soft covered 7 -> 12, topples 19 -> 17
+   priced (this suite's third of the total, continuous reading): fill -0.05 soft +0.28 prio -0.06 cog +0.42 -> +0.59
+   episodes>=0.5: 27 -> 29
+   changed: a-hard-s0028-11 a-hard-s0019-1 a-hard-s0023-1 a-hard-s0030+1 a-hard-s0016+2 a-hard-s0038+2 a-hard-s0036+3 a-hard-s0032+6 a-hard-s0010+7 a-hard-s0015+7 a-hard-s0021+11 a-hard-s0047+14 a-hard-s0034+17
+### ship-core-a
+  margin2: all        n  48 | crossings 48 -> 47 | placed  37.54 ->  38.12 (+0.58; 9 up, 4 down) | margin 0/+1: 9 -> 2
+  margin2: policy time max: base 3.64s, new 3.78s, episodes over the 8 s limit: 0; slowest new: a-c2p-s0008 3.8, a-c2-s0008 3.7, a-c2-s0001 3.7
+  margin0: all        n  48 | crossings 48 -> 48 | placed  37.54 ->  37.65 (+0.10; 1 up, 0 down) | margin 0/+1: 9 -> 8
+  margin0: policy time max: base 3.64s, new 3.63s, episodes over the 8 s limit: 0; slowest new: a-c2-s0012 3.6, a-c2p-s0011 3.6, a-c2-s0005 3.5
+== ac_core vs ship-core-a n 48
+   placed     37.542 ->   38.125  diff +0.583  (better 9 worse 4)
+   soft        7.938 ->    7.688  diff -0.250  (better 5 worse 5)
+   prio        5.312 ->    5.125  diff -0.188  (better 2 worse 5)
+   fill       36.240 ->   37.525  diff +1.285  (better 11 worse 2)
+   com         0.326 ->    0.341  diff +0.015  (better 11 worse 2)
+   tmax        2.061 ->    1.904  diff -0.157  (better 30 worse 18)
+   soft share 0.464 -> 0.456, prio share 0.781 -> 0.744, prio covered 1 -> 1, soft covered 0 -> 0, topples 4 -> 8
+   priced (this suite's third of the total, continuous reading): fill +0.12 soft -0.04 prio -0.18 cog -0.84 -> -0.93
+   episodes>=0.5: 48 -> 47
+   changed: a-c1s-s0006-5 a-c2p-s0002-3 a-c2p-s0008-3 a-c2p-s0011-3 a-c1-s0010+1 a-c1s-s0003+1 a-c2p-s0012+1 a-c1-s0002+2 a-c1s-s0011+4 a-c1-s0012+5 a-c1-s0009+8 a-c2p-s0003+9 a-c1-s0007+11
+== ac0_core vs ship-core-a n 48
+   placed     37.542 ->   37.646  diff +0.104  (better 1 worse 0)
+   soft        7.938 ->    7.938  diff +0.000  (better 0 worse 0)
+   prio        5.312 ->    5.312  diff +0.000  (better 0 worse 0)
+   fill       36.240 ->   36.395  diff +0.155  (better 1 worse 0)
+   com         0.326 ->    0.328  diff +0.002  (better 1 worse 0)
+   tmax        2.061 ->    2.186  diff +0.125  (better 23 worse 25)
+   soft share 0.464 -> 0.464, prio share 0.781 -> 0.781, prio covered 1 -> 1, soft covered 0 -> 0, topples 4 -> 4
+   priced (this suite's third of the total, continuous reading): fill +0.01 soft +0.00 prio +0.00 cog -0.10 -> -0.09
+   episodes>=0.5: 48 -> 48
+   changed: a-c1-s0012+5
