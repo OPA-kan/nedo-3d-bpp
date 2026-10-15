@@ -31,3 +31,7 @@ To measure a change, append `,field=value` to the ship arm's line.
   `arm_astandf_front_a.txt`: the gallery forced on every manifest, braced
   (against the back wall, the hard rows in front) and at the opening
   (braced on one side), for the stability cost; records `astandf*-*`.
+  `arm_astand2_a.txt`: the braced variants only; `arm_astand3_a.txt`: the
+  same, kept off layouts with a priority container (the candidate form);
+  records `astand2-*`, `astand3-*` (dense-a has no priority container, so
+  `astand2-dense-a` stands for both).
