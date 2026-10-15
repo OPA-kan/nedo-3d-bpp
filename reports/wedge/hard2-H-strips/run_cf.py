@@ -29,7 +29,7 @@ for h in order:
     gone = next((i for i in range(len(uf) - 1) if all(u < 0.26 for u in uf[i + 1:])), None)
     # the pilot (c-hard2-s0007) found the decisive step one before "floor
     # gone"; the steps around it and the last placements
-    near = d['margin'] >= -3 and d['end'] == 'declined'
+    near = -3 <= d['margin'] < 0 and d['end'] == 'declined'
     if near or '--full' in sys.argv:
         ks = {n - 1, n - 3}
         if gone is not None:

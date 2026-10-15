@@ -117,6 +117,7 @@ def main():
     refusals = collections.Counter()
     hset = {h["scene"] for h in json.load(open(f"{HERE}/hlist.json"))}
     gone_rows = collections.defaultdict(list)
+    shade_kill = collections.defaultdict(lambda: [0, 0.0])
     for f in files:
         d = json.load(open(f))
         grp = "H" if d["scene"] in hset else "X"
@@ -145,6 +146,8 @@ def main():
             totals[(grp, cs)][pz] += 1
             if pz.startswith("floor"):
                 refusals[(grp, ref, cs)] += 1
+                shade_kill[(grp, "shade-vetoed pick" if ref == "shade" else ("no ladder pose" if ref == "no-ladder" else "ladder pick played or other"))][0] += 1
+                shade_kill[(grp, "shade-vetoed pick" if ref == "shade" else ("no ladder pose" if ref == "no-ladder" else "ladder pick played or other"))][1] += killed
             if gone is not None and i == gone:
                 gone_rows[grp].append((d["scene"], d["margin"], d["end"], i, len(dumps) - 1, cls_of(it), st, pz, ref, round(lost, 2), round(killed, 2)))
             if grp == "X":
@@ -206,6 +209,10 @@ def main():
     ]
     for (grp, r, cs), n in sorted(refusals.items(), key=lambda kv: (kv[0][0], -kv[1])):
         L.append(f"| {grp} | {r} | {cs} | {n} |")
+    L += ["", "## 2a. Floor placements by what happened to the ladder's pick: count, usable floor killed, per placement", "",
+          "| group | path | floor placements | killed m^2 | killed per placement |", "|---|---|---:|---:|---:|"]
+    for (grp, path), (nn, kk) in sorted(shade_kill.items()):
+        L.append(f"| {grp} | {path} | {nn} | {kk:.2f} | {kk / max(1, nn):.3f} |")
     L += ["", "## 2b. The step that takes the last usable floor (\"floor gone\"), H against the crossings run for contrast", "",
           "| group | scene | ref margin | end | step / of | item | stage | pose | ladder pick | lost | killed |",
           "|---|---|---:|---|---|---|---|---|---|---:|---:|"]

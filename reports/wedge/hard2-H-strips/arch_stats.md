@@ -53,6 +53,17 @@ Group H = the 21 H scenes; X = the crossing scenes run for contrast (same arm).
 | X | shade | pocket-soft | 1 |
 | X | no-ladder | grid-rescue | 1 |
 
+## 2a. Floor placements by what happened to the ladder's pick: count, usable floor killed, per placement
+
+| group | path | floor placements | killed m^2 | killed per placement |
+|---|---|---:|---:|---:|
+| H | ladder pick played or other | 192 | 16.51 | 0.086 |
+| H | no ladder pose | 23 | 3.00 | 0.131 |
+| H | shade-vetoed pick | 22 | 4.68 | 0.213 |
+| X | ladder pick played or other | 120 | 12.10 | 0.101 |
+| X | no ladder pose | 30 | 2.61 | 0.087 |
+| X | shade-vetoed pick | 17 | 2.55 | 0.150 |
+
 ## 2b. The step that takes the last usable floor ("floor gone"), H against the crossings run for contrast
 
 | group | scene | ref margin | end | step / of | item | stage | pose | ladder pick | lost | killed |
