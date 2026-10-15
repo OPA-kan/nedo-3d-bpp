@@ -52,9 +52,9 @@ dumps, branch logs) stays in `/home/user/inv-H-scratch`.
   - On B only b-hard2-s0039 has one (lead 7-11). On the shipped arm its
     baseline drops to -4, and one branch still reaches the threshold.
   - b-s0040, s0067 and s0083 have no rescue in the steps branched.
-  - The same branching on crossings (margin 0 to +2) breaks them twice as
-    often as it rescues H: 31 % of distinct alternatives turn a crossing
-    into a miss, 15 % turn an H miss into a crossing (`cf_flip.md`). Near
+  - The same branching on crossings (margin 0 to +2) breaks them about twice as
+    often as it rescues H: 27 % of distinct alternatives turn a crossing
+    into a miss, 14 % turn an H miss into a crossing (`cf_flip.md`). Near
     the threshold the count moves by an item or more with almost any change.
 - **Where one move helps, it is before the floor is gone.**
   - The last 1-3 placements rescue nothing, except on c-hard2-s0028, whose
@@ -292,26 +292,26 @@ Generated tables: `cf_stats.md` (per scene and step), `cf_flip.md`,
 
 **By kind of alternative** (distinct poses, `cf_flip.md`), on H:
 
-- the hand-picked most-usable-surface poses rescue 10 of 38;
+- the hand-picked most-usable-surface poses rescue 10 of 41;
 - poses the ladder vetoed: 5 of 25;
 - the agent's next answer (`veto<j>`): 8 of 85;
 - the shade-vetoed ladder pick let through (`rung1`): 1 of 12.
 
 **The control: the same branching on crossings.** Crossings at margin 0
-to +2 (c-hard2-s0026, s0074, s0058, s0050, s0014 and b-hard2-s0051, s0058)
+to +2 (c-hard2-s0026, s0074, s0058, s0050, s0014 and b-hard2-s0051, s0058, s0076)
 were branched around "floor gone":
 
 |                                      | distinct branches |      flips |              share |
 | ------------------------------------ | ----------------: | ---------: | -----------------: |
-| H: miss -> crossing                  |               170 |         26 |               0.15 |
-| crossings: crossing -> miss          |                62 |         19 |               0.31 |
-| H, by lead 1-3 / 4-9 / >= 10         |      45 / 48 / 77 | 5 / 12 / 9 | 0.11 / 0.25 / 0.12 |
-| crossings, by lead 1-3 / 4-9 / >= 10 |       8 / 31 / 23 | 0 / 13 / 6 | 0.00 / 0.42 / 0.26 |
+| H: miss -> crossing | 187 | 26 | 0.14 |
+| crossings: crossing -> miss | 71 | 19 | 0.27 |
+| H, by lead 1-3 / 4-9 / >= 10 | 45 / 61 / 81 | 5 / 12 / 9 | 0.11 / 0.20 / 0.11 |
+| crossings, by lead 1-3 / 4-9 / >= 10 | 8 / 31 / 32 | 0 / 13 / 6 | 0.00 / 0.42 / 0.19 |
 
 - The most-usable-surface poses that rescue H boards break crossings at
-  48 % (10 of 21).
-- The mean margin change is near zero in both groups (H -0.96, crossings
-  +0.13).
+  43 % (10 of 23).
+- The mean margin change is near zero in both groups (H -0.77, crossings
+  +0.23).
 - So one changed placement near "floor gone" is a coin toss on these
   boards. It is not a correction the ladder systematically misses.
 
@@ -555,7 +555,7 @@ budgets). See `ship_confirm.py` and the last section of `cf_stats.md`.
 
 - **A rule that keeps the rescues?** Is there a decision rule that takes the
   H rescues without paying the crossing breaks? The same alternatives break
-  31 % of the crossings near the threshold, so any rule must be measured on
+  27 % of the crossings near the threshold, so any rule must be measured on
   whole suites, not on the misses.
 - **A denser floor phase?** Can the floor hold more small items per m^2?
   - The H scenes need 13-15 items per m^2. In every group the agent holds
