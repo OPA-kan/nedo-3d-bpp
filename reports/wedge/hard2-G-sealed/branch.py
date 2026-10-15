@@ -343,6 +343,24 @@ class Protected:
                 n += 1
         return n
 
+    def left_open(self, box, ci, t):
+        """(open before, open after): spots open at prefix t (level, path clear) and
+        how many of them this box leaves open (neither blocked nor occupied)."""
+        opened = [x for x in self.spots if x[2] is not None and x[3] is not None and x[3] >= 0 and x[2] <= t <= x[3]]
+        if int(ci) != self.ci:
+            return len(opened), len(opened)
+        c = np.asarray(box.center, float); d = np.asarray(box.size, float)
+        lo = (c - d / 2)[None]; hi = (c + d / 2)[None]
+        n = 0
+        for (cx, cy, _tl, _ts, _it, fx, fy, h) in opened:
+            slo = np.array([cx - fx / 2, cy - fy / 2, self.z]); shi = np.array([cx + fx / 2, cy + fy / 2, self.z + h])
+            if np.all(lo[0] < shi - 1e-6) and np.all(hi[0] > slo + 1e-6):
+                continue
+            zt = K.transport_z(self.cont, self.z, h, self.on_floor, self.on_shelf)
+            if not K.exact_blockers(self.cont, lo, hi, [cx], [cy], fx, fy, h, zt).any():
+                n += 1
+        return len(opened), n
+
     def fills(self, box, ci):
         if int(ci) != self.ci:
             return False

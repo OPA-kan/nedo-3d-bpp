@@ -348,9 +348,12 @@ def reach_exact(ep, cs, ci, spots):
         zt = transport_z(cont, sp["z"], sp["h"], sp["on_floor"], sp["on_shelf"])
         M = exact_blockers(cont, blo, bhi, cx, cy, sp["fx"], sp["fy"], sp["h"], zt, sb)
         clear = ~M.any(1)
-        first = np.where(
-            M.any(1), np.argmax(M, axis=1), -1
-        )  # earliest packed blocker (packing order)
+        # earliest packed blocker (packing order); -1 when clear
+        first = (
+            np.where(M.any(1), np.argmax(M, axis=1), -1)
+            if M.shape[1]
+            else np.full(M.shape[0], -1)
+        )
         cl = np.zeros_like(org)
         cl[I[clear], J[clear]] = True
         fb = np.full(org.shape, -1, dtype=int)
