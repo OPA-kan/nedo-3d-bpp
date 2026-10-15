@@ -798,6 +798,35 @@ N = 19 (A placing 97 % at a fill of 56) to N = 24 (A with 4-5 episodes
 scoring zero on the four components while placing most of their
 manifests) are separated by Task A alone (section 7).
 
+Fifty-first build (v51): v50 with Task A's count-secured re-plan
+(`plan_count_secure`, `plan_count_secure_choice`,
+`plan_count_secure_race_replanned`, `plan_count_secure_margin=0`,
+`plan_count_secure_blocks="plain;top"`, the `task_a` overrides in
+`Agent.optimize`; Tasks B and C untouched).  The diagnostics
+(`reports/wedge/stability-lattice.md`) read 3-5 of the platform's Task A
+episodes under the count threshold, each worth about 2.3 points, and on
+dense single-container manifests the shipped plan places 28-29 items
+whatever the manifest holds (`dense-a`: 10 of 48 crossings).  When the
+best plan holds fewer items than the threshold (total // 2 + 1), the
+manifest is re-planned with standing rows and the soft cargo's own rows,
+the plans ranked first by whether they hold the count, and the
+planner-vs-dry-run race decided by the count in those episodes; the soft
+block the diagnosis proposed lost to the standing rows (two soft layers
+hold about 11 items per m^2 against 18-27 for a column of the smallest
+hard boxes).  Bench: dense-a 10 -> 20 of 48 (c1x50 8 -> 10, c1x60 2 -> 8,
+c1x70 0 -> 2, c1x80 0), hard-a 26 -> 29, core-a 48 of 48 with the soft
+(381) and priority (255) counts unchanged (one episode re-planned, 21 ->
+26 placed), topples 4 -> 4, the centre of mass 0.326 -> 0.328, the
+slowest call under 5.4 s (`reports/wedge/a-count-secure.md`).  The
+threshold + 2 trigger was measured and lost a core-a crossing (the race's
+count rule picked a dry-run plan with no soft or priority box); not
+kept.  Official sample: A 32.11 / 25 (the sample's plan is over its
+threshold, so nothing re-plans), B 29.59 / 26, C 26.44 / 25; policy max
+B 5.01 s, C 3.92 s (`official-sample-abc-v51.json`).  Expected on the
+platform: up to +2.3 per Task A episode brought over the count; none if
+the platform's uncounted A manifests are the 80-110-item kind, where no
+plan here passes 36 items against a threshold of 41.
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

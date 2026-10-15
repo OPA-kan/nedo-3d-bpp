@@ -136,6 +136,20 @@ DIAGNOSTIC_SURRENDER_TASKS: tuple = ()
 # upward on Tasks B and C (band_lift, OVERRIDES).
 # v50: the soft columns from the first soft box on Tasks B and C
 # (soft_structure_floor_share 0.35 -> 0, OVERRIDES).
+# v51: Task A's count-secured re-plan (plan_count_secure, the task_a
+# overrides in Agent.optimize): when the best plan holds fewer items
+# than the count threshold (total // 2 + 1), the manifest is re-planned
+# with standing rows and the soft cargo's own rows, the plans ranked
+# first by whether they hold the count, and the planner-vs-dry-run
+# race decided by the count in those episodes.  The diagnostics
+# (reports/wedge/stability-lattice.md) read 3-5 of the platform's Task
+# A episodes under the count, each worth about 2.3 points; on dense
+# single-container manifests the shipped plan places 28-29 items
+# whatever the manifest holds.  Bench: dense-a crossings 10 -> 20 of
+# 48, hard-a 26 -> 29, core-a 48 of 48 with its soft and priority
+# counts unchanged (one episode re-planned, 21 -> 26 placed), no
+# topple added, the slowest call under 5.4 s
+# (reports/wedge/a-count-secure.md).  Tasks B and C are untouched.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -490,7 +504,12 @@ class Agent(RuleAlphaAgent):
                       band_lift=0.0,
                       # v50: the soft columns' floor-share gate is kept on
                       # A, whose rows were not measured without it
-                      soft_structure_floor_share=0.35)
+                      soft_structure_floor_share=0.35,
+                      # v51: the count-secured re-plan under the count
+                      # threshold (see the v51 note above)
+                      plan_count_secure=True, plan_count_secure_choice=True,
+                      plan_count_secure_race_replanned=True, plan_count_secure_margin=0,
+                      plan_count_secure_blocks="plain;top")
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
