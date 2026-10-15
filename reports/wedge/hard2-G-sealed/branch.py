@@ -447,6 +447,12 @@ def decide_cf(st, mode='agent', k=1, protect=None, defer_item=None):
         if a is None:
             note['declined_at'] = len(tries) + 1
         return a, d, note
+    if mode in ('noseal2', 'fill2'):
+        base = 'noseal' if mode == 'noseal2' else 'fill'
+        with shadow_filter(protect, mode, note):
+            a, d, n2 = decide_cf(st, base, k, protect, defer_item)
+        note.update(n2)
+        return a, d, note
     if mode == 'defer':
         keep = st.pool
         idx = [n for n, it in enumerate(keep) if int(it['index']) != int(defer_item)]
@@ -501,6 +507,38 @@ def decide_cf(st, mode='agent', k=1, protect=None, defer_item=None):
     return a, d, note
 
 
+def _size_for(item, orientation):
+    l, w, h = float(item['length']), float(item['width']), float(item['height'])
+    table = {0: (l, w, h), 1: (l, h, w), 2: (h, w, l), 3: (w, l, h), 4: (w, h, l), 5: (h, l, w)}
+    return table.get(int(orientation), (l, w, h))
+
+
+@contextlib.contextmanager
+def shadow_filter(protect, mode, note):
+    from rule_alpha._reuse import AABB
+    orig = RuleAlphaAgent._shadow_verdict
+
+    def verdict(self, sim, action, item):
+        size = _size_for(item, action['orientation'])
+        c = [float(v) for v in action['place_pos']]
+        box = AABB(tuple(c), tuple(size), 'probe')
+        ci = int(action['container_idx'])
+        if mode == 'noseal2':
+            bad = protect.seals(box, ci) > 0
+        else:  # the commanded pose sits 2 cm (floor) or 5.1-5.3 cm (shelf, band) over its support
+            bad = not any(protect.fills(AABB((c[0], c[1], c[2] - dz), tuple(size), 'probe'), ci) for dz in (0.0, 0.02, 0.051, 0.053))
+        if bad:
+            note['shadow_refused'] = note.get('shadow_refused', 0) + 1
+            return {'transport_ok': False, 'settle_ok': True, 'shake_ok': True, 'drift': 0.0, 'drift_xy': 0.0,
+                    'angle_deg': 0.0, 'ok': False}
+        return orig(self, sim, action, item)
+    RuleAlphaAgent._shadow_verdict = verdict
+    try:
+        yield
+    finally:
+        RuleAlphaAgent._shadow_verdict = orig
+
+
 def archetype_ladder_for(board, profile, container_idx, cfg):
     return layer1.archetype_ladder(profile, board, container_idx, cfg)
 
@@ -528,7 +566,7 @@ def branch_rollout(ep, rec, t, mode='agent', k=1, protect=None, defer_item=None,
             if not st.pool:
                 break
             if persistent and protect is not None and not filled:
-                a2, d2, n2 = decide_cf(st, 'noseal', protect=protect)
+                a2, d2, n2 = decide_cf(st, 'noseal2' if mode in ('noseal2', 'fill2') else 'noseal', protect=protect)
             else:
                 a2, d2 = st.decide()
             if a2 is None:
