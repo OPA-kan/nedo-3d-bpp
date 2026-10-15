@@ -1749,6 +1749,26 @@ class BridgeSlideTest(unittest.TestCase):
                 sliding.bridge_max_sealed_floor,
             )
 
+    def test_late_slides_have_their_own_rung_at_the_end(self):
+        board, _level = self._board(storeys=1)
+        late = dataclasses.replace(
+            DEFAULT_CONFIG, bridge_slide=0.02, bridge_slide_late=True
+        )
+        found = self._bridges(board, late)
+        self.assertTrue(found)
+        for candidate in found:
+            self.assertTrue(candidate.features.get("bridge_slide"))
+            self.assertEqual(layer1.eligible_archetypes(candidate, late),
+                             {layer1.A_BRIDGE_SLIDE})
+            # off, the same candidate is an ordinary plateau merge
+            self.assertIn(layer1.A_BRIDGE, layer1.eligible_archetypes(
+                candidate, dataclasses.replace(late, bridge_slide_late=False)))
+        profile = self._profile(9, self.ITEM)
+        ladder = layer1.archetype_ladder(profile, board, 0, late)
+        self.assertEqual(ladder[-2:], [layer1.A_BRIDGE_SLIDE, layer1.A_LAST_RESORT])
+        self.assertNotIn(layer1.A_BRIDGE_SLIDE,
+                         layer1.archetype_ladder(profile, board, 0, DEFAULT_CONFIG))
+
     def test_slide_anchors_reach_both_tops_and_skip_abutting_ones(self):
         tops = [(Rect(-0.5, -0.1, -0.5, 0.5), 0.6), (Rect(0.2, 0.6, -0.5, 0.5), 0.6)]
         anchors = l2.bridge_slide_anchors(tops, 0.6, 0.6, 0.4, 0.02, 0.006)

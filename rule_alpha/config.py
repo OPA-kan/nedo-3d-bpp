@@ -1403,6 +1403,19 @@ class RuleAlphaConfig:
     declining boards -- c-c1-s0003, a column and the small shelf's edge at
     0.85 m -- takes the box standing on its side, fourth in that order."""
 
+    bridge_slide_late: bool = False
+    """Give the sliding bridges a rung of their own, ``bridge-slide``, after
+    every other rung but the last resort, and no other tag: they place only
+    where the ladder would otherwise have declined.
+
+    As members of the plateau-merge rung (the first growth rung) they cost
+    items on the ladder-only analytic arm over the 48 core C scenes: 1405 ->
+    1390 placed with the slide, 1384 with the plateau exemption as well,
+    crossings 17 -> 15, the bridges chosen 14 and 23 times -- a slot between
+    two columns lidded while the ladder still had other places to go.  The
+    spots the scan found are on the declining boards, so the move belongs at
+    the end of the ladder, not at its head."""
+
     bridge_plateau_exempt: bool = False
     """Exempt a bridge resting on two separated hard tops from the plateau
     condition (``no-plateau-to-build-on``); the layer cap still applies.
