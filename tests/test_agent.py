@@ -745,7 +745,7 @@ class BridgeRescueFlagTests(unittest.TestCase):
         self.assertGreater(accepted, 0)  # the validator's convex hull accepts the bridges
 
     # -- the low phase's rescue reserve ---------------------------------------
-    def _deadlines(self, low: bool, **over):
+    def _deadlines(self, low: bool, pool_size: int = 1, **over):
         """The deadlines one declining call hands its stages (relative to
         the call's start): the stack option's, the last resort's, the
         physics resort's and the grid rescue's."""
@@ -780,7 +780,8 @@ class BridgeRescueFlagTests(unittest.TestCase):
             got["grid"] = deadline
             return None
 
-        observation = {"container_list": self._containers(columns=False), "pool_list": [dict(self.ITEM)]}
+        observation = {"container_list": self._containers(columns=False),
+                       "pool_list": [dict(self.ITEM, index=9 + k) for k in range(pool_size)]}
         with mock.patch.object(layer1, "choose_for_item", return_value=None), \
                 mock.patch.object(a, "_low_phase", return_value=low), \
                 mock.patch.object(a, "_last_resort", side_effect=last_resort), \
@@ -817,6 +818,16 @@ class BridgeRescueFlagTests(unittest.TestCase):
         # the resort hands the reserve to the grid rescue; the end is unchanged
         self.assertAlmostEqual(d["grid"], base["grid"], places=2)
         self.assertAlmostEqual(d["grid"] - d["resort"], 1.5, places=6)
+
+    def test_low_phase_reserve_single_gate(self):
+        # a pool of one (Task C): the gate lets the reserve act
+        _d, a = self._deadlines(True, low_phase_rescue_seconds=1.5, low_phase_rescue_single=True)
+        self.assertTrue(a._low_cut)
+        # a pool of several (Task B): the gate keeps it off
+        _d, a = self._deadlines(True, pool_size=3, low_phase_rescue_seconds=1.5, low_phase_rescue_single=True)
+        self.assertFalse(a._low_cut)
+        _d, a = self._deadlines(True, pool_size=3, low_phase_rescue_seconds=1.5)
+        self.assertTrue(a._low_cut)
 
 
 if __name__ == "__main__":

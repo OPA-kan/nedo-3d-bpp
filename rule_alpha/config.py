@@ -864,6 +864,14 @@ class RuleAlphaConfig:
     list cut short (reports/wedge/task-b-time-budget.md,
     bridge-spots.md, bridge-rescue.md)."""
 
+    low_phase_rescue_single: bool = False
+    """``low_phase_rescue_seconds`` only with a pool of one item (Tasks A
+    and C), so one set of overrides can carry it for C and leave B alone:
+    measured, the reserve kept every core C crossing and took the placing
+    calls over 5.3 s from 13 to 0-1, while on core B it cost b-c2-s0002's
+    crossing (50 -> 41: the low phase covers most of a B episode and the
+    shortened ladder changed its course)."""
+
     grid_rescue_pool_seconds: float = 0.0
     """With a pool (Task B), the physics resort stops this many seconds
     before its deadline and the grid rescue runs to the resort's deadline
