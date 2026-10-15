@@ -2767,6 +2767,55 @@ class RuleAlphaConfig:
 
     plan_min_seconds: float = 15.0
 
+    plan_count_secure: bool = False
+    """Task A: when the planner's best plan holds fewer than the count
+    threshold plus ``plan_value_margin`` items, the manifest is planned
+    again around a count frame (``rule_alpha/count_secure.py``): the
+    threshold plus the margin smallest items across classes, the priority
+    cargo always among them; the frame's soft cargo as a block of soft-on-
+    soft rows on a strip of the floor (``plan_count_secure_blocks``), the
+    frame's hard cargo in rows on the rest of the floor, then the rest of
+    the manifest for fill.  The plans are ranked first by whether they
+    hold the threshold plus the margin, then by the plan score, and the
+    planner's plan stands whenever it holds it.  On dense single-container
+    manifests the row planner places the hard cargo first and the soft
+    cargo, the smallest items, never gets a turn (c1x60 seed 2: 27
+    planned against a threshold of 31, 16 soft boxes out; the smallest
+    33 items take 0.34 of the container)."""
+
+    plan_count_secure_blocks: str = "plain"
+    """Where the count frame's soft block goes, one plan each: "left" /
+    "right" (a strip along that wall, the whole depth), "back" (a strip
+    along the back wall, the whole width)."""
+
+    plan_count_secure_block_layers: int = 2
+    """The soft block's strip is sized for its soft footprint over this
+    many layers (and no smaller than the floor share the soft-structure
+    gate asks before soft rests on soft)."""
+
+    plan_count_secure_block_share: float = 0.6
+    """The soft block's strip takes at most this share of the floor's
+    width (side strips) or depth (the back strip)."""
+
+    plan_count_secure_standing_rows: bool = True
+    """The count-secured plans run with ``plan_standing_rows`` and
+    ``plan_soft_own_rows`` on (the planner's ordinary plan keeps the
+    configured values)."""
+
+    plan_count_secure_overrides: str = ""
+    """Config fields the count-secured plans run with, "field=value;
+    field=value" (applied after ``plan_count_secure_standing_rows``)."""
+
+    plan_count_secure_extra: int = 0
+    """Items added to the count frame beyond the threshold plus
+    ``plan_value_margin``."""
+
+    plan_count_secure_choice: bool = False
+    """Task A, with ``plan_count_secure``: the race of the planner's plan
+    against the ladder's dry-run plan is decided first by whether each
+    holds the count threshold plus ``plan_value_margin``, then by the
+    plan score."""
+
     transport_clearance: float = 0.0
     """Clearance of the transport sweep from packed cargo and shelves when
     positive; otherwise ``settled_clearance``.  Set by the plan replay,
