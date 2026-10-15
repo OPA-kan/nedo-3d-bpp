@@ -430,7 +430,10 @@ class RuleAlphaAgent:
                 threshold = self._count_threshold()
                 if threshold is not None and len(planned[1]) < threshold < len(dry_plan) + 1:
                     prefer = False
-            if not prefer and (planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9):
+            from .planner import soft_floor_yields
+
+            if not prefer and (planned is None or score_of(dry_plan) > score_of(planned[1]) + 1e-9
+                               or soft_floor_yields(self, planned[1], dry_plan)):
                 order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
                 planned = None
         if planned is not None:

@@ -165,6 +165,8 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
             box, _cover_view(container, model, waive), bool(profile.is_soft), bool(profile.is_prioritized),
             shelves=model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None):
         ok, why = False, "covers-other-attribute"
+    if ok and waive:
+        ok, why = _soft_floor_unsunk_ok(box, model, container, config, why)
     if ok and bottom > model.z_floor + 1e-6:
         # the validator's rule (centre of mass inside the support) let a
         # soft box rest on 40 % of its footprint; in physics it tipped and
@@ -617,6 +619,45 @@ def _soft_floor_pass(agent, board, container_idx: int, items: list, config, plan
     return [p for p in items if p.index not in placed]
 
 
+def _soft_floor_unsunk_ok(box, model, container: dict, config, why: str):
+    """A hard pose over the soft floor is planned on the sunk tops
+    (``plan_soft_floor_sink``) and must be legal as well where it lands if
+    the soft boxes sink less: raised by the sink, read with the sink as
+    contact tolerance.  The transport band under the shelf level is a step
+    function of the pose's height, and a plan that cleared it by the sink
+    alone missed at replay (a-hard-s0047, a-c1x60-s0002: the third layer's
+    top 1.5 cm into the band)."""
+    sink = float(getattr(config, "plan_soft_floor_sink", 0.0))
+    if sink <= 0.0:
+        return True, why
+    floor = _floor_soft_boxes(container, model)
+    if not any(min(float(box.maximum[0]), float(b.maximum[0])) - max(float(box.minimum[0]), float(b.minimum[0])) > 0.01
+               and min(float(box.maximum[1]), float(b.maximum[1])) - max(float(box.minimum[1]), float(b.minimum[1])) > 0.01
+               for _p, b in floor):
+        return True, why
+    from ._reuse import packed_aabbs_local
+
+    def over_floor(b) -> bool:
+        return any(min(float(b.maximum[0]), float(f.maximum[0])) - max(float(b.minimum[0]), float(f.minimum[0])) > 0.01
+                   and min(float(b.maximum[1]), float(f.maximum[1])) - max(float(b.minimum[1]), float(f.minimum[1])) > 0.01
+                   for _p, f in floor)
+
+    # the board as it stands if the soft floor does not sink: the floor and
+    # every box over it up by the sink
+    packed = []
+    for p, (b, _s, _pr) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
+        if over_floor(b):
+            x, y, z = p["pos"]
+            p = dict(p, pos=(x, y, float(z) + sink))
+        packed.append(p)
+    view = dict(container)
+    view["packed_items"] = packed
+    raised = AABB((float(box.center[0]), float(box.center[1]), float(box.center[2]) + sink),
+                  tuple(float(v) for v in box.size), ARCHETYPE)
+    ok, why2 = layer1.validate(raised, model, view, config)
+    return (True, why) if ok else (False, "soft-floor-unsunk-" + str(why2))
+
+
 def _sink_soft_floor(board, container_idx: int, count: int, sink: float) -> None:
     """The planning board's last ``count`` placements (the soft floor) moved
     ``sink`` down: the hard rows are planned on the tops the soft boxes
@@ -654,6 +695,17 @@ def _mark_over_soft(plan: list, drop: float) -> int:
                 marked += 1
                 break
     return marked
+
+
+def soft_floor_yields(agent, plan: list, other: list) -> bool:
+    """A soft-floor plan (played under the count gate) yields to another
+    plan with more items: it bought its count with covered soft boxes, and
+    the plan score's soft share must not keep it over a plan that places
+    more (a-hard-s0019: the soft-floor plan's 59 items with 23 soft against
+    the dry-run's 63 with 6)."""
+    if not plan or not any(e.get("soft_floor") for e in plan):
+        return False
+    return len(other) > len(plan)
 
 
 def soft_floor_board_view(agent, containers: list) -> list:
