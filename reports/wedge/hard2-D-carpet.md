@@ -259,4 +259,95 @@ reads −3 (80 of 83; branch `k = 0`).
   questions).
 
 
+
+## 5. The gate (v49 to v50): why the carpet survives it
+
+The gate makes soft cargo structure from the first soft box, where v49 waited
+until soft covered 35 % of the floor (`soft_structure_floor_share` 0.35 → 0). By
+§2.1 it does not open a new generator. What it changes is which soft-top poses
+the pocket guard, the stack option and the rescues may use from the start. In the
+deterministic pair (`bandntdet-hard2` → `gate0det-hard2`, `course.py`):
+
+| scene | margin v49 → v50 | first soft-on-soft step | soft boxes on the floor / on soft | soft floor share at the end |
+|---|---|---|---|---|
+| s0010 | −1 → +6 | 23 → 14 | 14 / 2 → 10 / 6 | 0.46 → 0.35 |
+| s0014 | −5 → +1 | 10 → 9 | 14 / 8 → 13 / 15 | 0.70 → 0.65 |
+| s0036 | −1 → +5 | 17 → 2 | 35 / 34 → 36 / 38 | 0.70 → 0.64 |
+| s0004 | 0 → −2 | 7 → 4 | 4 / 2 → 5 / 3 | 0.44 → 0.44 |
+| s0006 | −4 → −1 | 13 → 9 | 8 / 6 → 10 / 4 | 0.75 → 0.70 |
+| s0072 | −9 → −21 | 13 → 3 | 22 / 21 → 16 / 17 | 0.71 → 0.65 |
+| s0075 | −23 → −23 | 13 → 6 | 17 / 17 → 16 / 19 | 0.46 → 0.45 |
+
+Soft-on-soft starts earlier on every board, but the floor count hardly moves (±4)
+and the end share drops by 0.00-0.11. The gate adds soft tops. It does not change
+the floor-or-top choice, which belongs to the guard (§2.4) and is still made under
+its 0.8 s window, its cross-container ranking, its 41-item prior and the shelf
+ceiling. The three carpets that became crossings gained 4-12 soft-on-soft
+placements. s0004 lost 2 items with the same floor count, which is inside the
+noise of §0 (c-s0004's baselines are stable at −2 on this machine, but c-s0006's
+spread over 6 items).
+
+
+## 3. Counterfactuals: "if this move had been different"
+
+All branches are on the record's board at step k, with the record's arm and
+deterministic budgets. The agent plays from k+1 to the end. The full per-branch
+table is `cf_table.py` (from `data/cf_results.jsonl`). The alternatives:
+- `ladder:N`: the N-th pose of the ladder's rung, before the guard;
+- `guard:N`: the guard's N-th best pose;
+- `soft:0`: the lowest soft-top pose under the cap with ≥ 0.6 support;
+- `softnocap:0`: the same with the 0.7 m cap lifted for this one box;
+- `floor:1`: the guard's second floor pose.
+
+### 3.1 The near misses
+
+**c-hard2-s0004** (threshold 22, record 20). The agent's own continuation reads
+−2 from every one of 12 steps (k = 0..19): a stable board.
+
+| k | move | pose | margin | baseline at k | shipped arm: alt / baseline |
+|---:|---|---|---:|---:|---|
+| 3 (first soft floor box) | softnocap:0 | on the shelf's soft box, 1.15 m | **0** | −2 | **0 / −2** |
+| 5 (second soft floor box) | softnocap:0 | the same | **0** | −2 | **0 / −2** |
+| 3 | ladder:0 (the ladder's floor pose, not the guard's) | floor | −1 | −2 | |
+| 8 | soft:0 | soft top 0.34 m | −2 | −2 | |
+| 11-19 (the hard run) | guard:0 / guard:1 / ladder:1 | | −1 to −2 | −2 | |
+| 3, 5, 7, 10 | soft:0 | none exists | | | |
+
+One box moved off the floor at the very start crosses c-s0004, and the shipped
+arm confirms both branches. The move puts the first floor-bound soft box onto
+the shelf's soft layer at 1.15 m, which the 0.7 m cap forbids. No single move in
+the hard run does it, and the decline itself (soft 0.5 × 0.4 × 0.4, 0 floor and 0
+soft-top poses) has no move. **The carpet is decided at the first soft floor
+placements here.**
+
+**c-hard2-s0006** (threshold 34, record 33). The agent's own continuations spread:
+- from k = 0..21: −2, −1, −2, −5, +1, −1, 0, −1, −1, −1, −1 (2 of 11 cross);
+- from k = 23..32: every one crosses (0 to +1).
+
+The record's own late moves (count-mode covers at steps 25-32, under the clock) and
+this machine's physics leave the end board one item from the line either way.
+
+| k | move | pose | margin | baseline at k | shipped arm: alt / baseline |
+|---:|---|---|---:|---:|---|
+| 19 | soft:0 (the guard's choice that the shadow vetoed) | soft top 0.34 m | 0 | −1 | 0 / 0 |
+| 20 | soft:0 (the same) | soft top 0.34 m | 0 | −1 | **0 / −1** |
+| 21 | soft:0 (the guard's tie went to the floor) | soft top 0.34 m | **+2** | −1 | **+2 / 0** |
+| 16 | soft:0 | soft top 0.53 m | −1 | 0 | |
+| 8, 10, 14, 18 | softnocap:0 | on the shelf's soft box, 1.14 m | −3 / −4 | −1 / −2 | |
+| 12 | softnocap:0 | the same | 0 | −5 | 0 / −1 |
+| 8 | ladder:0 | floor | 0 | −1 | −2 / −2 |
+| 23 | guard:0 (a hard box on soft) | | −9 | 0 | |
+
+- Keeping the late floor-bound soft boxes on the existing soft column crosses on
+  both arms at k = 20 and k = 21 (the shipped baseline at k = 21 crosses by
+  itself; the alternative adds two). At k = 19-21 the soft-top pose was the
+  guard's own pick, or tied with the floor. The shadow world's veto, or the tie
+  rule, sent it to the floor.
+- Lifting the cap for one box onto the shelf layer does the opposite on this board.
+  4 of 5 branches lose 3-4 items against their baseline, presumably because the
+  shelf layer is where the late soft and hard boxes went (not traced).
+- **c-s0006 is decided late, and by a margin smaller than the board's own noise.**
+
+<!-- CF36 -->
+
 <!-- BODY -->
