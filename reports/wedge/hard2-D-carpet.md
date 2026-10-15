@@ -1,0 +1,262 @@
+# The hard2 soft carpet (cause D): how it forms, why, and what a different move does
+
+Deep-dive into cause **D** of `hard2-miss-taxonomy.md` (soft footprints cover
+≥ 40 % of the floor at the end): the 10 v50 C carpets (`gate0-hard2`) and the 8
+v50 B carpets (`gate0-hard2-b`). Every decision of the carpet episodes was replayed
+in the official simulator (PyBullet, built locally), on the record's own board,
+and the shipped arm was asked what it would do and why. Single moves were then
+branched and rolled out to the end. Scripts, compact data and the per-branch
+results are in `reports/wedge/hard2-D-carpet/`. Heavy probe output is kept out of
+git (`/home/user/inv-D-scratch`).
+
+<!-- SUMMARY -->
+
+## 0. Method, and how far it can be trusted
+
+- **Replay.** `physbranch.py` replays the record's actions (pool index, container,
+  orientation, `place_pos`) in the official environment up to step k. It warms the
+  agent with the pools it would have seen; the pocket guard's class counts are the
+  only part of the agent's state that depends on earlier calls. From k the agent
+  plays, or an alternative is forced at k and the agent plays from k+1.
+- **Arm.** Branches use the record's arm with `deterministic_budgets=true`, so an
+  answer does not depend on this machine's clock. Branches that rescued a board
+  were re-run on the shipped form (`arms/arm_ship_c.txt`, `arm_ship_b.txt`, from
+  `origin/claude/rl-packing-policy-ftogt3` at 9e4ada85). That form adds
+  `stack_deadline`, `rescue_order_gate=low+single`,
+  `soft_headroom_volume_share=0.9` and `grid_rescue_pool_seconds=1.5`.
+- **The local physics is not the CI's.** Replaying all 33 recorded actions of
+  `gate0det-hard2` c-hard2-s0006 moves soft boxes by 0.9 cm on average (9 cm at
+  most), and the 33rd action fails the sweep (`physbranch.replay_check`). The full
+  deterministic episode here places 32 against the record's 33. It makes the same
+  choices up to step 31, then declines where the record placed.
+  - Long replays break where a recorded pose no longer fits the drifted board:
+    c-s0036 at step 60 of 82, c-s0061 at 61, c-s0075 at 55, b-s0036 at 35.
+  - Branches are therefore compared with the agent's own continuation from the
+    same board on the same machine (the "baseline at k"), never with the record.
+- **Noise floor.** On a near-threshold board the agent's own continuation from
+  neighbouring steps of one record spreads widely. On c-s0006 the 18 baselines
+  (k = 0..32) range from −5 to +1. On c-s0004 all 12 read −2. A single branch that
+  ends one item better than its baseline is not evidence. The tables mark a
+  **rescue** only where the branch crosses and its own baseline does not. The text
+  relies only on patterns that repeat over several k or several alternatives.
+- **Probe** (`instrument.py`, `archaeology.py`). At every step the agent's own
+  `policy` runs, with opt-in wrappers around `layer1.choose_for_item`,
+  `layer1.apply_vetoes`, the pocket guard's `alternative`, the stack option's
+  `propose` and the rescue stages. Nothing in `rule_alpha/` is edited. The probe
+  keeps:
+  - the ladder's shortlist with its vetoes;
+  - the guard's full ranking (slots kept for the expected hard classes, for every
+    floor or top pose it generates);
+  - a census of the legal soft-top poses with the 0.7 m cap and without it.
+
+  Probes cover all 10 C carpets and 6 of the 8 B carpets. b-s0068 and b-s0043 were
+  stopped: the census on their 3-container boards ran past 50 minutes.
+
+
+## 1. The 18 carpets: two kinds, and most never meet the hard cargo
+
+| scene | order | ctrs (P = priority) | margin | soft placed: floor / on soft / shelf | soft floor share (end) | step soft share passed 0.4 | first big hard item in stream / threshold | hard placed | declined on |
+|---|---|---|---:|---|---:|---:|---|---:|---|
+| c-hard2-s0006 | small-first | P | -1 | 21: 10 / 4 / 7 | 0.70 | 16 | 24 / 34 | 12 | 0.65x0.45x0.25 |
+| c-hard2-s0036 | soft-first | ... | -1 | 82: 34 / 34 / 14 | 0.73 | 36 | 95 / 83 | 0 | soft 0.6x0.3x0.25 |
+| c-hard2-s0004 | small-first | P | -2 | 11: 5 / 3 / 3 | 0.44 | 10 | 11 / 22 | 9 | soft 0.5x0.4x0.4 |
+| c-hard2-s0053 | random | .P | -7 | 28: 12 / 4 / 10 | 0.49 | 19 | 3 / 47 | 12 | 0.8x0.6x0.5 |
+| c-hard2-s0069 | small-first | P | -12 | 20: 10 / 5 / 5 | 0.66 | 14 | 20 / 39 | 7 | 0.55x0.4x0.24 |
+| c-hard2-s0072 | soft-first | .. | -17 | 51: 23 / 22 / 6 | 0.68 | 25 | 75 / 68 | 0 | soft 0.6x0.3x0.25 |
+| c-hard2-s0049 | small-first | . | -21 | 28: 9 / 7 / 12 | 0.63 | 14 | 34 / 49 | 0 | soft 0.65x0.35x0.23 |
+| c-hard2-s0075 | soft-first | .. | -23 | 41: 19 / 7 / 15 | 0.41 | 39 | 42 / 109 | 45 | 0.65x0.45x0.25 |
+| c-hard2-s0061 | small-first | .. | -27 | 57: 15 / 23 / 17 | 0.49 | 77 | 162 / 119 | 35 | soft 0.45x0.3x0.2 |
+| c-hard2-s0068 | small-first | P | -38 | 20: 10 / 0 / 9 | 0.54 | 39 | 88 / 80 | 22 | soft 0.45x0.3x0.2 |
+| b-hard2-s0036 | soft-first | ... | -4 | 79: 31 / 29 / 19 | 0.65 | 39 | 95 / 83 | 0 | soft 0.65x0.35x0.23 |
+| b-hard2-s0006 | small-first | P | -9 | 21: 8 / 7 / 6 | 0.70 | 13 | 24 / 34 | 4 | 0.55x0.4x0.24 |
+| b-hard2-s0069 | small-first | P | -10 | 20: 7 / 4 / 9 | 0.65 | 12 | 20 / 39 | 9 | 0.55x0.4x0.24 |
+| b-hard2-s0005 | soft-first | .P. | -15 | 85: 30 / 29 / 26 | 0.70 | 35 | 87 / 101 | 1 | soft 0.4x0.4x0.6 |
+| b-hard2-s0072 | soft-first | .. | -15 | 53: 21 / 20 / 12 | 0.72 | 28 | 75 / 68 | 0 | soft 0.5x0.4x0.4 |
+| b-hard2-s0049 | small-first | . | -21 | 28: 10 / 6 / 12 | 0.64 | 15 | 34 / 49 | 0 | soft 0.65x0.35x0.23 |
+| b-hard2-s0068 | small-first | P | -25 | 33: 10 / 12 / 9 | 0.54 | 39 | 88 / 80 | 22 | soft 0.6x0.3x0.25 |
+| b-hard2-s0043 | small-first | .. | -26 | 40: 20 / 4 / 16 | 0.59 | 42 | 53 / 85 | 19 | 0.55x0.4x0.24 |
+
+
+Numbers from `course.py` and `d_table.py`, records only.
+
+- **The carpet is not mainly a floor taken from hard items still to come.** 11 of
+  the 18 misses end on a *soft* item that finds no pose, not a hard one. In 9 the
+  stream's first big hard item comes after the threshold (it would only be met
+  after crossing). 6 place no hard item at all. In those 9 the soft cargo runs
+  out of room among the soft cargo itself. The taxonomy's lever ("where soft cargo
+  goes in the soft-early orders", so the hard items find floor) applies cleanly to
+  only 7 episodes: c-s0006, s0004, s0053, s0069, s0075; b-s0006, s0069 and s0043
+  are the ones with a hard run before the end.
+- **Two kinds of board.** They differ in which code path places the soft cargo:
+  - **(P) one priority container**: c-s0004, s0006, s0068, s0069; b-s0006,
+    s0068, s0069. 7 of 18, and every one of them is a 1-ULD scene.
+    `layer1.routing_order` lets plain soft cargo into a priority container only
+    under `routing_any_container` ("soft-only never enters a priority
+    container"). So the strict ladder returns nothing for every soft box. The stack
+    option checks routing with its own strict config
+    (`wedge_rl/option.py:245`), so it returns nothing too, even inside the last
+    resort. Every soft box is placed by the last resort's *relaxed* stage
+    (`agent.py:_last_resort`, settled clearance 0.016 m) or by the rescues. The
+    `soft-edge` and `shelf-space-saving` labels in these records are that relaxed
+    stage.
+    - On c-s0006 the probe shows `ladder- stack- ladder+ _last_resort+` for every
+      soft step 3-21. c-s0006 and s0069 carry no priority item at all (the
+      container is reserved for cargo that never comes).
+  - **(N) normal containers**: the other 11. The strict ladder places soft cargo
+    (shelf, then `soft-edge` on the floor). The pocket guard and the stack option
+    are what put it on soft tops.
+- **The soft-early orders do not change where a soft box goes. They change what
+  the floor holds when it goes there.** Over all v50 C episodes, soft cargo goes
+  to the floor, onto soft, onto the shelf and onto hard in these proportions:
+  - soft-first: 0.42 / 0.32 / 0.26 / 0.00;
+  - small-first: 0.37 / 0.22 / 0.37 / 0.04;
+  - soft-last: 0.25 / 0.32 / 0.07 / 0.36;
+  - random: 0.34 / 0.16 / 0.30 / 0.20.
+
+  Soft-last puts a third of its soft boxes on hard tops, which do not exist yet in
+  a soft-first stream. A soft-early stream lays roughly every second or third soft
+  box on an empty floor: 34 of 82 on c-s0036, 10 of 21 on c-s0006.
+
+## 2. How a carpet forms (decision archaeology)
+
+### 2.1 The ladder never offers a soft box a soft top
+
+With the shipped settings (`typed_cap_enabled=False`, `lift_to_tops=0`), the
+ladder's Layer 1 generator anchors a soft item on three surfaces only (`layer1._supports`):
+- the floor;
+- the shelf;
+- non-soft, non-priority tops in the wedge strip.
+
+`soft_is_structure` (the v50 gate) changes only what *carries* in the stability
+model, not what is generated.
+
+In the probes, 271 soft-on-soft decisions were made by the deterministic agent on
+the record boards. None came from a ladder rung:
+- `pocket-soft` (the pocket guard's override): 181;
+- `stack-rl`: 62;
+- `grid-rescue`: 18;
+- `physics-resort`: 8;
+- count-mode / grid-rescue-cover: 2.
+
+So in this config a soft box reaches a soft top only when the pocket guard
+overrides the ladder's floor pose, when the ladder has nothing at all (stack
+option), or in a rescue. This is evidence against the findings' "the rungs put soft
+on soft once it is structure" (zone form). On these boards with this config the
+rungs do not.
+
+### 2.2 The typical sequence (c-hard2-s0006, v50 C, margin −1)
+
+Stream: 3 small hard boxes, 21 soft (5 of 0.45 × 0.30 × 0.20, then 9 of
+0.60 × 0.30 × 0.25, then 7 of 0.65 × 0.35 × 0.23), then 9 of 0.55 × 0.40 × 0.24
+and the 0.65 × 0.45 × 0.25 class. One priority ULD (no priority cargo), shelf at
+0.845 m over the back half of the floor (y 0.05..0.68 of −0.68..0.68).
+
+| steps | what happened (record) | why (deterministic probe on the record board) |
+|---|---|---|
+| 0-2 | small hard boxes, wall front and wedge steps | strict ladder |
+| 3-7 | 5 soft boxes on the shelf | strict ladder empty (priority container), last resort relaxed: `shelf-space-saving` |
+| 8 | first soft box on the floor (back, under the shelf) | last resort's floor pose; the guard moved it to another floor spot (slots 3.82 → 4.38); no soft top exists yet |
+| 9 | soft on soft (0.30 m) | the guard: a soft top keeps 4.32 slots against 3.76 for the floor pose |
+| 10 | floor | the only soft top (0.63 m) is under the shelf: a third layer of 0.30 m reaches 0.93 m, through the shelf at 0.845 m (`overlaps-main_shelf`); with the cap lifted the only soft tops are the shelf's soft boxes at 1.14 m |
+| 11 | soft on soft | guard |
+| 12 | floor | no soft top under the shelf ceiling; the guard moved the floor pose |
+| 13 | floor | a soft top existed but scored 3.02 against the floor's 2.81: inside the guard's 0.25 margin |
+| 14 | floor | no soft top |
+| 15 | soft on soft | guard |
+| 16 | floor (physics resort) | the guard chose a soft top at 0.53 m; the shadow world vetoed it; the resort put it on the floor (soft share passes 0.40) |
+| 17-18 | soft on soft, then floor | guard |
+| 19-20 | floor (physics resort) | guard chose a soft top; the shadow vetoed it; resort to the floor |
+| 21 | floor (`soft-edge`) | guard: soft top and floor both keep 0 slots; tie to the lower pose (`pocket.py:214`) |
+| 22-23 | soft on soft (physics resort) | the floor is gone (0 floor poses) |
+| 24-32 | the 9 hard boxes: 1 on the shelf, 8 by count mode on soft tops at 0.6-1.15 m (covering soft) | nothing on the floor fits a 0.55 × 0.40: free floor 0.28 in strips (largest empty rectangle 0.10 × 1.38 m) |
+| 33 | declined: 0.65 × 0.45 × 0.25 | |
+
+The pattern on the (P) boards: shelf first. Then soft alternates floor / soft top,
+because a two-high column under the shelf has no third layer. Every new floor box
+creates one new soft top, and that top is used by the next box. Once the floor is
+gone the rescues stack on soft. The hard run arrives on a floor that is 70 % soft
+and 2 % hard.
+
+### 2.3 When soft-on-soft stops and the floor starts being consumed
+
+There is no single moment. Soft-on-soft starts early (first soft-on-soft step
+in the v50 C carpets: 9, 5, 4, 22, 4, 6, 19, 14, 52 and none on c-s0068). It
+continues to the end in the soft-first boards (the last one is the episode's last
+placement on c-s0036, s0072). Soft-on-soft and floor placements
+*interleave*. The floor share climbs in steps of 0.06-0.10 a floor box. It
+passes 0.40 at:
+- step 10-16 on the 1-container boards (c-s0004 10, s0006 16, s0069 14, s0049 14);
+- step 19-39 on the multi-container soft-first boards (s0072 25, s0036 36,
+  s0075 39).
+
+
+### 2.4 Why the floor-bound soft boxes went to the floor (counts)
+
+Unit: every soft box that the **record** put on the floor in the 16 probed carpet
+episodes (10 C, 6 B; replays stop where a recorded pose fails on the local board),
+228 boxes. The first rule that fires is counted (`reasons.py`,
+`data/reasons.json`).
+
+| # | reason | boxes | what it means |
+|---:|---|---:|---|
+| 1 | **time cut** | 91 | on the same board the deterministic agent puts the box on a soft top (90) or the shelf (1). The record's clock cut a stage, mainly the pocket guard's own window (`agent.py:_pocket_guarded`: `min(start + 0.85 x budget, now + pocket_guard_seconds 0.8)`). Without a deadline the guard took 1.3-3.3 s on c-s0036 (21 such steps) and found soft tops in containers 1-2 that its 0.8 s never reached. |
+| 2 | rescue floor | 9 | the deterministic agent floors it too, through the physics resort: its guard (or ladder) pose on a soft top was vetoed by the shadow world. All 9 are on priority-container boards (c-s0006 3, c-s0069 6) |
+| 3 | guard stood down | 13 | the guard expected no hard class any more: `ClassFrequencies` counts 41 items a container, so after ~35-40 items seen every arrival probability is < 0.5 (c-s0068: all 10, "seen 40, remaining 1"). The hard2 streams are longer (c-s0068 has 80 items, its big hard items come at 88) |
+| 4a | no soft top under the cap | 29 | soft-top poses exist only with the 0.7 m cap lifted. In 24 of the 29 the lowest such pose is ≥ 0.75 m: on the soft boxes stacked on the *shelf*, not a floor column |
+| 4b | no soft top at all | 12 | no column yet, or the column is at its ceiling (two layers under the 0.845 m shelf) |
+| 4c | soft tops legal but not in the guard's set | 21 | the census finds fully supported soft-top poses, but the guard's generator (anchors every 0.06 m, 120 poses a container, ≥ 0.6 support) does not offer them |
+| 5 | **cross-container comparison** | 21 | a soft top existed; the guard took a floor pose in another container because it ranks poses by the slots left in *each pose's own* container (`pocket.py:212-214`), not by slots lost. In all 20 measured cross-container cases the soft top costs fewer slots (`guard_xctr.py`): e.g. c-s0053 step 17 floor in c1 loses 2.45 slots, the soft top in c0 0.06 |
+| 6 | tie to the lower pose | 25 | a soft top and a floor pose keep equal slots (the floor spot is dead for the expected classes), and the tie goes to the lower pose, the floor (`pocket.py:214`) |
+| 7 | inside the margin | 1 | the soft top was better by < 0.25 slots |
+| 8 | floor rated better | 4 | |
+| 9 | guard not asked | 2 | |
+
+**The priority-container bar is a flag on top of these.** 69 of the 228 boxes
+were plain soft boxes in a priority container, placed by the last resort's relaxed
+stage because the strict ladder and the stack option may not route them there.
+Their primary reasons are: 4a 16, 6 11, 2 9, 3 9, 4c 8, 1 8, 4b 5, 5 3.
+
+The five causes asked about, in one line each:
+- **0.7 m cap**: 29 boxes, mostly by closing the shelf's second soft layer.
+- **No soft top yet**: 12 with none at all, plus 21 where legal ones exist but
+  the guard's generator does not offer them.
+- **Priority-container bar**: 69 boxes on the 7 (P) boards (a flag).
+- **Pocket guard** (stood down, cross-container, tie, margin): 13 + 21 + 25 + 1 = 60.
+- **Time cut**: 91, concentrated on the multi-container soft-first boards:
+  - C: s0036 28 of 31, s0072 14 of 23, s0075 13 of 18;
+  - B: s0005 15 of 30, s0036 7 of 15.
+
+  It is nearly absent on the 1-container boards (0-2 each).
+
+What this does not say: that removing the time cut crosses these boards. The
+deterministic C record (`gate0det-hard2`) still misses s0072 (−21) and s0075
+(−23). c-s0036 crosses there (+5), but the deterministic episode on this machine
+reads −3 (80 of 83; branch `k = 0`).
+
+### 2.5 Other structural facts the probes surfaced
+
+- **The shelf caps the columns at two.** On the 1-ULD hard2 containers the main
+  shelf covers the back half of the floor at 0.845 m. A soft box on edge
+  (0.30 m tall, the orientation the guard's generator prefers for its smaller
+  footprint) stacks two high under it. The third is refused as
+  `overlaps-main_shelf` (c-s0006 step 10). The 0.7 m cap is never the binding
+  rule there.
+- **The upper third of the container is unused by soft cargo.** The highest soft
+  top on the soft-first carpets is 1.14-1.6 m in containers 1.4-1.94 m tall. Soft
+  above 0.7 m gets there only by the shelf, the stack option and the rescues
+  (c-s0036: 32 of 82 soft boxes end above 0.7 m: shelf 6, `stack-rl` 13,
+  `grid-rescue` 8, `pocket-soft` 5).
+- **The shadow world refuses soft-on-soft poses that the simulator accepts.** At
+  c-s0006 steps 19 and 20 the guard chose a soft top. The shadow vetoed it and the
+  physics resort put the box on the floor. Forced onto the same soft top
+  (`soft:0`), the box stays in the official simulator and the episode crosses
+  (34 against the baseline's 33; section 3).
+- **A decline with thousands of legal soft-top poses.** c-s0068 declines at step
+  42 on a soft 0.45 × 0.30 × 0.20. The census finds 9,848 legal poses on soft tops
+  under the cap. The strict ladder and the stack option skip the priority
+  container. The guard is not asked (no floor pose). The physics resort and grid
+  rescue return nothing (`decline_probe.py` would say why; not run, see open
+  questions).
+
+
+<!-- BODY -->
