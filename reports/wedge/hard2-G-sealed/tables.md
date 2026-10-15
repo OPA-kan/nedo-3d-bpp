@@ -234,6 +234,7 @@ Placed counts at the end of each branch (several values = several branches or re
 | b-hard2-s0007 | 14 | 6 |  | 21 | 18 | 20/18/21/18 |  | 20 | 21 |  | yes |
 | b-hard2-s0007 | 12 | 8 | seal 0 | 21 | 17/17 | 18/21/21/18 | 21 | 21 | 20 | 21 | yes |
 | b-hard2-s0007 | 10 | 10 |  | 21 | 18 | 20/18/19/18 |  | 21 | 19 |  | yes |
+| b-hard2-s0007 | 0 | 20 |  | 21 | 17 |  |  |  |  |  |  |
 | b-hard2-s0009 | 51 | 1 |  | 53 |  | 52 |  |  |  |  |  |
 | b-hard2-s0009 | 50 | 2 |  | 53 |  | 52 |  |  |  |  |  |
 | b-hard2-s0009 | 49 | 3 |  | 53 | 52/52 | 52 |  |  |  |  |  |
@@ -303,34 +304,79 @@ Every branch that reached the threshold on the record arm, and the unchanged con
 | scene | t | branch | threshold | record arm | shipped arm | crosses (shipped) |
 |---|---|---|---|---|---|---|
 | b-hard2-s0007 | 15 | agent | 21 | 17/17 | 18 |  |
+| b-hard2-s0007 | 15 | alt k3 pNone | 21 | 22 | 21 | yes |
 | b-hard2-s0007 | 15 | defer k1 pNone item 24 | 21 | 21 | 22 | yes |
 | b-hard2-s0007 | 15 | fill2 k1 p1 | 21 | 21 | 21 | yes |
 | b-hard2-s0007 | 14 | agent | 21 | 18 | 18 |  |
+| b-hard2-s0007 | 14 | alt k3 pNone | 21 | 21 | 20 |  |
 | b-hard2-s0007 | 14 | fill2 k1 p1 | 21 | 21 | 21 | yes |
 | b-hard2-s0007 | 12 | agent | 21 | 17/17 | 18 |  |
+| b-hard2-s0007 | 12 | alt k2 pNone | 21 | 21 | 20 |  |
+| b-hard2-s0007 | 12 | alt k3 pNone | 21 | 21 | 21 | yes |
 | b-hard2-s0007 | 12 | defer k1 pNone item 21 | 21 | 21 | 21 | yes |
+| b-hard2-s0007 | 12 | first_item k1 pNone item 10 | 21 | 21 | 21 | yes |
+| b-hard2-s0007 | 12 | first_item k1 pNone item 11 | 21 | 21 | 21 | yes |
+| b-hard2-s0007 | 12 | first_item k1 pNone item 4 | 21 | 21 | 21 | yes |
+| b-hard2-s0007 | 12 | first_item k1 pNone item 5 | 21 | 21 | 20 |  |
+| b-hard2-s0007 | 12 | first_item k1 pNone item 6 | 21 | 21 | 21 | yes |
+| b-hard2-s0007 | 12 | first_item k1 pNone item 8 | 21 | 21 | 20 |  |
 | b-hard2-s0007 | 12 | noseal2 k1 p0 | 21 | 21 | 21 | yes |
+| b-hard2-s0007 | 12 | noseal2 k1 p0 pers | 21 | 21 | 21 | yes |
+| b-hard2-s0007 | 10 | agent | 21 | 18 | 17 |  |
+| b-hard2-s0007 | 10 | noseal2 k1 p0 pers | 21 | 21 | 21 | yes |
 | b-hard2-s0009 | 29 | agent | 53 | 52/52 | 52 |  |
 | b-hard2-s0009 | 29 | fill2 k1 p0 | 53 | 53 | 52 |  |
 | b-hard2-s0009 | 29 | noseal2 k1 p0 | 53 | 53 | 52 |  |
 | b-hard2-s0009 | 20 | agent | 53 | 53/53 | 54 | yes |
 | b-hard2-s0009 | 20 | agent | 53 | 53/53 | 54 | yes |
+| b-hard2-s0009 | 20 | fill2 k1 p1 | 53 | 54 | 54 | yes |
+| b-hard2-s0009 | 20 | noseal2 k1 p1 | 53 | 54 | 52 |  |
+| b-hard2-s0026 | 4 | agent | 16 | 14/14 | 14 |  |
+| b-hard2-s0026 | 4 | noseal2 k1 p0 pers | 16 | 16 | 15 |  |
 | b-hard2-s0026 | 2 | agent | 16 | 14 | 14 |  |
+| b-hard2-s0026 | 2 | alt k3 pNone | 16 | 17 | 14 |  |
 | b-hard2-s0026 | 2 | fill2 k1 p0 | 16 | 20 | 22 | yes |
+| b-hard2-s0026 | 2 | first_item k1 pNone item 1 | 16 | 16 | 15 |  |
+| b-hard2-s0026 | 2 | first_item k1 pNone item 4 | 16 | 17 | 14 |  |
+| b-hard2-s0026 | 2 | first_item k1 pNone item 6 | 16 | 16 | 15 |  |
 | b-hard2-s0077 | 3 | agent | 21 | 20/20 | 18 |  |
 | b-hard2-s0077 | 3 | fill2 k1 p0 | 21 | 23 | 18 |  |
+| b-hard2-s0077 | 3 | first_item k1 pNone item 1 | 21 | 21 | 17 |  |
+| b-hard2-s0077 | 3 | first_item k1 pNone item 3 | 21 | 22 | 13 |  |
+| b-hard2-s0077 | 3 | first_item k1 pNone item 7 | 21 | 22 | 13 |  |
+| b-hard2-s0077 | 3 | first_item k1 pNone item 9 | 21 | 21 | 17 |  |
 | b-hard2-s0077 | 1 | agent | 21 | 20 | 17 |  |
 | b-hard2-s0077 | 1 | fill2 k1 p0 | 21 | 23 | 21 | yes |
+| b-hard2-s0077 | 1 | first_item k1 pNone item 1 | 21 | 21 | 17 |  |
 | c-hard2-s0027 | 18 | agent | 29 | 26/26 | 27 |  |
 | c-hard2-s0027 | 18 | fill2 k1 p0 | 29 | 34 | 29 | yes |
 | c-hard2-s0027 | 18 | fill2 k1 p3 | 29 | 34 | 31 | yes |
+| c-hard2-s0027 | 18 | noseal2 k1 p3 pers | 29 | 30 | 28 |  |
+| c-hard2-s0027 | 12 | agent | 29 | 38 | 38 | yes |
 | c-hard2-s0027 | 12 | agent | 29 | 38 | 38 | yes |
 | c-hard2-s0027 | 12 | fill2 k1 p0 | 29 | 36 | 36 | yes |
 | c-hard2-s0027 | 12 | fill2 k1 p3 | 29 | 36 | 34 | yes |
+| c-hard2-s0027 | 12 | kth k2 pNone | 29 | 38 | 40 | yes |
+| c-hard2-s0027 | 12 | kth k3 pNone | 29 | 38 | 38 | yes |
+| c-hard2-s0027 | 12 | noseal2 k1 p0 pers | 29 | 38 | 38 | yes |
+| c-hard2-s0027 | 12 | noseal2 k1 p3 pers | 29 | 38 | 38 | yes |
 | c-hard2-s0027 | 6 | agent | 29 | 27/27 | 27 |  |
+| c-hard2-s0027 | 6 | alt k2 pNone | 29 | 37 | 33 | yes |
 | c-hard2-s0027 | 6 | fill2 k1 p2 | 29 | 38 | 38 | yes |
+| c-hard2-s0027 | 6 | noseal2 k1 p2 pers | 29 | 40 | 40 | yes |
 | c-hard2-s0027 | 3 | agent | 29 | 27 | 27 |  |
+| c-hard2-s0027 | 3 | alt k2 pNone | 29 | 39 | 39 | yes |
+| c-hard2-s0027 | 3 | alt k3 pNone | 29 | 38 | 37 | yes |
 | c-hard2-s0027 | 3 | fill2 k1 p2 | 29 | 39 | 39 | yes |
+| c-hard2-s0027 | 3 | kth k2 pNone | 29 | 35 | 35 | yes |
+| c-hard2-s0027 | 3 | noseal2 k1 p2 pers | 29 | 35 | 35 | yes |
+| c-hard2-s0059 | 8 | agent | 48 | 51 | 48 | yes |
+| c-hard2-s0059 | 8 | agent | 48 | 51 | 53 | yes |
+| c-hard2-s0059 | 8 | alt k2 pNone | 48 | 54 | 56 | yes |
+| c-hard2-s0059 | 8 | alt k3 pNone | 48 | 54 | 56 | yes |
+| c-hard2-s0059 | 8 | fill2 k1 p0 | 48 | 53 | 53 | yes |
+| c-hard2-s0059 | 8 | kth k2 pNone | 48 | 49 | 51 | yes |
+| c-hard2-s0059 | 8 | kth k3 pNone | 48 | 51 | 49 | yes |
 
 ## The oldest deferred soft box on the B G boards
 
@@ -349,6 +395,14 @@ Every branch that reached the threshold on the record arm, and the unchanged con
 | b-hard2-s0071 | 39 | 0.5x0.4x0.4 | 35 | 46 | 35 | 37 | 3 | 0.6 |
 | b-hard2-s0075 | 7 | 0.5x0.4x0.4 | 0 | 91 | 0 | 58 | 59 | 0.4 |
 | b-hard2-s0086 | 38 | 0.65x0.35x0.23 | 29 | 66 | 29 | 63 | 35 | 0.9 |
+
+## Soft boxes interleaved from the start (B G scenes, whole episodes on the analytic board)
+
+`soft_first_when_free`: the shipped flag (off) that lets a soft item go first when its pose costs the hard cargo nothing; `soft_equal`: the pool order with soft in the hard bucket (footprint order only).
+
+| scene | threshold | record | agent (analytic) | soft_first_when_free | soft_equal |
+|---|---|---|---|---|---|
+| b-hard2-s0007 | 21 | 20 | 17 | 18 |  |
 
 ## Counterfactual rollouts (near misses)
 
@@ -371,12 +425,19 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 16 | noseal2 |  | 0 |  | stack-rl [0.007, 0.348, 1.015] | 0 | False | 46 | -2 |  |
 | 16 | noseal2 |  | 0 | yes | stack-rl [0.007, 0.348, 1.015] | 0 | False | 47 | -1 |  |
 | 8 | agent |  |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 51 | 3 |  |
+| 8 | agent |  |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 48 | 0 |  |
+| 8 | agent |  |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 53 | 5 |  |
 | 8 | alt | 2 |  |  | terrace-extension [0.674, -0.193, 0.445] | None | None | 54 | 6 |  |
+| 8 | alt | 2 |  |  | terrace-extension [0.674, -0.193, 0.445] | None | None | 56 | 8 |  |
 | 8 | alt | 3 |  |  | terrace-extension [0.674, -0.193, 0.445] | None | None | 54 | 6 |  |
+| 8 | alt | 3 |  |  | terrace-extension [0.674, -0.193, 0.445] | None | None | 56 | 8 |  |
 | 8 | fill |  | 0 |  | physics-resort [0.013, -0.182, 0.415] | 0 | True | 53 | 5 |  |
 | 8 | fill2 |  | 0 |  | physics-resort [0.013, -0.182, 0.415] | 0 | True | 53 | 5 |  |
+| 8 | fill2 |  | 0 |  | physics-resort [0.013, -0.182, 0.415] | 0 | True | 53 | 5 |  |
 | 8 | kth | 2 |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 49 | 1 |  sel-unused |
+| 8 | kth | 2 |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 51 | 3 |  sel-unused |
 | 8 | kth | 3 |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 51 | 3 |  sel-unused |
+| 8 | kth | 3 |  |  | stack-rl [-0.024, 0.298, 0.925] | None | None | 49 | 1 |  sel-unused |
 | 8 | noseal |  | 0 | yes | stack-rl [-0.024, 0.298, 0.925] | 0 | False | 49 | 1 |  |
 | 8 | noseal2 |  | 0 | yes | stack-rl [-0.024, 0.298, 0.925] | 0 | False | 47 | -1 |  |
 
@@ -421,6 +482,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 18 | noseal2 |  | 3 |  | physics-resort [-0.069, -0.473, 0.855] | 0 | False | 28 | -1 |  |
 | 18 | noseal2 |  | 0 | yes | physics-resort [-0.069, -0.473, 0.855] | 0 | False | 26 | -3 |  |
 | 18 | noseal2 |  | 3 | yes | physics-resort [-0.069, -0.473, 0.855] | 0 | False | 30 | 1 |  |
+| 18 | noseal2 |  | 3 | yes | grid-rescue [0.313, -0.614, 0.365] | 0 | False | 28 | -1 |  |
 | 16 | agent |  |  |  | terrace-extension [-0.287, -0.472, 0.405] | None | None | 26 | -3 |  |
 | 16 | alt | 2 |  |  | stack-rl [-0.363, -0.394, 0.405] | None | None | 26 | -3 |  |
 | 16 | alt | 3 |  |  | stack-rl [-0.375, -0.382, 0.405] | None | None | 27 | -2 |  |
@@ -431,6 +493,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 16 | noseal2 |  | 1 | yes | terrace-extension [-0.287, -0.472, 0.405] | 0 | False | 27 | -2 |  |
 | 12 | agent |  |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
 | 12 | agent |  |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
+| 12 | agent |  |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
 | 12 | alt | 2 |  |  | stack-rl [-0.768, 0.423, 1.485] | None | None | 27 | -2 |  |
 | 12 | alt | 3 |  |  | physics-resort [0.171, 0.498, 0.315] | None | None | 27 | -2 |  |
 | 12 | fill2 |  | 0 |  | physics-resort [0.768, 0.101, 0.555] | 5 | True | 36 | 7 |  |
@@ -438,13 +501,18 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 12 | fill2 |  | 0 |  | physics-resort [0.768, 0.101, 0.555] | 5 | True | 36 | 7 |  |
 | 12 | fill2 |  | 3 |  | physics-resort [0.768, 0.101, 0.555] | 0 | True | 34 | 5 |  |
 | 12 | kth | 2 |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
+| 12 | kth | 2 |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 40 | 11 |  |
 | 12 | kth | 3 |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
+| 12 | kth | 3 |  |  | stack-rl [-0.1, 0.579, 0.88] | None | None | 38 | 9 |  |
+| 12 | noseal2 |  | 0 | yes | stack-rl [-0.1, 0.579, 0.88] | 0 | False | 38 | 9 |  |
+| 12 | noseal2 |  | 3 | yes | stack-rl [-0.1, 0.579, 0.88] | 0 | False | 38 | 9 |  |
 | 12 | noseal2 |  | 0 | yes | stack-rl [-0.1, 0.579, 0.88] | 0 | False | 38 | 9 |  |
 | 12 | noseal2 |  | 3 | yes | stack-rl [-0.1, 0.579, 0.88] | 0 | False | 38 | 9 |  |
 | 6 | agent |  |  |  | wall-front [-0.289, 0.21, 0.165] | None | None | 27 | -2 |  |
 | 6 | agent |  |  |  | wall-front [-0.289, 0.21, 0.165] | None | None | 27 | -2 |  |
 | 6 | agent |  |  |  | wall-front [-0.289, 0.21, 0.165] | None | None | 27 | -2 |  |
 | 6 | alt | 2 |  |  | stack-rl [0.592, 0.473, 0.655] | None | None | 37 | 8 |  |
+| 6 | alt | 2 |  |  | stack-rl [0.592, 0.473, 0.655] | None | None | 33 | 4 |  |
 | 6 | alt | 3 |  |  | wall-front [-0.289, 0.22, 0.165] | None | None | 27 | -2 |  |
 | 6 | fill2 |  | 2 |  | max-footprint [0.089, 0.473, 0.365] | 0 | True | 38 | 9 |  |
 | 6 | fill2 |  | 2 |  | max-footprint [0.089, 0.473, 0.365] | 0 | True | 38 | 9 |  |
@@ -452,14 +520,19 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 6 | kth | 3 |  |  | wall-front [-0.287, 0.21, 0.165] | None | None | 27 | -2 |  |
 | 6 | noseal2 |  | 2 |  | wall-front [-0.389, 0.11, 0.165] | 0 | False | 21 | -8 |  |
 | 6 | noseal2 |  | 2 | yes | wall-front [-0.389, 0.11, 0.165] | 0 | False | 40 | 11 |  |
+| 6 | noseal2 |  | 2 | yes | wall-front [-0.389, 0.11, 0.165] | 0 | False | 40 | 11 |  |
 | 3 | agent |  |  |  | max-footprint [0.643, 0.474, 0.165] | None | None | 27 | -2 |  |
 | 3 | agent |  |  |  | max-footprint [0.643, 0.474, 0.165] | None | None | 27 | -2 |  |
 | 3 | alt | 2 |  |  | stack-rl [0.302, 0.473, 0.165] | None | None | 39 | 10 |  |
+| 3 | alt | 2 |  |  | stack-rl [0.302, 0.473, 0.165] | None | None | 39 | 10 |  |
 | 3 | alt | 3 |  |  | stack-rl [0.29, 0.473, 0.165] | None | None | 38 | 9 |  |
+| 3 | alt | 3 |  |  | stack-rl [0.29, 0.473, 0.165] | None | None | 37 | 8 |  |
 | 3 | fill2 |  | 2 |  | stack-rl [0.302, 0.473, 0.165] | 0 | True | 39 | 10 |  |
 | 3 | fill2 |  | 2 |  | stack-rl [0.302, 0.473, 0.165] | 0 | True | 39 | 10 |  |
 | 3 | kth | 2 |  |  | max-footprint [0.743, 0.373, 0.165] | None | None | 35 | 6 |  |
+| 3 | kth | 2 |  |  | max-footprint [0.743, 0.373, 0.165] | None | None | 35 | 6 |  |
 | 3 | kth | 3 |  |  | max-footprint [0.643, 0.473, 0.165] | None | None | 27 | -2 |  |
+| 3 | noseal2 |  | 2 | yes | max-footprint [0.743, 0.373, 0.165] | 0 | False | 35 | 6 |  |
 | 3 | noseal2 |  | 2 | yes | max-footprint [0.743, 0.373, 0.165] | 0 | False | 35 | 6 |  |
 
 **c-hard2-s0013** (threshold 11, record placed 7)
@@ -526,6 +599,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 18 | -3 |  |
 | 15 | alt | 2 |  |  | stack-rl [-0.394, -0.439, 1.33] | None | None | 20 | -1 |  |
 | 15 | alt | 3 |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 22 | 1 |  |
+| 15 | alt | 3 |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 21 | 0 |  |
 | 15 | defer |  |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 21 | 0 |  |
 | 15 | defer |  |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 22 | 1 |  |
 | 15 | fill |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
@@ -550,6 +624,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 14 | agent |  |  |  | stack-rl [-0.069, -0.334, 0.77] | None | None | 18 | -3 |  |
 | 14 | alt | 2 |  |  | stack-rl [-0.003, -0.403, 0.69] | None | None | 20 | -1 |  |
 | 14 | alt | 3 |  |  | stack-rl [0.112, 0.389, 1.465] | None | None | 21 | 0 |  |
+| 14 | alt | 3 |  |  | stack-rl [0.112, 0.389, 1.465] | None | None | 20 | -1 |  |
 | 14 | fill |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
 | 14 | fill2 |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
 | 14 | fill2 |  | 1 |  | stack-rl [0.112, 0.389, 1.465] | 0 | True | 21 | 0 |  |
@@ -560,6 +635,8 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 12 | agent |  |  |  | max-footprint [-0.247, -0.341, 0.265] | None | None | 17 | -4 |  |
 | 12 | agent |  |  |  | max-footprint [-0.247, -0.341, 0.265] | None | None | 18 | -3 |  |
 | 12 | alt | 2 |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
+| 12 | alt | 2 |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 20 | -1 |  |
+| 12 | alt | 3 |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
 | 12 | alt | 3 |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
 | 12 | defer |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
 | 12 | defer |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
@@ -575,13 +652,21 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 12 | first_item |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
 | 12 | first_item |  |  |  | max-footprint [-0.247, -0.341, 0.265] | None | None | 18 | -3 |  |
 | 12 | first_item |  |  |  | max-footprint [-0.247, -0.341, 0.265] | None | None | 18 | -3 |  |
+| 12 | first_item |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
+| 12 | first_item |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 20 | -1 |  |
+| 12 | first_item |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
+| 12 | first_item |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 20 | -1 |  |
+| 12 | first_item |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
+| 12 | first_item |  |  |  | soft-edge [-0.245, -0.391, 0.155] | None | None | 21 | 0 |  |
 | 12 | kth | 2 |  |  | max-footprint [-0.246, -0.34, 0.265] | None | None | 18 | -3 |  |
 | 12 | kth | 3 |  |  | max-footprint [-0.245, -0.341, 0.265] | None | None | 18 | -3 |  |
 | 12 | noseal |  | 0 |  | soft-edge [-0.245, -0.391, 0.155] | 0 | False | 21 | 0 |  |
 | 12 | noseal2 |  | 0 |  | soft-edge [-0.245, -0.391, 0.155] | 0 | False | 21 | 0 |  |
 | 12 | noseal2 |  | 0 | yes | soft-edge [-0.245, -0.391, 0.155] | 0 | False | 21 | 0 |  |
 | 12 | noseal2 |  | 0 |  | soft-edge [-0.245, -0.391, 0.155] | 0 | False | 21 | 0 |  |
+| 12 | noseal2 |  | 0 | yes | soft-edge [-0.245, -0.391, 0.155] | 0 | False | 21 | 0 |  |
 | 10 | agent |  |  |  | max-footprint [0.719, -0.161, 0.32] | None | None | 18 | -3 |  |
+| 10 | agent |  |  |  | max-footprint [0.719, -0.161, 0.32] | None | None | 17 | -4 |  |
 | 10 | alt | 2 |  |  | soft-edge [0.89, -0.275, 0.24] | None | None | 20 | -1 |  |
 | 10 | alt | 3 |  |  | pocket-soft [0.133, 0.238, 0.865] | None | None | 19 | -2 |  |
 | 10 | fill |  | 0 |  | max-footprint [0.719, -0.161, 0.32] | 0 | False | 18 | -3 | fell back |
@@ -589,6 +674,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 10 | kth | 2 |  |  | max-footprint [0.719, -0.161, 0.32] | None | None | 18 | -3 |  sel-unused |
 | 10 | kth | 3 |  |  | max-footprint [0.719, -0.161, 0.32] | None | None | 18 | -3 |  sel-unused |
 | 10 | noseal2 |  | 0 | yes | max-footprint [0.719, -0.161, 0.32] | 0 | False | 21 | 0 |  |
+| 10 | noseal2 |  | 0 | yes | max-footprint [0.719, -0.161, 0.32] | 0 | False | 21 | 0 |  |
+| 0 | agent |  |  |  | shelf-space-saving [-0.868, 0.463, 1.145] | None | None | 17 | -4 |  |
+| 0 | agent |  |  |  | soft-first-shelf [-0.943, 0.264, 1.12] | None | None | 18 | -3 |  |
 
 **b-hard2-s0077** (threshold 21, record placed 20)
 
@@ -617,6 +705,10 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 3 | first_item |  |  |  | max-footprint [-0.212, -0.408, 0.35] | None | None | 18 | -3 |  |
 | 3 | first_item |  |  |  | shelf-space-saving [-0.312, 0.543, 0.92] | None | None | 19 | -2 |  |
 | 3 | first_item |  |  |  | shelf-space-saving [-0.425, 0.368, 0.97] | None | None | 20 | -1 |  |
+| 3 | first_item |  |  |  | shelf-space-saving [-0.425, 0.468, 1.02] | None | None | 17 | -4 |  |
+| 3 | first_item |  |  |  | shelf-space-saving [-0.425, 0.368, 0.97] | None | None | 13 | -8 |  |
+| 3 | first_item |  |  |  | shelf-space-saving [-0.425, 0.368, 0.97] | None | None | 13 | -8 |  |
+| 3 | first_item |  |  |  | priority-edge [0.844, -0.034, 0.225] | None | None | 17 | -4 |  |
 | 3 | kth | 2 |  |  | max-footprint [-0.211, -0.408, 0.35] | None | None | 20 | -1 |  |
 | 3 | kth | 3 |  |  | max-footprint [-0.212, -0.408, 0.35] | None | None | 20 | -1 |  sel-unused |
 | 3 | noseal2 |  | 0 |  | priority-edge [0.844, -0.034, 0.225] | 0 | False | 20 | -1 |  |
@@ -637,6 +729,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 1 | first_item |  |  |  | shelf-space-saving [-0.286, 0.553, 0.945] | None | None | 18 | -3 |  |
 | 1 | first_item |  |  |  | priority-edge [0.744, 0.109, 0.125] | None | None | 17 | -4 |  |
 | 1 | first_item |  |  |  | max-footprint [-0.309, 0.268, 0.3] | None | None | 20 | -1 |  |
+| 1 | first_item |  |  |  | shelf-space-saving [-0.425, 0.468, 1.02] | None | None | 17 | -4 |  |
 | 1 | kth | 2 |  |  | terrace-extension [0.718, 0.394, 0.41] | None | None | 20 | -1 |  |
 | 1 | kth | 3 |  |  | terrace-extension [0.719, 0.394, 0.41] | None | None | 20 | -1 |  |
 | 1 | noseal2 |  | 0 | yes | terrace-extension [0.718, 0.394, 0.41] | 0 | False | 19 | -2 |  |
@@ -651,6 +744,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 11 | agent |  |  |  | count-mode [0.165, -0.174, 0.875] | None | None | 14 | -2 |  |
 | 11 | alt | 2 |  |  | count-mode [0.165, -0.174, 0.875] | None | None | 14 | -2 |  |
 | 9 | alt | 2 |  |  | stack-rl [0.552, -0.503, 0.35] | None | None | 14 | -2 |  |
+| 4 | agent |  |  |  | priority-edge [-0.04, -0.233, 0.3] | None | None | 14 | -2 |  |
 | 4 | agent |  |  |  | priority-edge [-0.04, -0.233, 0.3] | None | None | 14 | -2 |  |
 | 4 | agent |  |  |  | priority-edge [-0.04, -0.233, 0.3] | None | None | 14 | -2 |  |
 | 4 | alt | 2 |  |  | shelf-space-saving [0.461, 0.553, 0.96] | None | None | 15 | -1 |  |
@@ -672,10 +766,12 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 4 | noseal |  | 0 |  | shelf-space-saving [0.461, 0.553, 0.96] | 0 | False | 15 | -1 |  |
 | 4 | noseal2 |  | 0 |  | shelf-space-saving [0.461, 0.553, 0.96] | 0 | False | 15 | -1 |  |
 | 4 | noseal2 |  | 0 | yes | shelf-space-saving [0.461, 0.553, 0.96] | 0 | False | 16 | 0 |  |
+| 4 | noseal2 |  | 0 | yes | shelf-space-saving [0.461, 0.553, 0.96] | 0 | False | 15 | -1 |  |
 | 2 | agent |  |  |  | shelf-space-saving [-0.116, 0.528, 1.035] | None | None | 14 | -2 |  |
 | 2 | agent |  |  |  | shelf-space-saving [-0.116, 0.528, 1.035] | None | None | 14 | -2 |  |
 | 2 | alt | 2 |  |  | priority-edge [0.704, -0.137, 0.325] | None | None | 14 | -2 |  |
 | 2 | alt | 3 |  |  | priority-edge [0.423, -0.233, 0.3] | None | None | 17 | 1 |  |
+| 2 | alt | 3 |  |  | priority-edge [0.423, -0.233, 0.3] | None | None | 14 | -2 |  |
 | 2 | fill2 |  | 0 |  | stack-rl [-0.216, 0.328, 0.175] | 0 | True | 20 | 4 |  |
 | 2 | fill2 |  | 0 |  | stack-rl [-0.216, 0.328, 0.175] | 0 | True | 22 | 6 |  |
 | 2 | first_item |  |  |  | shelf-space-saving [-0.116, 0.538, 0.985] | None | None | 15 | -1 |  |
@@ -688,6 +784,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 2 | first_item |  |  |  | priority-edge [0.704, -0.137, 0.325] | None | None | 14 | -2 |  |
 | 2 | first_item |  |  |  | shelf-space-saving [-0.116, 0.538, 0.985] | None | None | 15 | -1 |  |
 | 2 | first_item |  |  |  | shelf-space-saving [-0.116, 0.528, 1.035] | None | None | 14 | -2 |  |
+| 2 | first_item |  |  |  | shelf-space-saving [-0.241, 0.453, 1.06] | None | None | 15 | -1 |  |
+| 2 | first_item |  |  |  | priority-edge [0.423, -0.233, 0.3] | None | None | 14 | -2 |  |
+| 2 | first_item |  |  |  | shelf-space-saving [-0.116, 0.538, 0.985] | None | None | 15 | -1 |  |
 | 2 | kth | 2 |  |  | shelf-space-saving [-0.116, 0.528, 1.035] | None | None | 14 | -2 |  |
 | 2 | kth | 3 |  |  | shelf-space-saving [-0.076, 0.528, 1.035] | None | None | 14 | -2 |  |
 | 2 | noseal2 |  | 0 | yes | shelf-space-saving [-0.116, 0.528, 1.035] | 0 | False | 15 | -1 |  |
@@ -755,6 +854,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 54 | 1 |  |
 | 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 54 | 1 |  |
 | 20 | fill2 |  | 1 |  | pocket-soft [0.297, 0.589, 0.874] | 0 | False | 54 | 1 | fell back |
+| 20 | fill2 |  | 1 |  | pocket-soft [0.297, 0.589, 0.874] | 0 | False | 54 | 1 | fell back |
 | 20 | first_item |  |  |  | pocket-soft [0.297, 0.589, 0.874] | None | None | 54 | 1 |  |
 | 20 | first_item |  |  |  | pocket-soft [0.297, 0.589, 0.874] | None | None | 54 | 1 |  |
 | 20 | first_item |  |  |  | pocket-soft [0.297, 0.589, 0.874] | None | None | 54 | 1 |  |
@@ -767,6 +867,7 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 20 | first_item |  |  |  | pocket-soft [0.297, 0.589, 0.874] | None | None | 54 | 1 |  |
 | 20 | first_item |  |  |  | pocket-soft [0.297, 0.589, 0.874] | None | None | 54 | 1 |  |
 | 20 | noseal2 |  | 1 |  | pocket-soft [0.297, 0.589, 0.874] | 0 | False | 54 | 1 |  |
+| 20 | noseal2 |  | 1 |  | pocket-soft [0.222, 0.504, 0.899] | 0 | False | 52 | -1 |  |
 | 14 | fill2 |  | 0 |  | pocket-soft [0.248, 0.504, 0.899] | 0 | False | 49 | -4 | fell back |
 
 **c-hard2-s0060** (threshold 96, record placed 90)

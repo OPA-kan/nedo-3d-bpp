@@ -54,7 +54,7 @@ CEIL_MARGIN = 0.018
 FLOOR_LIFT = 0.020
 SHELF_LIFT = 0.051
 BAND_LIFT = 0.003
-RECORDS = os.path.join(REPO, "reports", "bench")
+RECORDS = os.environ.get("BENCH_RECORDS", os.path.join(REPO, "reports", "bench"))
 
 
 def vol(i):

@@ -508,7 +508,54 @@ rescue stage then placed:
 - On c-s0027 t18 the counterfactual shows what the path cost: a shade-0.0
   pose on the patch existed, and placing it gives 34 against 26.
 
-PLACEHOLDER-SHIP
+### The rescues on the shipped arm
+
+The record arms differ from the shipped form (section 6).  Every branch that
+reached the threshold on the record arm was re-run with `arm_ship_c` /
+`arm_ship_b` (`origin/claude/rl-packing-policy-ftogt3` 9e4ada85,
+`reports/bench/arms/`), together with the unchanged continuation at the same
+step (`tables.md`, "The rescuing branches on the shipped arm").
+
+The patch-specific and pool-choice rescues:
+
+| rescue | record arm: baseline -> branch | shipped arm: baseline -> branch | holds on the shipped arm |
+|---|---|---|---|
+| c-s0027 t18, fill patch 0 / patch 3 | 26 -> 34 / 34 | 27 -> 29 / 31 (thr 29) | **yes** (+2 / +4) |
+| c-s0027 t18, protect patch 3 (persistent) | 26 -> 30 | 27 -> 28 | no |
+| b-s0077 t3, fill | 20 -> 23 | 18 -> 18 | no |
+| b-s0077 t1, fill | 20 -> 23 | 17 -> 21 (thr 21) | **yes** (+4) |
+| b-s0026 t2, fill | 14 -> 20 | 14 -> 22 (thr 16) | **yes** (+8) |
+| b-s0026 t4, protect (persistent) | 14 -> 16 | 14 -> 15 | no |
+| b-s0007 t12, a soft item first (6 items) | 17 -> 21 (6 of 6) | 18 -> 21 (4 of 6), 20 (2) | **yes** |
+| b-s0077 t3, soft 3 / soft 7 / soft 1 / priority 9 first | 20 -> 22 / 22 / 21 / 21 | 18 -> 13 / 13 / 17 / 17 | no |
+| b-s0077 t1, soft 1 first | 20 -> 21 | 17 -> 17 | no |
+| b-s0026 t2, items 1 / 4 / 6 first | 14 -> 16 / 17 / 16 | 14 -> 15 / 14 / 15 | no |
+
+- **Filling the patch holds** on the shipped arm on c-s0027, b-s0077 (from
+  t1) and b-s0026.
+- **The pool-choice rescues hold only on b-s0007.**
+- **Branches that crossed on chaotic boards keep crossing,** together with
+  their controls: c-s0027 t3-t12, c-s0059 t8 (the shipped baseline from t8
+  gives 48 and 53), b-s0007 t10-t15 (fill, defer, protect and the 3rd pose
+  all reach 21-22).
+- **b-s0009's baseline still crosses from t20** on the shipped arm (54).
+  Its fill / protect at t29 does not (52).
+
+**The shipped records** (`ship-hard2`, `ship-hard2-b`, CI, landed on that
+branch after the arms):
+
+- 22 of the 23 G scenes still miss.  Only c-s0059 crosses on shipped C (+2).
+- The shipped B form crosses 44 of 96 hard2 B against the record arm's 48.
+  `shipseal-hard2-b` (the shipped B form with the sealing pass on B) gets 47.
+- On the shipped boards the same scenes end level-but-sealed: 20 of the 22
+  that miss.  The exceptions are c-s0070 (reachable) and b-s0075 (no level
+  spot).
+- The sealing placements recur at the same steps, by the same rungs:
+  b-s0007 t12 / t15, b-s0009 t29 / t20, b-s0077 t3, b-s0026 t4, b-s0064 t24,
+  b-s0004 t11, b-s0055 t10, b-s0056 t22, c-s0027 t18, c-s0013 t5, c-s0063
+  t14, c-s0055 t6, c-s0081 t42, c-s0087 t13 (`trace.py` on the shipped
+  records).
+- So the archaeology describes the shipped form too.
 
 PLACEHOLDER-OTHERS
 
