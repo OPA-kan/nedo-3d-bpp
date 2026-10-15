@@ -4819,3 +4819,15 @@ No standing gallery box toppled in any episode. The braced gallery lowers the lo
 ## **v51 on the platform: 53.50, one counted episode lost, and why the re-plan cannot be judged on the bench's budget**
 
 v51 (v50 plus Task A's count-secured re-plan under the count threshold) scored 53.50 against v50's 56.04: stability 73.99 = 18 x 4.1775 - 1.2 against 19 steps, so one counted episode was lost and none gained; cog -3.61, placement -1.95, soft -3.50, fill -0.30, fraction 0.6446 -> 0.6391; the optimize time rose 118.9 -> 138.8 s against the 140 s budget, the policy time unchanged. The four gated components' drops price one lost A episode (about 2.7 points at A's per-episode values); the extra -0.5 of soft and the fraction's -0.0055 are the other re-planned A episodes placing less soft. On the bench's core-a the re-plan fired once in 48 episodes; on the platform's dense A manifests it fired on most (the 20 s of optimize time), and v50's base planning already takes about 119 s there, so the re-plan variants were cut by the deadline or never started. The code then still marks the episode re-planned, and the count race (`plan_count_secure_choice` with `plan_count_secure_race_replanned`) decides the planner-vs-dry-run race by the count gate: a dry-run plan holding the gate beats the planner's plan, which is the failure mode the threshold + 2 trigger showed on core-a (a-c1s-s0006, the dry-run plan placing no soft or priority box). That is the reading of the lost episode; the bench never showed it because its optimize budget is never short. Not kept: the shipped form stays v50's. Next: the race switch only when a re-plan variant actually completed and won, the re-plan run before the remaining base variants (or a reserved share of the budget), and the bench emulating the platform's budget with `offline_budget_seconds=40-60` on dense-a and core-a before any second try.
+
+## **The v51 A form plus the typed-standing gallery (acs): the bench's best A form, carrying v51's platform flaw**
+
+The combination of the count-secured re-plan (v51's form) and the typed-standing gallery (`reports/bench/arms/arm_acs_a.txt`; records `reports/bench/acs-*`), against the shipped form and each alone:
+
+| suite | shipped | count-secured (v51) | typed standing | both |
+|---|---|---|---|---|
+| dense-a crossings / placed / soft / topples | 10 / 28.1 / 296 / 8 | 20 / 30.7 / 292 / 5 | 15 / - / - / 1 | **23** / 30.8 / 332 / 1 |
+| hard-a | 26 / 46.8 / 389 / 19 | 29 / 48.0 / 500 / 17 | 30 / 47.2 / 466 / 17 | **31** / 48.4 / 521 / 18 |
+| core-a | 48 / 37.5 / 381 / 4 | 48 / 37.7 / 381 / 4 | 48 / 37.8 / 403 / 6 | 48 / 37.9 / 404 / 6 (priority 255 -> 253) |
+
+The combination is the bench's best A form (dense-a 23 of 48, the soft count up everywhere, topples down on dense-a), with the typed gallery's two core-a topples and two priority boxes. It inherits v51's platform flaw (the count race under a cut re-plan on a slow machine; the bench's optimize mean is 46-86 s where the platform's base planning takes about 119 s of 140), so it is a v52 candidate only after the re-plan's race and budget fix is measured under a shortened offline budget.
