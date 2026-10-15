@@ -771,6 +771,21 @@ Official platform: 56.04, the best so far (v49 55.62, +0.41): soft
 fill -1.03, stability -0.29, the placed fraction 0.6475 -> 0.6446;
 policy time 6.75 s (`reports/submission/official-results.md`).
 
+Diagnostic builds (not scored versions; `scripts/build_diagnostic_submission.py`,
+`dist/submit_diag_b.zip` and `dist/submit_diag_c.zip`): the v50 form with
+`DIAGNOSTIC_SURRENDER_TASKS` set to ("B",) or ("C",), so every item of
+that task is surrendered from the first call and its episodes score zero.
+One platform result of each reads, from the stability lattice (4.1775 a
+counted episode, `reports/wedge/stability-lattice.md`), that task's episode
+count and whether every one of its episodes was counted in v50, how the
+placed fraction and the fill are aggregated (a plain mean over all
+episodes drops by the task's share; a mean over counted episodes by
+less), and the task's per-episode cog / placement / soft from their drops.
+Official sample of the B build: A 32.11 / 25 and C 26.44 / 25 as v49, B
+0 / 0 with the policy at 0.7 ms (`official-sample-abc-diag-b.json`).
+The repository's `submission/agent.py` keeps the empty tuple; the task is
+read from the observation (the offline flag, then the visible pool size).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

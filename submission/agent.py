@@ -101,6 +101,16 @@ SOFT_COLUMNS = True
 # single containers of 80-110 items): the two-deep plan cost a priority
 # box there for no soft.  Off from v41.
 TASK_A_SOFT_GALLERY = False
+# Diagnostic builds (scripts/build_diagnostic_submission.py): the tasks
+# named here surrender every item from the first call, so one platform
+# result reads that task's episode count from the stability lattice
+# (4.1775 a counted episode), whether every one of its episodes was
+# counted, how the placed fraction and the fill are aggregated, and the
+# task's per-episode cog / placement / soft (reports/wedge/
+# stability-lattice.md).  Empty in every scored build.  A task is read
+# from the observation: "A" when it carries the offline flag, "B" when
+# more than one item is visible, "C" otherwise.
+DIAGNOSTIC_SURRENDER_TASKS: tuple = ()
 # v41 (not kept, see OVERRIDES): the row-tiling term along both axes
 # with the near-neighbour slivers on Tasks B and C; official 50.32
 # against v39's 52.71, one episode under the count threshold.
@@ -494,16 +504,28 @@ class Agent(RuleAlphaAgent):
             self.stack_option.config = dataclasses.replace(self.stack_option.config, **task_a)
         return super().optimize(item_list)
 
+    def _task_of(self, observation: dict) -> str:
+        """"A" with the offline flag (or a manifest from optimize), "B"
+        with more than one visible item, "C" otherwise."""
+        if observation.get("optimize") or getattr(self, "_manifest", None):
+            return "A"
+        if int(observation.get("lookahead_k") or len(observation.get("pool_list") or [])) > 1:
+            return "B"
+        return "C"
+
     def policy(self, observation: dict):
         """Always a well-formed action: the official app reads the action's
         keys before anything else, so a ``None`` (rule-alpha's decline)
         would crash it and lose the task instead of ending the episode.
         When nothing can be placed, a placement far above the container
         fails the inclusion check and ends the episode cleanly."""
-        try:
-            action = super().policy(observation)
-        except Exception:
+        if DIAGNOSTIC_SURRENDER_TASKS and self._task_of(observation) in DIAGNOSTIC_SURRENDER_TASKS:
             action = None
+        else:
+            try:
+                action = super().policy(observation)
+            except Exception:
+                action = None
         if action is not None:
             return action
         self.surrendered += 1
