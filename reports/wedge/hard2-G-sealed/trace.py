@@ -273,11 +273,17 @@ def main():
         )
         if record.startswith("gate0det"):
             scenes = G_C
-    od = os.path.join(SCRATCH, "trace", record)
+    if scenes == ["--all"]:
+        d = os.path.join(K.RECORDS, record)
+        scenes = sorted(f[:-5] for f in os.listdir(d) if f[:8] in ("c-hard2-", "b-hard2-") and f.endswith(".json"))
+    nvis = int(os.environ.get("VISIBLE", "0"))
+    od = os.path.join(SCRATCH, "trace", record + (f"-v{nvis}" if nvis else ""))
     os.makedirs(od, exist_ok=True)
     for sc in scenes:
         rec = K.load_record(record, sc)
         ep = K.Episode(rec)
+        if nvis and ep.sp["task"] == "C":
+            ep.visible = [i for i in ep.items if i["index"] >= ep.placed][:nvis]
         out = analyse(ep)
         json.dump(
             out, open(os.path.join(od, sc + ".json"), "w"), default=float, indent=1
