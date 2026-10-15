@@ -16,7 +16,6 @@ Each branch forces the reference run up to step k, changes the placement at k, a
 | c-hard2-s0039 | -1 | 21 | 10 (11) | a pose the ladder vetoed, most usable surface left, veto (agent's next answer) | 20:-1, 18:-1, 10:-1, 9:-1, 8:-1, 6:-1 |
 | c-hard2-s0076 | -1 | 21 | 13 (8) | most usable surface left, veto (agent's next answer) | 20:-1, 18:-1, 13:-1, 12:-1, 11:-1, 9:-1 |
 | c-hard2-s0078 | -3 | 46 | 36 (10) | most usable surface left | 45:-3, 43:-3, 36:-3, 35:-3, 34:-3, 32:-3 |
-| b-hard2-s0039 | -2 | 20 | - (-) | - | 13:-4 |
 
 | alternative kind | branches | crossing | better than null |
 |---|---:|---:|---:|
@@ -130,9 +129,26 @@ Each branch forces the reference run up to step k, changes the placement at k, a
 | 34 (12) | max-footprint | -3 | veto1 -5; veto2 -3; rung1 -3; vetoed:overhangs-the-shelf -4; maxsurf1 -3; maxsurf2 -1 | -1 | 0 of 6 |
 | 32 (14) | max-footprint | -3 | veto1 -3; veto2 -3; rung1 -5; vetoed:overhangs-the-shelf -1; maxsurf1 -6; maxsurf2 -6 | -1 | 0 of 6 |
 
-## b-hard2-s0039: reference placed 20 (thr 22, margin -2); record placed 20
 
-| k (lead) | at k the agent placed | null | alternatives: label -> margin (pose at k ok?) | best | crossing branches |
-|---|---|---:|---|---:|---:|
-| 13 (7) | soft-edge | -4 |  | -4 | 0 of 0 |
+## Shipped-form confirmation (ship_confirm.py)
 
+Every branch that reached the threshold on the record's arm, re-run with the shipped arm (`arm_ship_c.txt` / `arm_ship_b.txt`, + deterministic budgets) from the same prefix, with its unchanged baseline (null).
+
+| scene | k | null: record arm / shipped arm | branch: record arm / shipped arm |
+|---|---:|---|---|
+| b-hard2-s0039 | 13 | -2 / -4 | veto2 +0 / -4; rung3 +0 / -4 |
+| b-hard2-s0039 | 11 | -2 / -4 | maxsurf2 +0 / -1 |
+| b-hard2-s0039 | 9 | -2 / -4 | maxsurf1 +2 / +0 |
+| c-hard2-s0007 | 12 | -1 / -1 | veto2 +3 / +3; veto3 +3 / +3; rung4 +3 / +3; vetoed:wall-front-strip +3 / +3; maxsurf2 +3 / +3 |
+| c-hard2-s0007 | 11 | -1 / -1 | rung1 +0 / +0; maxsurf1 +2 / +2 |
+| c-hard2-s0007 | 9 | -1 / -1 | vetoed:would-wall-off-the-back +0 / +0 |
+| c-hard2-s0028 | 12 | -1 / -1 | veto2 +2 / +2; rung2 +0 / +0; rung3 +0 / +0; other:front-wedge +0 / +0; vetoed:overhangs-the-shelf +3 / +3; maxsurf1 +3 / +3; maxsurf2 +3 / +3 |
+| c-hard2-s0028 | 8 | -1 / -1 | veto2 +0 / +0; rung3 +0 / +0; other:back-corner +0 / +0; vetoed:overhangs-the-shelf +2 / +2; maxsurf1 +2 / +2 |
+| c-hard2-s0028 | 5 | -1 / -1 | vetoed:overhangs-the-shelf +2 / +2; maxsurf1 +2 / +2; maxsurf2 +5 / +5 |
+| c-hard2-s0039 | 10 | -1 / -1 | vetoed:corridor,wall-front-strip +0 / +0; vetoed:corridor,seals-usable-ground-behind,wall-front-strip +0 / +0; maxsurf2 +0 / +0 |
+| c-hard2-s0039 | 8 | -1 / -1 | veto1 +1 / +1; vetoed:wall-front-strip +1 / +1 |
+| c-hard2-s0039 | 6 | -1 / -1 | veto1 +3 / +3; vetoed:wall-front-strip +3 / +3 |
+| c-hard2-s0076 | 13 | -1 / -1 | veto2 +0 / +0 |
+| c-hard2-s0076 | 11 | -1 / -1 | maxsurf1 +0 / +0; maxsurf2 +0 / +0 |
+| c-hard2-s0076 | 9 | -1 / -1 | veto2 +0 / +0 |
+| c-hard2-s0078 | 36 | -3 / -3 | maxsurf1 +0 / +0 |

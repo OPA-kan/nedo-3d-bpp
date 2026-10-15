@@ -50,7 +50,7 @@ def main():
     kind_stats = collections.defaultdict(
         lambda: [0, 0, 0]
     )  # tried, crossed, improved over null
-    for f in sorted(glob.glob(f"{CF}/cf-*.json")):
+    for f in sorted(glob.glob(f"{CF}/cf-[bc]-*.json")):
         d = json.load(open(f))
         sc = d["scene"]
         n = d["n_steps"]
@@ -137,6 +137,20 @@ def main():
         tbl.append(f"| {ks} | {t} | {c} | {b} |")
     tbl.append("")
     lines[5:5] = tbl
+    lines += ["", "## Shipped-form confirmation (ship_confirm.py)", "",
+              "Every branch that reached the threshold on the record's arm, re-run with the shipped arm "
+              "(`arm_ship_c.txt` / `arm_ship_b.txt`, + deterministic budgets) from the same prefix, with its unchanged baseline (null).", "",
+              "| scene | k | null: record arm / shipped arm | branch: record arm / shipped arm |", "|---|---:|---|---|"]
+    for f in sorted(glob.glob(f"{CF}/cf-ship-*.json")):
+        d = json.load(open(f))
+        src = json.load(open(f.replace("cf-ship-", "cf-")))
+        for k, B in sorted(d["branches"].items(), key=lambda kv: -int(kv[0])):
+            if "null" not in B:
+                continue
+            S = src["branches"].get(k, {})
+            br = "; ".join(f"{lab} {S[lab]['margin']:+d} / {v['margin']:+d}" for lab, v in B.items()
+                           if not lab.startswith("_") and lab != "null" and isinstance(v, dict) and "margin" in v and lab in S)
+            lines.append(f"| {d['scene']} | {k} | {S.get('null', {}).get('margin', 0):+d} / {B['null']['margin']:+d} | {br} |")
     open(f"{HERE}/cf_stats.md", "w").write("\n".join(lines) + "\n")
     json.dump(out, open(f"{HERE}/cf_summary.json", "w"), indent=0)
     print("\n".join(lines))
