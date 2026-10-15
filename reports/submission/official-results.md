@@ -39,6 +39,7 @@
 | v49 (f17ed2f: v48 -- v46 plus the grid rescue's pool window on B and the rescue stages' deep-first order and sealing pass gated to C's low phase -- plus the simulator's zero-lift band above the shelf level escaped upward on Tasks B and C) | 39.65 | 64.25 | 78.48 | 49.45 | 46.5 | 0.6475 | 116.0 | 6.91 |
 | v50 (e310ebde: v49 plus the soft columns allowed from the first soft box on Tasks B and C -- `soft_structure_floor_share` 0.35 -> 0 under the 0.7 m cap; Task A keeps the gate) | 38.62 | 64.82 | 78.19 | 50.4 | 50.1 | 0.6446 | 118.9 | 6.75 |
 | diag-B (47590073: v50 surrendering every Task B item from the first call; a diagnostic, not a scored version) | 20.24 | 28.19 | 32.31 | 27.2 | 25.75 | 0.3470 | 136.1 | 5.07 |
+| diag-C (47590073: v50 surrendering every Task C item from the first call; a diagnostic) | 33.10 | 55.48 | 66.57 | 40.25 | 41.75 | 0.5529 | 130.8 | 6.81 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -425,6 +426,27 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+The Task C diagnostic (every C item surrendered at the first call)
+scored 47.33: fill 33.10, cog 55.48, stability 66.57, placement 40.25,
+soft 41.75, fraction 0.5529, policy 6.81 s.  The stability drop 11.62 is
+2.78 steps with the residual moving -1.19 -> -0.27, so **3 Task C
+episodes were counted in v50 and carried most of the topple residual**;
+with B's 11 that leaves **5 counted Task A episodes** (19 = 5 + 11 +
+3).  The shares of v50 by task (sum over counted episodes over N for the
+four gated components, plain-mean shares for the fill and the fraction):
+A fill 14.7 / cog 18.9 / placement 17.1 / soft 17.4 / fraction 0.255,
+B 18.4 / 36.6 / 23.2 / 24.4 / 0.298, C 5.5 / 9.3 / 10.2 / 8.4 / 0.092.
+Every reading from N = 19 to N = 24 is arithmetically open
+(`reports/wedge/stability-lattice.md`, section 7); what separates them is
+Task A: with no uncounted episode (N = 19) the five A episodes place 97 %
+of their manifests at a fill of 56, where the bench's A suite places
+0.635 at a fill of 37.5 (its best scene 0.78 / 47.8); with N = 23-24 A
+has 8-10 episodes of which 5 count, placing 0.61-0.77 at a fill of
+35-44, and three to five A episodes score zero on the four components
+although they place far more than half, so the zeroing reason there is
+not the count.  Per counted A episode the cog is 72-90, the placement
+65-82, the soft 66-84, the highest of the three tasks.
 
 The Task B diagnostic (v50 with every B item surrendered at the first
 call) scored 26.31: fill 20.24, cog 28.19, stability 32.31, placement

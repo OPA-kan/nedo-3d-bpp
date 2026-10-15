@@ -791,6 +791,12 @@ Task B episodes were counted in v50, 8 A or C episodes remain counted,
 the fraction and the fill are plain means over every episode, and N is
 about 23, so about four A or C episodes are not counted
 (`reports/wedge/stability-lattice.md`, section 6).
+The C build: 47.33 (fill 33.10, cog 55.48, stability 66.57, placement
+40.25, soft 41.75, fraction 0.5529, policy 6.81 s): 3 Task C episodes
+were counted in v50, so 5 Task A episodes count; the open readings from
+N = 19 (A placing 97 % at a fill of 56) to N = 24 (A with 4-5 episodes
+scoring zero on the four components while placing most of their
+manifests) are separated by Task A alone (section 7).
 
 ## Known limits
 

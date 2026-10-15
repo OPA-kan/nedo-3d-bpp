@@ -171,3 +171,61 @@ v50 56.04 against the build surrendering every Task B item at the first call:
 The Task C diagnostic splits the remaining 12: its stability drop counts
 C's counted episodes, its fraction drop gives N_C, and A follows by
 subtraction, which says where the uncounted episodes are.
+
+## 7. The Task C diagnostic read (platform result 47.33), and Task A
+
+| component | v50 | diag-C | drop | diag-B drop (B) | left for A |
+|---|---:|---:|---:|---:|---:|
+| fill | 38.62 | 33.10 | 5.52 | 18.38 | 14.72 |
+| cog | 64.82 | 55.48 | 9.34 | 36.63 | 18.85 |
+| stability | 78.19 | 66.57 | 11.62 = 2.78 steps (residual -1.19 -> -0.27) | 45.87 = 10.98 steps | 20.69 = 4.95 steps |
+| placement | 50.4 | 40.25 | 10.15 | 23.2 | 17.05 |
+| soft | 50.1 | 41.75 | 8.35 | 24.35 | 17.40 |
+| placed fraction | 0.6446 | 0.5529 | 0.0917 | 0.2976 | 0.2553 |
+
+**Counted in v50: A 5, B 11, C 3.** The topple residual sits in C (its 3
+counted episodes carry -0.9 of the -1.2).
+
+With n_X episodes of task X at a mean fraction f_X and the fraction a
+plain mean over N: 11 f_B = 0.2976 N, n_C f_C = 0.0917 N, n_A f_A =
+0.2553 N, n_A + n_C = N - 11, f_A <= 1. The open readings:
+
+| N | (n_A, n_C) | f_A | f_B | f_C | fill_A | fill_B | fill_C | A uncounted | C uncounted |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| 19 | (5, 3) | 0.970 | 0.514 | 0.581 | 56.0 | 31.7 | 34.9 | 0 | 0 |
+| 20 | (6, 3) | 0.851 | 0.541 | 0.611 | 49.1 | 33.4 | 36.8 | 1 | 0 |
+| 21 | (7, 3) | 0.766 | 0.568 | 0.642 | 44.2 | 35.1 | 38.6 | 2 | 0 |
+| 22 | (8, 3) | 0.702 | 0.595 | 0.672 | 40.5 | 36.8 | 40.4 | 3 | 0 |
+| 23 | (8, 4) | 0.734 | 0.622 | 0.527 | 42.3 | 38.4 | 31.7 | 3 | 1 |
+| 23 | (9, 3) | 0.652 | 0.622 | 0.703 | 37.6 | 38.4 | 42.3 | 4 | 0 |
+| 24 | (9, 4) | 0.681 | 0.649 | 0.550 | 39.3 | 40.1 | 33.1 | 4 | 1 |
+| 24 | (10, 3) | 0.613 | 0.649 | 0.733 | 35.3 | 40.1 | 44.1 | 5 | 0 |
+
+(Readings with n_C >= 5 put C's fraction under 0.45 and are left out.)
+Per counted episode (score x N / counted): A cog 72-90, placement 65-82,
+soft 66-84; B 63-80 / 40-51 / 42-53; C 59-75 / 64-81 / 53-67.
+
+What the arithmetic says on its own:
+- **B is fully counted in every reading** (n_B = 11 counted = 11), and its
+  fraction is the official sample's (0.51-0.65 across N).
+- **C has 3 counted episodes and at most one more**; its fraction is
+  sample-like in every reading (0.53-0.73).
+- **The N question is a Task A question.** With no uncounted episode
+  (N = 19) the five A episodes place 97 % of their manifests at a fill of
+  56; the bench's A suite (41 items in two containers, like the official
+  sample) places 0.635 at a fill of 37.5, its best scene 0.78 / 47.8, and
+  the official sample A 25 of 41 at 32.1. With N = 22-24, A has 8-10
+  episodes of which 5 count, placing 0.61-0.73 at a fill of 35-42 (the
+  bench's numbers), and **3-5 A episodes score zero on the four
+  components while placing far more than half**, so the zeroing reason
+  on A is not the count: a placement the validator refused, a box ending
+  outside the container, or a topple at the end (the run status names
+  exactly `is_included`, `is_placed_safe`, `is_valid`).
+- The v40 note inferred from the platform's optimize time that its Task A
+  manifests are single containers of 80-110 items; the bench has never
+  run A on such manifests, so the A regime on the platform is unmeasured
+  either way. Whether our A pipeline can place 97 % at a fill of 56 on a
+  dense single-container manifest is a bench question
+  (`reports/wedge/stability-lattice/afill.py`); if it cannot, N = 19 is
+  dead and the three to five zeroed A episodes are the largest single
+  lever on the board (about 2.3 points each).
