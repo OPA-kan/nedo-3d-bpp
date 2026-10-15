@@ -230,7 +230,7 @@ Placed counts at the end of each branch (several values = several branches or re
 | b-hard2-s0007 | 19 | 1 |  | 21 |  | 20 |  |  |  |  |  |
 | b-hard2-s0007 | 18 | 2 |  | 21 |  | 19 |  |  |  |  |  |
 | b-hard2-s0007 | 17 | 3 |  | 21 | 18/18 | 18 |  |  |  |  |  |
-| b-hard2-s0007 | 15 | 5 | seal 1 | 21 | 17/17 | 17/20/22/18 | 20 | 20 | 21 | 21 | yes |
+| b-hard2-s0007 | 15 | 5 | seal 1 | 21 | 17/17/18/18/18 | 17/20/22/18 | 20 | 20 | 21 | 21 | yes |
 | b-hard2-s0007 | 14 | 6 |  | 21 | 18 | 20/18/21/18 |  | 20 | 21 |  | yes |
 | b-hard2-s0007 | 12 | 8 | seal 0 | 21 | 17/17 | 18/21/21/18 | 21 | 21 | 20 | 21 | yes |
 | b-hard2-s0007 | 10 | 10 |  | 21 | 18 | 20/18/19/18 |  | 21 | 19 |  | yes |
@@ -238,7 +238,7 @@ Placed counts at the end of each branch (several values = several branches or re
 | b-hard2-s0009 | 50 | 2 |  | 53 |  | 52 |  |  |  |  |  |
 | b-hard2-s0009 | 49 | 3 |  | 53 | 52/52 | 52 |  |  |  |  |  |
 | b-hard2-s0009 | 29 | 23 | seal 0 | 53 | 52/52 |  | 53 |  | 53 |  | yes |
-| b-hard2-s0009 | 20 | 32 | seal 1 | 53 | 53/53 |  | 54 |  | 54 |  | yes |
+| b-hard2-s0009 | 20 | 32 | seal 1 | 53 | 53/53/49/52/49 |  | 54 |  | 54 |  | yes |
 | b-hard2-s0009 | 14 | 38 |  | 53 |  |  |  |  | 49 |  |  |
 | b-hard2-s0077 | 19 | 1 |  | 21 |  | 20 |  |  |  |  |  |
 | b-hard2-s0077 | 18 | 2 |  | 21 |  | 20 |  |  |  |  |  |
@@ -256,6 +256,13 @@ Placed counts at the end of each branch (several values = several branches or re
 | b-hard2-s0064 | 24 | 2 | seal 0 | 30 | 26/26 | 26/26/26/26 | 26 | 26 | 26 | 26 |  |
 | b-hard2-s0064 | 23 | 3 |  | 30 | 26/26 | 26 |  |  |  |  |  |
 | b-hard2-s0064 | 21 | 5 |  | 30 | 26 | 26/26/26/26 |  | 26 | 26 |  |  |
+| b-hard2-s0030 | 53 | 17 | seal 1 | 79 | 65/65/65/62 |  |  |  |  |  |  |
+| b-hard2-s0055 | 10 | 10 | seal 0 | 30 | 22/18/22/18 |  |  |  |  |  |  |
+| b-hard2-s0056 | 47 | 21 | seal 6 | 76 | 66/66/66/66 |  |  |  |  |  |  |
+| b-hard2-s0073 | 78 | 13 | seal 1,2 | 105 | 87/87/87/86 |  |  |  |  |  |  |
+| b-hard2-s0075 | 58 | 33 | seal 1,2 | 109 | 78/78/78 |  |  |  |  |  |  |
+| b-hard2-s0081 | 45 | 12 | seal 4 | 62 | 46/46/46/46 |  |  |  |  |  |  |
+| b-hard2-s0081 | 36 | 21 | seal 2,3 | 62 | 49/44/49/44 |  |  |  |  |  |  |
 | c-hard2-s0060 | 65 | 25 | seal 0 | 96 | 86 |  |  |  |  |  |  |
 
 ## Choosing among the pool (B): every pool item tried first
@@ -269,9 +276,25 @@ Placed counts at the end of each branch (several values = several branches or re
 | b-hard2-s0009 | 20 | 53 | 53/53 | 0s:54 3s:54 6s:54 9s:54 11s:54 14s:54 15s:54 17s:54 20s:54 23s:54 24s:54 | 54 | 11/11 |
 | b-hard2-s0026 | 2 | 16 | 14 | 0s:15 1s:16 2sp:14 3s:13 4hp:17 5s:15 6sp:16 7hp:14 9s:15 11h:14 | 17 | 3/10 |
 | b-hard2-s0026 | 4 | 16 | 14/14 | 0s:15 1s:15 2sp:15 3s:15 4hp:14 5s:15 6sp:15 9s:15 12s:15 13s:15 | 15 | 0/10 |
-| b-hard2-s0064 | 24 | 30 | 26/26 | 19s:26 20s:26 25s:26 26s:26 27s:26 29s:26 30s:26 | 26 | 0/7 |
+| b-hard2-s0064 | 24 | 30 | 26/26 | 19s:26 20s:26 25s:26 26s:26 27s:26 29s:26 30s:26 31s:26 32s:26 33s:26 | 26 | 0/10 |
 | b-hard2-s0077 | 1 | 21 | 20 | 0h:20 1s:21 2sp:20 3s:18 5h:17 6s:18 7s:17 8s:18 9hp:17 10h:20 | 21 | 1/10 |
 | b-hard2-s0077 | 3 | 21 | 20/20 | 1s:21 2sp:20 3s:22 6s:18 7s:22 8s:18 9hp:21 10h:18 11s:19 12sp:20 | 22 | 4/10 |
+
+## Pricing the seal on every surface (B terrace-extension sealing steps)
+
+The record arm with the flags appended for the rest of the episode from the sealing step.
+
+| scene | t | threshold | agent | seal_check_all_surfaces | seal_ranks_terraces | both |
+|---|---|---|---|---|---|---|
+| b-hard2-s0007 | 15 | 21 | 17/17 | 18 | 18 | 18 |
+| b-hard2-s0009 | 20 | 53 | 53/53 | 49 | 52 | 49 |
+| b-hard2-s0030 | 53 | 79 | 62 | 65 | 65 | 65 |
+| b-hard2-s0055 | 10 | 30 | 18 | 22 | 18 | 22 |
+| b-hard2-s0056 | 47 | 76 | 66 | 66 | 66 | 66 |
+| b-hard2-s0073 | 78 | 105 | 86 | 87 | 87 | 87 |
+| b-hard2-s0075 | 58 | 109 |  | 78 | 78 | 78 |
+| b-hard2-s0081 | 36 | 62 | 44 | 49 | 44 | 49 |
+| b-hard2-s0081 | 45 | 62 | 46 | 46 | 46 | 46 |
 
 ## The oldest deferred soft box on the B G boards
 
@@ -451,6 +474,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 17 | alt | 2 |  |  | grid-rescue [0.653, 0.371, 1.714] | None | None | 18 | -3 |  |
 | 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 17 | -4 |  |
 | 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 17 | -4 |  |
+| 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 18 | -3 |  |
+| 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 18 | -3 |  |
+| 15 | agent |  |  |  | terrace-extension [-0.069, -0.334, 1.33] | None | None | 18 | -3 |  |
 | 15 | alt | 2 |  |  | stack-rl [-0.394, -0.439, 1.33] | None | None | 20 | -1 |  |
 | 15 | alt | 3 |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 22 | 1 |  |
 | 15 | defer |  |  |  | stack-rl [-0.276, -0.399, 1.25] | None | None | 21 | 0 |  |
@@ -625,6 +651,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 24 | first_item |  |  |  | stack-rl [0.723, -0.445, 0.956] | None | None | 26 | -4 |  |
 | 24 | first_item |  |  |  | stack-rl [0.723, -0.445, 0.956] | None | None | 26 | -4 |  |
 | 24 | first_item |  |  |  | stack-rl [0.723, -0.445, 0.956] | None | None | 26 | -4 |  |
+| 24 | first_item |  |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  |
+| 24 | first_item |  |  |  | stack-rl [0.723, -0.445, 0.956] | None | None | 26 | -4 |  |
+| 24 | first_item |  |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  |
 | 24 | kth | 2 |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  sel-unused |
 | 24 | kth | 3 |  |  | stack-rl [0.698, -0.455, 0.931] | None | None | 26 | -4 |  sel-unused |
 | 24 | noseal |  | 0 |  | stack-rl [0.698, -0.455, 0.931] | 160 | False | 26 | -4 | fell back |
@@ -657,6 +686,9 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | 29 | noseal2 |  | 0 |  | soft-edge [-0.404, -0.326, 1.095] | 0 | False | 53 | 0 |  |
 | 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 53 | 0 |  |
 | 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 53 | 0 |  |
+| 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 49 | -4 |  |
+| 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 52 | -1 |  |
+| 20 | agent |  |  |  | terrace-extension [0.684, -0.465, 0.545] | None | None | 49 | -4 |  |
 | 20 | fill2 |  | 1 |  | pocket-soft [0.297, 0.589, 0.874] | 0 | False | 54 | 1 | fell back |
 | 20 | first_item |  |  |  | pocket-soft [0.297, 0.589, 0.874] | None | None | 54 | 1 |  |
 | 20 | first_item |  |  |  | pocket-soft [0.297, 0.589, 0.874] | None | None | 54 | 1 |  |
@@ -677,4 +709,61 @@ Board after t recorded placements, one changed decision, then the shipped agent 
 | t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
 |---|---|---|---|---|---|---|---|---|---|---|
 | 65 | agent |  |  |  | terrace-extension [-0.164, -0.599, 1.16] | None | None | 86 | -10 |  |
+
+**b-hard2-s0055** (threshold 30, record placed 20)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 10 | agent |  |  |  | stack-rl [0.015, -0.365, 0.425] | None | None | 22 | -8 |  |
+| 10 | agent |  |  |  | terrace-extension [0.236, -0.356, 0.425] | None | None | 18 | -12 |  |
+| 10 | agent |  |  |  | stack-rl [0.015, -0.365, 0.425] | None | None | 22 | -8 |  |
+| 10 | agent |  |  |  | terrace-extension [0.236, -0.356, 0.425] | None | None | 18 | -12 |  |
+
+**b-hard2-s0056** (threshold 76, record placed 68)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 47 | agent |  |  |  | terrace-extension [0.674, -0.316, 1.51] | None | None | 66 | -10 |  |
+| 47 | agent |  |  |  | terrace-extension [0.674, -0.316, 1.51] | None | None | 66 | -10 |  |
+| 47 | agent |  |  |  | terrace-extension [0.674, -0.316, 1.51] | None | None | 66 | -10 |  |
+| 47 | agent |  |  |  | terrace-extension [0.674, -0.316, 1.51] | None | None | 66 | -10 |  |
+
+**b-hard2-s0081** (threshold 62, record placed 57)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 45 | agent |  |  |  | terrace-extension [0.754, -0.328, 1.055] | None | None | 46 | -16 |  |
+| 45 | agent |  |  |  | terrace-extension [0.754, -0.328, 1.055] | None | None | 46 | -16 |  |
+| 45 | agent |  |  |  | terrace-extension [0.754, -0.328, 1.055] | None | None | 46 | -16 |  |
+| 45 | agent |  |  |  | terrace-extension [0.754, -0.328, 1.055] | None | None | 46 | -16 |  |
+| 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 49 | -13 |  |
+| 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 44 | -18 |  |
+| 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 49 | -13 |  |
+| 36 | agent |  |  |  | terrace-extension [0.879, 0.101, 0.65] | None | None | 44 | -18 |  |
+
+**b-hard2-s0030** (threshold 79, record placed 70)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 53 | agent |  |  |  | terrace-extension [0.602, -0.323, 0.42] | None | None | 65 | -14 |  |
+| 53 | agent |  |  |  | terrace-extension [0.602, -0.323, 0.42] | None | None | 65 | -14 |  |
+| 53 | agent |  |  |  | terrace-extension [0.602, -0.323, 0.42] | None | None | 65 | -14 |  |
+| 53 | agent |  |  |  | terrace-extension [0.428, -0.248, 0.42] | None | None | 62 | -17 |  |
+
+**b-hard2-s0073** (threshold 105, record placed 91)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 78 | agent |  |  |  | terrace-extension [0.839, -0.347, 1.205] | None | None | 87 | -18 |  |
+| 78 | agent |  |  |  | terrace-extension [0.839, -0.347, 1.205] | None | None | 87 | -18 |  |
+| 78 | agent |  |  |  | terrace-extension [0.839, -0.347, 1.205] | None | None | 87 | -18 |  |
+| 78 | agent |  |  |  | terrace-extension [0.744, -0.252, 1.205] | None | None | 86 | -19 |  |
+
+**b-hard2-s0075** (threshold 109, record placed 91)
+
+| t | mode | k | patch | persistent | first placement | seals | fills | placed | margin | note |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 58 | agent |  |  |  | terrace-extension [0.778, -0.462, 0.365] | None | None | 78 | -31 |  |
+| 58 | agent |  |  |  | terrace-extension [0.778, -0.462, 0.365] | None | None | 78 | -31 |  |
+| 58 | agent |  |  |  | terrace-extension [0.778, -0.462, 0.365] | None | None | 78 | -31 |  |
 
