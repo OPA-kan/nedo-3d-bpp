@@ -2541,6 +2541,13 @@ class RuleAlphaConfig:
     ``plan_typed_standing_priority``), ``noreserve`` plans the hard rows
     without the soft headroom reserve (the gallery holds the soft)."""
 
+    plan_typed_standing_no_priority_container: bool = False
+    """The typed-standing plans only on layouts without a priority
+    container.  On core-a the c2p scenes are where the flag cost placed
+    items and added topples (`astand-core-a`: c2p-s0002, s0008, s0011
+    -3 each, s0008 three hard boxes toppled from 1.06-1.3 m, the plan
+    moved from the planner's to the dry-run's)."""
+
     plan_typed_standing_force: bool = False
     """Measurement switch: the best typed-standing plan plays on every
     manifest, whatever the ordinary plan holds (the stability cost of the

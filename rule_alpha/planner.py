@@ -1523,6 +1523,9 @@ def plan_typed_standing(agent, item_list: list[dict], deadline: float, base, pri
         threshold = None
     if threshold is None or base is None:
         return base
+    if getattr(config, "plan_typed_standing_no_priority_container", False) and any(
+            m.is_prioritized for m in agent.board.models):
+        return base
     gate = int(threshold) + int(getattr(config, "plan_value_margin", 2))
     force = bool(getattr(config, "plan_typed_standing_force", False))
     if len(base[2]) >= gate and not force:
