@@ -714,7 +714,10 @@ class RuleAlphaAgent:
                 print(f"[pocket] observe failed: {exc!r}", flush=True)
         # rebuild from the observation so the plan always reflects the settled
         # truth the simulator reports, not what rule-alpha hoped for
-        self.board = layer1.Board(containers, self.config)
+        # (a soft-floor plan's floor read as hard: config.plan_soft_floor_online)
+        from .planner import soft_floor_board_view
+
+        self.board = layer1.Board(soft_floor_board_view(self, containers), self.config)
         self._reapply_zone_scales()
         self._resize_zones_for_what_is_left()
 

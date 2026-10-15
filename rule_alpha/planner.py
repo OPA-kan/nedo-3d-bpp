@@ -160,8 +160,9 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
         return None, "chamfer"
     box = AABB((x, y, bottom + orientation.dz / 2.0), (orientation.dx, orientation.dy, orientation.dz), ARCHETYPE)
     ok, why = layer1.validate(box, model, container, config)
+    waive = bool(getattr(config, "plan_soft_floor_active", False)) and not profile.is_soft
     if ok and getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
-            box, container, bool(profile.is_soft), bool(profile.is_prioritized),
+            box, _cover_view(container, model, waive), bool(profile.is_soft), bool(profile.is_prioritized),
             shelves=model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None):
         ok, why = False, "covers-other-attribute"
     if ok and bottom > model.z_floor + 1e-6:
@@ -180,7 +181,7 @@ def _try_pose(board, container_idx: int, profile, orientation, x: float, y: floa
 
 def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
               planned: list, deadline: float, log=None, row_lines: list | None = None,
-              layout_index: int = 0, deep_first: bool = False) -> list:
+              layout_index: int = 0, deep_first: bool = False, floor_only: bool = False) -> list:
     """Fills one container with the given items in layers of rows: rows from
     the back wall to the opening, each row from the left to the right, each
     layer on whatever the last one left (poses drop onto the packed tops);
@@ -219,6 +220,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
     def place(profile, orientation, x, y):
         reserve = agent._soft_headroom_reserve(board.containers, container_idx) if not profile.is_soft else 0.0
         z_cap = model.z_ceiling - reserve if reserve > 0 else None
+        z_cap = _soft_floor_cap(board, container_idx, profile, orientation, x, y, config, z_cap)
         box, why = _try_pose(board, container_idx, profile, orientation, x, y, config, z_cap)
         if box is None:
             if log:
@@ -377,6 +379,8 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             for n, profile in enumerate(items):
                 for o in pose_fn(profile):
                     if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9:
+                        if floor_only and not _soft_floor_level(o.dz, row_dz, config):
+                            continue
                         choices.append((row_dz is not None and abs(o.dz - row_dz) > 1e-6,
                                         abs(o.dy - depth) > 1e-6, area_sign * o.dx * o.dy, n, o, profile))
             if not choices:
@@ -384,10 +388,11 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             choices.sort(key=lambda t: t[:4])
             box = None
             for _h, _w, _a, _n, o, profile in choices[:8]:
-                box = try_slot(profile, o, x_cursor, y_back)
+                box = try_slot(profile, o, x_cursor, y_back,
+                               max_bottom=model.z_floor + 1e-6 if floor_only else math.inf)
                 if box is not None:
                     break
-            if (box is None and getattr(config, "plan_standing", True)
+            if (box is None and getattr(config, "plan_standing", True) and not floor_only
                     and not (getattr(config, "plan_standing_rows", False) and pose_fn is _flat_poses)):
                 # nothing flat fits here (the mid-height band, most often):
                 # a standing pose of the same items, lowest first
@@ -411,7 +416,7 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
         return count
 
     passes = 0
-    while items and passes < 12 and time.perf_counter() < deadline:
+    while items and passes < (1 if floor_only else 12) and time.perf_counter() < deadline:
         passes += 1
         before = len(planned)
         # where a row starts: the floor's left edge, so the layers stay in
@@ -433,6 +438,8 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
             for depth, _row in layout:
                 row_lines.append((y_back, depth))
                 y_back -= depth + gap
+            if floor_only:
+                row_lines[:] = _soft_floor_lines(row_lines, rect, slack, config)
         if deep_first:
             # each row built up in layers before the next row is opened:
             # the priority cargo in its container takes the back rows to
@@ -465,6 +472,292 @@ def pack_rows(agent, board: layer1.Board, container_idx: int, items: list, confi
         # the hard rows' lines) expects
         row_lines[:] = flat_lines
     return row_lines
+
+
+# ---------------------------------------------------------------------------
+# The soft floor under the hard cargo (config.plan_soft_floor_under_count).
+# On a dense manifest the plan places the hard cargo first and the soft
+# boxes, the smallest items, find no room on top; under the count threshold
+# the soft-floor variant lays them on the floor first, one storey in level
+# rows from the back wall, and the hard rows ride on them.  The limits are
+# the official simulator's (scripts/soft_floor_probe.py).
+
+_SOFT_FLOOR_BAND = 0.06   # a soft box whose bottom is this close to the floor rests on it
+
+
+def _flat_height(profile) -> float:
+    return min(o.dz for o in profile.orientations)
+
+
+def _soft_floor_eligible(profile, config) -> bool:
+    return (bool(profile.is_soft) and not bool(profile.is_prioritized) and bool(profile.orientations)
+            and _flat_height(profile) <= float(getattr(config, "plan_soft_floor_max_height", 0.30)) + 1e-9)
+
+
+def _soft_floor_level(dz: float, row_dz, config) -> bool:
+    """A soft-floor row is level: its boxes' heights within the tolerance of
+    the row's first (a hard box bridging two heights tilts)."""
+    if row_dz is None:
+        return True
+    return abs(dz - row_dz) <= float(getattr(config, "plan_soft_floor_level_tolerance", 0.03)) + 1e-9
+
+
+def _soft_floor_lines(row_lines: list, rect, slack: float, config) -> list:
+    """The soft floor's rows within ``plan_soft_floor_depth_share`` of the
+    floor's depth from the back wall."""
+    share = float(getattr(config, "plan_soft_floor_depth_share", 1.0))
+    if share >= 1.0:
+        return list(row_lines)
+    depth = (rect.y_max - slack) - (rect.y_min + slack)
+    y_limit = (rect.y_max - slack) - share * depth
+    return [(y, d) for y, d in row_lines if y - d >= y_limit - 1e-9]
+
+
+def _floor_soft_boxes(container: dict, model) -> list:
+    """(packed item, local AABB) of the non-priority soft boxes on the floor."""
+    from ._reuse import packed_aabbs_local
+
+    out = []
+    for packed, (b, soft, prio) in zip(container.get("packed_items", []), packed_aabbs_local(container)):
+        if soft and not prio and float(b.minimum[2]) <= model.z_floor + _SOFT_FLOOR_BAND:
+            out.append((packed, b))
+    return out
+
+
+def _cover_view(container: dict, model, waive: bool) -> dict:
+    """The container as the cover veto reads it: with ``waive``, the soft
+    boxes on the floor are left out (hard cargo may rest on the soft
+    floor); the priority cargo and every other soft box still count."""
+    if not waive:
+        return container
+    floor = {id(p) for p, _b in _floor_soft_boxes(container, model)}
+    if not floor:
+        return container
+    view = dict(container)
+    view["packed_items"] = [p for p in container.get("packed_items", []) if id(p) not in floor]
+    return view
+
+
+def _soft_floor_cap(board, container_idx: int, profile, orientation, x: float, y: float, config, z_cap):
+    """The height cap of a hard pose over the soft floor while the
+    soft-floor variant is planned (``plan_soft_floor_hard_max_top``)."""
+    if not getattr(config, "plan_soft_floor_active", False) or profile.is_soft:
+        return z_cap
+    top = float(getattr(config, "plan_soft_floor_hard_max_top", 1.0))
+    if top <= 0.0:
+        return z_cap
+    model = board.model(container_idx)
+    for _p, b in _floor_soft_boxes(board.container(container_idx), model):
+        if (min(x + orientation.dx / 2.0, float(b.maximum[0])) - max(x - orientation.dx / 2.0, float(b.minimum[0])) > 0.01
+                and min(y + orientation.dy / 2.0, float(b.maximum[1])) - max(y - orientation.dy / 2.0, float(b.minimum[1])) > 0.01):
+            return top if z_cap is None else min(z_cap, top)
+    return z_cap
+
+
+class _soft_floor_structure:
+    """The soft floor carries load: the stability model's floor-share gate
+    off and, with ``cap``, soft tops up to that height as structure."""
+
+    def __init__(self, config, cap):
+        self.cap = cap
+
+    def __enter__(self):
+        from . import stability
+
+        self.saved = (stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE)
+        stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
+        if self.cap is not None:
+            stability.SOFT_STRUCTURE_MAX_TOP = self.cap
+        return self
+
+    def __exit__(self, *exc):
+        from . import stability
+
+        stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE = self.saved
+        return False
+
+
+def _soft_floor_group(floor: list, config) -> list:
+    """The soft boxes of one height band (``plan_soft_floor_level_tolerance``
+    wide) with the most footprint: the floor the hard rows ride on is
+    level, since the analytic support reads contact within millimetres and
+    a hard box over two heights rests on the taller alone (and in physics
+    tilts: 2-4 degrees over 2 cm, 5-17 over 5 cm)."""
+    if not floor:
+        return []
+    tol = float(getattr(config, "plan_soft_floor_level_tolerance", 0.005))
+    best, best_area = [], -1.0
+    for h in sorted({round(_flat_height(p), 4) for p in floor}):
+        group = [p for p in floor if h - 1e-9 <= _flat_height(p) <= h + tol + 1e-9]
+        area = sum(max(o.dx * o.dy for o in p.orientations if abs(o.dz - _flat_height(p)) < 1e-9) for p in group)
+        if area > best_area + 1e-9:
+            best, best_area = group, area
+    return best
+
+
+def _soft_floor_pass(agent, board, container_idx: int, items: list, config, plan: list, planned: list,
+                     deadline: float, log=None) -> list:
+    """The soft floor of one container: the eligible soft boxes, tallest
+    first so the rows come out level and step down towards the door, in
+    rows from the back wall, the floor alone.  Returns the items left."""
+    floor = _soft_floor_group([p for p in items if _soft_floor_eligible(p, config)], config)
+    if not floor:
+        return items
+    floor.sort(key=lambda p: (-round(_flat_height(p), 3),
+                              -p.orientations[0].dx * p.orientations[0].dy * p.orientations[0].dz, p.index))
+    before = len(plan)
+    pack_rows(agent, board, container_idx, floor, config, plan, planned, deadline, log, floor_only=True)
+    for entry in plan[before:]:
+        entry["soft_floor"] = True
+    _sink_soft_floor(board, container_idx, len(plan) - before, float(getattr(config, "plan_soft_floor_sink", 0.0)))
+    if log:
+        log(f"  [plan] container {container_idx} soft floor: {len(plan) - before} of "
+            f"{sum(1 for p in items if _soft_floor_eligible(p, config))} soft boxes")
+    placed = set(planned)
+    return [p for p in items if p.index not in placed]
+
+
+def _sink_soft_floor(board, container_idx: int, count: int, sink: float) -> None:
+    """The planning board's last ``count`` placements (the soft floor) moved
+    ``sink`` down: the hard rows are planned on the tops the soft boxes
+    settle to under them (the plan's entries keep the true poses)."""
+    if sink <= 0.0 or count <= 0:
+        return
+    placements = list(board.placements[container_idx][-count:])
+    for _ in range(count):
+        board.undo_last(container_idx)
+    for placement in placements:
+        box = placement.box
+        centre = (float(box.center[0]), float(box.center[1]), float(box.center[2]) - sink)
+        board.apply(dataclasses.replace(placement, box=AABB(centre, tuple(float(v) for v in box.size), ARCHETYPE)))
+
+
+def _mark_over_soft(plan: list, drop: float) -> int:
+    """Every planned pose above a soft-floor box (its footprint over the
+    box's, its bottom higher) replays with the soft floor's rules."""
+    floor = [e for e in plan if e.get("soft_floor")]
+    marked = 0
+    for e in plan:
+        if e.get("soft_floor"):
+            continue
+        cx, cy, _cz = e["center"]
+        sx, sy, _sz = e["size"]
+        for f in floor:
+            if int(f["container_idx"]) != int(e["container_idx"]) or float(e["bottom"]) <= float(f["bottom"]) + 1e-6:
+                continue
+            fx, fy, _fz = f["center"]
+            fsx, fsy, _fsz = f["size"]
+            if (min(cx + sx / 2.0, fx + fsx / 2.0) - max(cx - sx / 2.0, fx - fsx / 2.0) > 0.01
+                    and min(cy + sy / 2.0, fy + fsy / 2.0) - max(cy - sy / 2.0, fy - fsy / 2.0) > 0.01):
+                e["over_soft"] = True
+                e["replay_drop"] = float(drop)
+                marked += 1
+                break
+    return marked
+
+
+def soft_floor_board_view(agent, containers: list) -> list:
+    """The observation's containers as the online stages read them once a
+    soft-floor plan plays (``plan_soft_floor_online``): the plan's soft
+    floor boxes as hard cargo, so the cover rule does not refuse every pose
+    over them and they carry load.  Unchanged otherwise."""
+    plan_by_index = getattr(agent, "plan_by_index", None)
+    if (not plan_by_index or getattr(agent, "plan_source", "") != "planner"
+            or not getattr(agent.config, "plan_soft_floor_online", True)):
+        return containers
+    floor = {int(i) for i, e in plan_by_index.items() if e.get("soft_floor")}
+    if not floor:
+        return containers
+    out = []
+    for container in containers:
+        packed = container.get("packed_items") or []
+        if not any(int(p.get("index", -1)) in floor for p in packed):
+            out.append(container)
+            continue
+        view = dict(container)
+        view["packed_items"] = [dict(p, is_soft=False) if int(p.get("index", -1)) in floor else p for p in packed]
+        out.append(view)
+    return out
+
+
+def _soft_floor_overrides(config) -> dict:
+    """``plan_soft_floor_overrides`` parsed against the config's fields."""
+    raw = str(getattr(config, "plan_soft_floor_overrides", "") or "")
+    fields = {f.name: f.type for f in dataclasses.fields(config)}
+    out = {}
+    for pair in raw.split(";"):
+        key, _eq, value = pair.strip().partition("=")
+        if not key or key not in fields:
+            continue
+        low = value.strip().lower()
+        if low in ("true", "false"):
+            out[key] = low == "true"
+            continue
+        for cast in (int, float):
+            try:
+                out[key] = cast(value)
+                break
+            except ValueError:
+                continue
+        else:
+            out[key] = value
+    return out
+
+
+def _soft_floor_variant(agent, item_list: list, deadline: float, variant: tuple, order: list, plan: list, log=None):
+    """The soft-floor plan, planned when the chosen plan holds fewer than
+    the count threshold plus ``plan_value_margin`` items, with the first
+    variant's settings; it plays when it holds more items."""
+    config = agent.config
+    try:
+        threshold = agent._count_threshold()
+    except Exception:
+        threshold = None
+    if threshold is None:
+        return order, plan
+    gate = int(threshold) + int(getattr(config, "plan_value_margin", 2))
+    if len(plan) >= gate or time.perf_counter() >= deadline:
+        return order, plan
+    name, layout_index, size_order, mode, _soft_structure, reserve = variant
+    changes = {"plan_soft_floor_active": True, "soft_is_structure": True}
+    if size_order is not None:
+        changes["count_first"] = size_order == "small"
+    if mode is not None:
+        changes["plan_layout_layers"] = mode == "layers"
+    if reserve is not None:
+        changes["reserve_headroom_for_soft"] = reserve == "on"
+    if not getattr(config, "plan_soft_floor_keep_reserve", False):
+        changes["reserve_headroom_for_soft"] = False
+    changes.update(_soft_floor_overrides(config))
+    models = agent.board.models if getattr(agent, "board", None) is not None and agent.board.models else []
+    z_floor = max((m.z_floor for m in models), default=0.04)
+    # only the floor storey carries load in the plan
+    cap = z_floor + float(getattr(config, "plan_soft_floor_max_height", 0.30)) + 0.03
+    t0 = time.perf_counter()
+    agent.config = dataclasses.replace(config, **changes)
+    try:
+        with _soft_floor_structure(config, cap):
+            sf_order, sf_plan = _plan_once(agent, item_list, deadline, name, log, layout_index=layout_index)
+    except Exception as exc:
+        print(f"[plan] soft floor failed: {exc!r}", flush=True)
+        return order, plan
+    finally:
+        agent.config = config
+    if time.perf_counter() >= deadline:
+        return order, plan
+    marked = _mark_over_soft(sf_plan, float(getattr(config, "plan_soft_floor_replay_drop", 0.06)))
+    n_floor = sum(1 for e in sf_plan if e.get("soft_floor"))
+    take = len(sf_plan) > len(plan)
+    msg = (f"[plan] soft floor: {len(sf_plan)} planned ({n_floor} on the soft floor, {marked} over it) "
+           f"against {len(plan)}, threshold {threshold}: {'taken' if take else 'kept the plan'} "
+           f"({time.perf_counter() - t0:.1f}s)")
+    if log:
+        log("  " + msg)
+    print(msg, flush=True)
+    if take:
+        agent.soft_floor_plan = {"planned": len(sf_plan), "base": len(plan), "floor": n_floor, "over": marked}
+        return sf_order, sf_plan
+    return order, plan
 
 
 class _Pose:
@@ -631,6 +924,8 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         # and the sample suite's soft and priority shares with it
         chosen = base_entry
     order, plan = chosen[1], chosen[2]
+    if getattr(config, "plan_soft_floor_under_count", False) and plan:
+        order, plan = _soft_floor_variant(agent, item_list, deadline, variants[0], order, plan, log)
     if getattr(config, "plan_soft_after_hard_rows", False) and plan:
         # every container's hard rows before any soft gallery: a decline
         # ends the episode, and with the two-deep soft gallery of the
@@ -641,8 +936,10 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         by_index = {int(i["index"]): i for i in item_list}
         planned = [int(e["index"]) for e in sorted(plan, key=lambda e: e["step"])]
         planned_set = set(planned)
-        hard = [i for i in planned if not by_index.get(i, {}).get("is_soft")]
-        soft = [i for i in planned if by_index.get(i, {}).get("is_soft")]
+        # (a soft floor goes with the hard rows it carries)
+        floor_set = {int(e["index"]) for e in plan if e.get("soft_floor")}
+        hard = [i for i in planned if not by_index.get(i, {}).get("is_soft") or i in floor_set]
+        soft = [i for i in planned if by_index.get(i, {}).get("is_soft") and i not in floor_set]
         step_of = {idx: k + 1 for k, idx in enumerate(hard + soft)}
         for e in plan:
             e["step"] = step_of[int(e["index"])]
@@ -688,6 +985,9 @@ def _plan_once(agent, item_list: list[dict], deadline: float, priority: str, log
                 remaining = [p for p in remaining if p.index not in set(planned)]
         for ci in normal_idx or list(range(len(board.models))):
             items = [p for p in remaining if not (p.is_prioritized and priority_idx)]
+            if getattr(config, "plan_soft_floor_active", False):
+                # the soft floor first (config.plan_soft_floor_under_count)
+                items = _soft_floor_pass(agent, board, ci, items, config, plan, planned, deadline, log)
             hard = [p for p in items if not p.is_soft]
             lines = pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, layout_index=layout_index)
             soft = [p for p in items if p.is_soft]
@@ -764,7 +1064,16 @@ def _placement(cand, count: int, profile, container_idx: int, model) -> layer1.P
 
 def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict) -> layer1.Decision | None:
     """The planned pose of the first pool item that has one and still passes
-    the validator on the board as it stands (settled, not as planned)."""
+    the validator on the board as it stands (settled, not as planned).  A
+    soft-floor plan (config.plan_soft_floor_under_count) replays with the
+    soft floor carrying load whatever its share of the floor."""
+    if not any(e.get("over_soft") for e in plan_by_index.values()):
+        return _replay(agent, board, pool_profiles, plan_by_index)
+    with _soft_floor_structure(agent.config, None):
+        return _replay(agent, board, pool_profiles, plan_by_index)
+
+
+def _replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict) -> layer1.Decision | None:
     from wedge_rl.stack import covers_other_attribute
 
     config = agent.config
@@ -801,6 +1110,14 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
         # replayed 19 of 53 poses that way and the episode ended in the
         # soft block before the second container's rows were reached
         drop = float(getattr(config, "plan_replay_drop", 0.0))
+        if entry.get("over_soft"):
+            # a pose of the soft-floor plan (config.plan_soft_floor_under_count)
+            drop = max(drop, float(entry.get("replay_drop", 0.0)))
+            # the soft boxes sink by their load, 1-4 cm and unevenly, so
+            # the tops a pose bridges are read within a wider tolerance
+            tolerance = max(float(config.contact_tolerance),
+                            float(getattr(config, "plan_soft_floor_contact_tolerance", 0.0)))
+            replay_config = dataclasses.replace(replay_config, soft_is_structure=True, contact_tolerance=tolerance)
         size = tuple(entry["size"])
         planned_z = float(entry["center"][2])
         heights = [planned_z]
@@ -808,6 +1125,9 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
             rest = _drop_height(container, model, float(entry["center"][0]), float(entry["center"][1]),
                                 float(size[0]), float(size[1]), float(size[2])) + float(size[2]) / 2.0
             if rest < planned_z - 1e-4 and planned_z - rest <= drop:
+                heights.append(rest)
+            elif entry.get("over_soft") and planned_z + 1e-4 < rest <= planned_z + drop:
+                # the soft floor sank less than planned (plan_soft_floor_sink)
                 heights.append(rest)
         box = None
         for dy in shifts:
@@ -822,7 +1142,8 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
                 if not ok:
                     continue
                 if getattr(config, "no_cover_other_attribute", False) and covers_other_attribute(
-                        candidate, container, bool(profile.is_soft), bool(profile.is_prioritized),
+                        candidate, _cover_view(container, model, bool(entry.get("over_soft"))),
+                        bool(profile.is_soft), bool(profile.is_prioritized),
                         shelves=model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None):
                     ok = False
                 if ok:
