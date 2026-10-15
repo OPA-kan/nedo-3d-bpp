@@ -1132,6 +1132,19 @@ class RuleAlphaAgent:
                 if action is not None:
                     return action
 
+        # the sliding bridges, last (config.bridge_slide_rescue): a box across
+        # two tops at one level, which the ladder does not offer in this mode
+        if getattr(self.config, "bridge_slide_rescue", False):
+            for pool_index, profile in ordered:
+                decision = self._timed(layer1.choose_sliding_bridge, self.board, profile, self.config)
+                if decision is None:
+                    continue
+                decision.placement.reason = "bridge-slide rescue: " + decision.placement.reason
+                self.last_decision = decision
+                action = self._emit(pool_index, decision.placement)
+                if action is not None:
+                    return action
+
         # a pose the shadow vetoed and nothing replaced: a failed placement
         # ends the episode the way a decline does, and the shadow can be wrong
         fallback = getattr(self, "_shadow_fallback", None)

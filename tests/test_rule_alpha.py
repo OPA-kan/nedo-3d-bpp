@@ -1769,6 +1769,21 @@ class BridgeSlideTest(unittest.TestCase):
         self.assertNotIn(layer1.A_BRIDGE_SLIDE,
                          layer1.archetype_ladder(profile, board, 0, DEFAULT_CONFIG))
 
+    def test_the_rescue_keeps_the_slide_out_of_the_ladder(self):
+        board, level = self._board(storeys=1)
+        rescue = dataclasses.replace(
+            DEFAULT_CONFIG, bridge_slide=0.02, bridge_slide_rescue=True
+        )
+        self.assertEqual(self._bridges(board, rescue), [])
+        profile = self._profile(9, self.ITEM)
+        decision = layer1.choose_sliding_bridge(board, profile, rescue)
+        self.assertIsNotNone(decision)
+        self.assertEqual(decision.placement.archetype, layer1.A_BRIDGE_SLIDE)
+        self.assertEqual(decision.placement.role, l2.ROLE_BRIDGE)
+        self.assertAlmostEqual(float(decision.placement.box.minimum[2]), level, places=6)
+        self.assertFalse(decision.chosen.vetoes)
+        self.assertIsNone(layer1.choose_sliding_bridge(board, profile, DEFAULT_CONFIG))
+
     def test_slide_anchors_reach_both_tops_and_skip_abutting_ones(self):
         tops = [(Rect(-0.5, -0.1, -0.5, 0.5), 0.6), (Rect(0.2, 0.6, -0.5, 0.5), 0.6)]
         anchors = l2.bridge_slide_anchors(tops, 0.6, 0.6, 0.4, 0.02, 0.006)

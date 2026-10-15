@@ -1456,6 +1456,18 @@ class RuleAlphaConfig:
     spots the scan found are on the declining boards, so the move belongs at
     the end of the ladder, not at its head."""
 
+    bridge_slide_rescue: bool = False
+    """With ``bridge_slide`` on, keep the sliding bridges out of the ladder
+    altogether and ask for one only as the call's last stage, after the
+    ladder, the stack option, the last resort and the physics and grid
+    rescues found nothing (``layer1.choose_sliding_bridge``, the agent's
+    ``_policy_inner``); only a candidate no veto touched is taken.
+
+    ``bridge_slide_late`` is last in the ladder but not in the call: on the
+    physics bench (``bslate-*``) its rung fired at steps 12-21 where the
+    stack option or a rescue would have placed, and four of the seven
+    episodes with a bridge-slide placement ended 3-4 items short of v50."""
+
     bridge_plateau_exempt: bool = False
     """Exempt a bridge resting on two separated hard tops from the plateau
     condition (``no-plateau-to-build-on``); the layer cap still applies.
