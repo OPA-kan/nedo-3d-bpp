@@ -29,12 +29,18 @@ for h in order:
     gone = next((i for i in range(len(uf) - 1) if all(u < 0.26 for u in uf[i + 1:])), None)
     # the pilot (c-hard2-s0007) found the decisive step one before "floor
     # gone"; the steps around it and the last placements
-    ks = {n - 1, n - 3}
-    if gone is not None:
-        ks |= {gone, gone - 1, gone - 2, gone - 4}
+    near = d['margin'] >= -3 and d['end'] == 'declined'
+    if near or '--full' in sys.argv:
+        ks = {n - 1, n - 3}
+        if gone is not None:
+            ks |= {gone, gone - 1, gone - 2, gone - 4}
+        else:
+            ks |= {n - 5, n - 8}
     else:
-        ks |= {n - 5, n - 8}
+        # the farther misses: the decisive region only (one and two before
+        # the floor is gone, and the step that takes it)
+        ks = {gone, gone - 1, gone - 2} if gone is not None else {n - 1, n - 3, n - 5}
     ks = sorted(k for k in ks if 0 <= k < n)[::-1]
-    extra = ["--veto", "2", "--vetoed", "2", "--other", "1"] if n > 40 else []
+    extra = ["--veto", "2", "--rung", "2", "--other", "1", "--vetoed", "2"]
     print(f"[run_cf] {h['scene']} n {n} gone {gone} ks {ks}", flush=True)
     subprocess.run([sys.executable, f'{HERE}/cf.py', h['scene'], '--ks', ','.join(map(str, ks))] + extra, check=False)
