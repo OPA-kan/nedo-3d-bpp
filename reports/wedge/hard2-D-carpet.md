@@ -350,4 +350,38 @@ this machine's physics leave the end board one item from the line either way.
 
 <!-- CF36 -->
 
+
+## 4. Area or shape?
+
+`shape.py` rasterises the floor at the moment the stream's first big hard item
+(footprint ≥ 0.2 m²) arrives. It counts how many footprints of the commonest big
+hard class (0.65 × 0.45 m plus 2 × 0.026 m clearance) a greedy back-to-front
+packer fits in three cases:
+- the real free floor;
+- with the same soft cells moved into one compact block from the chamfer side (the
+  idealised bound: it ignores arrival order, the door path, column stability and
+  the cap);
+- on the floor with the hard cells only.
+
+| boards (v50 C + B, soft floor share ≥ 0.40 at the first big hard item) | n | real | compact bound | no soft |
+|---|---:|---:|---:|---:|
+| all | 17 | 1.47 | 2.94 | 8.29 |
+| one container (1.9 m² of floor) | 7 | 0.14 | 0.57 | 3.57 |
+| two or three containers | 10 | 2.40 | 4.60 | 11.60 |
+| those that crossed anyway | 5 | 2.00 | 3.40 | 9.60 |
+| those that missed | 12 | 1.25 | 2.75 | 7.75 |
+| soft-early boards that are not carpets (share 0.10-0.40) | 16 | 5.88 | 6.56 | 9.12 |
+
+- **On the 1-ULD boards the carpet's cost is its area.** A 0.66-0.74 soft share
+  of a 1.38 × 1.38 m floor leaves a 0.38 m strip even when compacted, narrower
+  than the 0.50 m the class needs. The bound is 0 slots on 6 of the 7. Only fewer
+  soft boxes on the floor helps there, not a better arrangement.
+- **On the multi-ULD boards the shape costs about half the slots**: 2.4 real
+  against 4.6 compacted.
+- **Slots at the first hard item do not decide the episode on their own.**
+  c-s0014 and b-s0014 cross with 0 slots: their hard items go onto soft tops by
+  count-mode covers and onto the shelf. c-s0075 misses with 3.
+
+<!-- COMPACTION -->
+
 <!-- BODY -->
