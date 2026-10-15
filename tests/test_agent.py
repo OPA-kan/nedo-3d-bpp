@@ -747,6 +747,7 @@ class SoftFloorPlanTests(unittest.TestCase):
         agent = mock.Mock()
         agent.board.models = []
         agent.config = self._config(plan_soft_floor_under_count=True, plan_value_margin=2,
+                                    plan_soft_floor_needs_gate=False,
                                     plan_soft_floor_overrides="reserve_headroom_for_soft=false")
         agent._count_threshold.return_value = 10
         seen = {}
@@ -780,6 +781,20 @@ class SoftFloorPlanTests(unittest.TestCase):
                                                      ("x", 0, None, None, None, None), [9],
                                                      [{"index": i} for i in range(5)])
         self.assertEqual(order, [9])
+        # with the gate rule (the default) a soft-floor plan under the
+        # threshold plus the margin does not play however many it holds
+        import dataclasses
+
+        agent.config = dataclasses.replace(agent.config, plan_soft_floor_needs_gate=True)
+        with mock.patch.object(planner, "_plan_once", side_effect=fake_once):
+            order, out = planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                                     ("x", 0, None, None, None, None), [9], [{"index": 9}])
+        self.assertEqual(order, [9])
+        agent._count_threshold.return_value = 1
+        with mock.patch.object(planner, "_plan_once", side_effect=fake_once):
+            order, out = planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                                     ("x", 0, None, None, None, None), [9], [{"index": 9}])
+        self.assertEqual(order, [1, 2, 3])   # 3 items hold 1 + 2
 
     def test_online_view_and_the_dry_run_rule(self):
         from rule_alpha.planner import soft_floor_board_view, soft_floor_yields

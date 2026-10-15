@@ -810,6 +810,13 @@ def _soft_floor_variant(agent, item_list: list, deadline: float, variant: tuple,
     marked = _mark_over_soft(sf_plan, float(getattr(config, "plan_soft_floor_replay_drop", 0.06)))
     n_floor = sum(1 for e in sf_plan if e.get("soft_floor"))
     take = len(sf_plan) > len(plan)
+    if getattr(config, "plan_soft_floor_needs_gate", True) and len(sf_plan) < gate:
+        # a soft-floor plan that does not secure the count on paper
+        # replays to a crossing as rarely as the plan it would replace
+        # and covers soft boxes for nothing (core-a, second CI round:
+        # a-c1-s0012 planned 21 of a threshold of 21, placed 20, where
+        # the plan's 19 had replayed to 21)
+        take = False
     msg = (f"[plan] soft floor: {len(sf_plan)} planned ({n_floor} on the soft floor, {marked} over it) "
            f"against {len(plan)}, threshold {threshold}: {'taken' if take else 'kept the plan'} "
            f"({time.perf_counter() - t0:.1f}s)")
