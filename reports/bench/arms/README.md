@@ -35,3 +35,6 @@ To measure a change, append `,field=value` to the ship arm's line.
   same, kept off layouts with a priority container (the candidate form);
   records `astand2-*`, `astand3-*` (dense-a has no priority container, so
   `astand2-dense-a` stands for both).
+- `arm_acs_a.txt`: the v51 A form (`arm_acount0_a`) plus the typed-standing
+  gallery (`plan_typed_standing`, braced variants, no priority container),
+  the combination measured as `reports/bench/acs-*`.
