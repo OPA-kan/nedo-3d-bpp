@@ -4,7 +4,7 @@
 |---|---|---:|---:|---:|
 | H | lying -> standing | 12 | 3 | +0.67 |
 | H | other item | 10 | 0 | -1.50 |
-| H | raised involved | 102 | 15 | -1.43 |
+| H | raised involved | 113 | 16 | -0.88 |
 | H | same class, turned | 15 | 7 | +0.60 |
 | H | same orientation, moved | 29 | 1 | +0.07 |
 | H | standing -> lying | 1 | 0 | -3.00 |
