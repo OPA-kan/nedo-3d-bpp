@@ -141,7 +141,9 @@ def sec_end_states(md, data):
             sealed = sum(1 for d in ds if end_state(d)[0] and not end_state(d)[1])
             sealed_cells = sum(1 for d in ds if end_state(d)[0] and not end_state(d)[2])
             disagree = sum(1 for d in ds if end_state(d)[1] != end_state(d)[2])
-            rows.append([label, group, n, lv, sealed, sealed_cells, disagree])
+            noreach = sum(1 for d in ds if not end_state(d)[1])
+            rows.append([label, group, n, lv, sealed, sealed_cells, disagree, noreach,
+                         f"{sealed} ({sealed / max(1, noreach):.2f})"])
     md.append(
         md_table(
             rows,
@@ -153,6 +155,8 @@ def sec_end_states(md, data):
                 "level, none reachable (exact)",
                 "level, none reachable (cells)",
                 "exact/cells disagree",
+                "no reachable spot",
+                "of which some level spot",
             ],
         )
     )
