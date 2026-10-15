@@ -628,7 +628,7 @@ spread over 6 items).
 - Everything here is one deterministic run per branch on one local PyBullet
   build. With the noise of §0, a single +1 is not evidence. Only the c-s0004 pair
   (two k, two arms, against 12 identical baselines) and the c-s0006 k = 20/21 pair
-  (two arms) repeat.
+  (two arms) repeat. The c-s0036 record-arm rescues did not repeat on the shipped arm.
 
 ## Scripts and data (`reports/wedge/hard2-D-carpet/`)
 
