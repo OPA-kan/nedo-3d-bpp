@@ -385,13 +385,20 @@ def make_scene(seed: int, layout: str = "c1", task: str = "C",
         return make_hard_scene(seed, task)
     if layout == "hard2":
         return make_hard2_scene(seed, task)
-    if layout not in LAYOUTS:
+    base = layout
+    if layout.startswith("c1x") and layout[3:].isdigit():
+        # the dense single-container manifests (``dense-a``): ``c1x60`` is
+        # the c1 container with 60 items, named apart so the records of
+        # one seed at several counts do not collide
+        base = "c1"
+        items_per_container = int(layout[3:])
+    if base not in LAYOUTS:
         raise KeyError(f"unknown layout {layout!r}; known: {sorted(LAYOUTS)}")
     if task not in TASK_LOOKAHEAD:
         raise KeyError(f"unknown task {task!r}; known: A, B, C")
     containers = [
         _container_spec(index, shelf, prioritized)
-        for index, (shelf, prioritized) in enumerate(LAYOUTS[layout])
+        for index, (shelf, prioritized) in enumerate(LAYOUTS[base])
     ]
     count = items_per_container * len(containers)
     la = int(look_ahead) if look_ahead is not None else TASK_LOOKAHEAD[task]
@@ -417,6 +424,11 @@ SUITES = {
     "hard": [("C", "hard", seed) for seed in range(1, 49)],
     "hard-b": [("B", "hard", seed) for seed in range(1, 49)],
     "hard-a": [("A", "hard", seed) for seed in range(1, 49)],
+    # Task A on dense single-container manifests (50-80 items in the c1
+    # container, the manifest 0.8-1.3 of its volume): the regime the
+    # platform's Task A episodes under the count look like
+    # (reports/wedge/stability-lattice.md)
+    "dense-a": [("A", f"c1x{n}", seed) for n in (50, 60, 70, 80) for seed in range(1, 13)],
     # the hard2 suites: 96 situations a task, the count chosen for the
     # demand the threshold makes (HARD2_STRATA)
     "hard2": [("C", "hard2", seed) for seed in range(1, 97)],

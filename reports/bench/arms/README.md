@@ -17,3 +17,7 @@ workflow take (`arm` input).
   pool of one). Kept for reading the older records.
 
 To measure a change, append `,field=value` to the ship arm's line.
+- `arm_ship_a.txt`: the shipped v50 form on Task A (`OVERRIDES` plus the
+  `task_a` overrides `submission/agent.py` applies in `optimize`), field for
+  field (only the plan-score weights string differs, in form not value).
+  Baselines: `reports/bench/ship-core-a`, `ship-hard-a`, `ship-dense-a`.
