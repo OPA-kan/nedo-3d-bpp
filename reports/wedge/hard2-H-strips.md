@@ -82,7 +82,7 @@ dumps, branch logs) stays in `/home/user/inv-H-scratch`.
   - It takes the last usable floor on 4 of 19 H boards (c-hard2-s0007,
     s0040, s0051, s0052) and 2 of 17 crossings.
   - Letting the shade-vetoed pick through at that step does not rescue:
-    s0007 goes -1 -> -2 (§6).
+    s0007 -1 -> -2, s0051 -4 -> -4, s0040 -12 -> -12 (§6).
 
 **The typical "why" of a decisive move** (c-hard2-s0007, step 12, the
 step before the floor is gone):
@@ -449,7 +449,15 @@ ladder's pick applied as is):
   H. The one rescue is c-s0007 step 11, where `rung1` is the soft-edge pick
   the pocket guard replaced, not a shade veto. It breaks 2 of 4 on the
   crossings.
-- c-s0040, s0051 and s0052 are in the farther misses' runs; see
+- c-hard2-s0051, at the floor-gone step (k = 14) and two before it
+  (k = 12): `rung1` -4 against the null's -4 at both steps (no change).
+- c-hard2-s0040, at the floor-gone step (k = 18): `rung1` -12 against the
+  null's -12 (this replay's baseline is 4 below the reference's -8, clock
+  noise).
+- So in the three boards measured, letting the shade-vetoed pick through
+  at the step that takes the last floor rescues nothing (s0007 -1 -> -2,
+  s0051 -4 -> -4, s0040 -12 -> -12). s0052 was still running when this was
+  written; its result is in `cf_stats.md` if it finished.
   `cf_stats.md`.
 
 The veto is doing its job: the floor it protects really would be walled
