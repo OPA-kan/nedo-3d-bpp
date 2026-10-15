@@ -22,9 +22,9 @@ git (`/home/user/inv-D-scratch`).
   - With the shipped settings **no ladder rung ever offers a soft box a soft top**
     (`layer1._supports`).
 - **Most carpets are the soft cargo's own problem.** 11 of the 18 misses decline
-  on a soft item. In 9 the stream's first big hard item comes only after the
+  on a soft item. In 8 the stream's first big hard item comes only after the
   threshold, and 6 place no hard item at all. "The floor that the later hard
-  items needed" describes 7 of the 18.
+  items needed" describes 8 of the 18.
 - **Why 228 floor-bound soft boxes went to the floor** (record boards, first rule
   that fires):
 
@@ -138,12 +138,12 @@ git (`/home/user/inv-D-scratch`).
 Numbers from `course.py` and `d_table.py`, records only.
 
 - **The carpet is not mainly a floor taken from hard items still to come.** 11 of
-  the 18 misses end on a *soft* item that finds no pose, not a hard one. In 9 the
+  the 18 misses end on a *soft* item that finds no pose, not a hard one. In 8 the
   stream's first big hard item comes after the threshold (it would only be met
-  after crossing). 6 place no hard item at all. In those 9 the soft cargo runs
+  after crossing). 6 place no hard item at all. In those the soft cargo runs
   out of room among the soft cargo itself. The taxonomy's lever ("where soft cargo
   goes in the soft-early orders", so the hard items find floor) applies cleanly to
-  only 7 episodes: c-s0006, s0004, s0053, s0069, s0075; b-s0006, s0069 and s0043
+  only 8 episodes: c-s0006, s0004, s0053, s0069, s0075; b-s0006, s0069 and s0043
   are the ones with a hard run before the end.
 - **Two kinds of board.** They differ in which code path places the soft cargo:
   - **(P) one priority container**: c-s0004, s0006, s0068, s0069; b-s0006,
@@ -551,7 +551,7 @@ spread over 6 items).
   - The deterministic record still misses most of them (s0072, s0075).
   - On this machine c-s0036 misses deterministically too (80 / 81 of 83).
   - So the clock explains the C/C-det difference on s0036, not the carpet.
-- **The carpet is mostly the soft cargo's own problem.** In 9 of the 18 carpets
+- **The carpet is mostly the soft cargo's own problem.** In 8 of the 18 carpets
   the big hard cargo comes only after the threshold. 11 decline on a soft item.
   The volume the soft cargo can use is bounded by the cap and the shelf: columns
   two high under the shelf, nothing above about 1.2 m except via the rescues.
