@@ -226,3 +226,85 @@ def action_for(spec, agent, obs, pi=0):
     if kind == "ctr":
         return stack_alt(agent, obs, pi, "any", 0, ctr=int(arg))
     raise KeyError(spec)
+
+
+def _touches(box, container, model, gap=0.035):
+    """The footprint is flush (within ``gap``) with a wall or with a soft box on the
+    floor, on some side."""
+    from rule_alpha._reuse import packed_aabbs_local
+    rect = model.floor_rect
+    x0, x1 = float(box.minimum[0]), float(box.maximum[0])
+    y0, y1 = float(box.minimum[1]), float(box.maximum[1])
+    if y1 >= rect.y_max - gap or x1 >= rect.x_max - gap or x0 <= model.x_limit_at_height(model.z_floor) + gap or y0 <= rect.y_min + gap:
+        return True
+    for o, s, _p in packed_aabbs_local(container):
+        if not s or float(o.minimum[2]) > model.z_floor + 0.06:
+            continue
+        ox = min(x1, float(o.maximum[0])) - max(x0, float(o.minimum[0]))
+        oy = min(y1, float(o.maximum[1])) - max(y0, float(o.minimum[1]))
+        if (ox > 0.05 and -gap <= oy <= 0.01) or (oy > 0.05 and -gap <= ox <= 0.01):
+            return True
+    return False
+
+
+def compact_placement(agent, obs, pi, ctr=None):
+    """The realisable compaction pose for a soft box headed for the floor: a floor
+    pose (the guard's generator, full support) in the deepest 5 cm band still open
+    (back wall first, so the soft block grows from the back and never seals the door
+    side), flush with a wall or with a soft box already on the floor, then from the
+    chamfer side (low x).  Lexicographic, no weights."""
+    board, prof, mass, cands = _stack_cands(agent, obs, pi)
+    rows = []
+    for ci, c, k in cands:
+        if k != 'floor' or (ctr is not None and ci != ctr):
+            continue
+        m = board.model(ci)
+        rows.append(((-round(float(c.box.maximum[1]) / 0.05), 0 if _touches(c.box, board.container(ci), m) else 1,
+                      round(float(c.box.minimum[0]), 3), ci), ci, c))
+    if not rows:
+        return None, board, prof
+    rows.sort(key=lambda t: t[0])
+    _key, ci, c = rows[0]
+    pl = _placement(c, 1, prof, ci, board.model(ci))
+    pl.archetype = 'cf-compact'
+    return pl, board, prof
+
+
+def wrap_compact(agent, max_soft_floor=None):
+    """Replace the agent's soft floor poses by compact_placement (through the agent's
+    own shadow check; the agent's pose stands when the check vetoes it)."""
+    orig = agent.policy
+    state = {'n': 0, 'replaced': 0, 'vetoed': 0}
+    agent._compact_state = state
+
+    def policy(obs):
+        a = orig(obs)
+        if a is None:
+            return a
+        d = agent.last_decision
+        pool = obs.get('pool_list') or []
+        pi = int(a['item_idx'])
+        if not pool[pi].get('is_soft') or d is None:
+            return a
+        m = agent.board.model(d.placement.container_idx)
+        if float(d.placement.box.minimum[2]) - m.z_floor > 0.06:
+            return a
+        if max_soft_floor is not None and state['n'] >= max_soft_floor:
+            return a
+        state['n'] += 1
+        saved_board = agent.board
+        pl, board, _prof = compact_placement(agent, obs, pi)
+        if pl is None:
+            agent.board = saved_board
+            return a
+        alt = agent._emit(pi, pl)
+        if alt is None:
+            state['vetoed'] += 1
+            agent.board = saved_board
+            return a
+        state['replaced'] += 1
+        agent.last_decision = dataclasses.replace(d, placement=pl, survivors=[], chosen=None)
+        return alt
+
+    agent.policy = policy
+    return agent

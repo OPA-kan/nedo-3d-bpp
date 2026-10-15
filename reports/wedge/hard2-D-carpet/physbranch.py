@@ -68,6 +68,8 @@ def run_branch(
     r=None,
     until=None,
     verbose=False,
+    wrap=None,
+    metrics=True,
 ):
     r = r or load_record(rec, scene)
     sc = scene_of(r["scene_spec"])
@@ -87,6 +89,9 @@ def run_branch(
             env.reset_settings()
             agent = arm(sc)
             agent.get_init_states(env.get_init_states())
+            if wrap is not None:
+                # an opt-in policy wrapper (e.g. the compaction branch of cf.py)
+                wrap(agent)
             env.reset_item_stream()
             obs, _ = env.reset(seed=42)
             for t in range(max_steps):
@@ -161,6 +166,15 @@ def run_branch(
                     end = "until"
                     break
             placed = sum(len(c.packed_items) for c in env.container_manager.containers)
+            tm = {}
+            if metrics:
+                try:
+                    from bench.metrics import terminal_metrics
+
+                    m = terminal_metrics(env, with_shake=False)
+                    tm = {k2: m.get(k2) for k2 in ("soft_count", "soft_covered", "priority_count", "priority_covered", "fill_volume")}
+                except Exception as exc:  # metrics are a convenience
+                    tm = {"error": repr(exc)}
             final = [
                 {
                     "index": int(it.index),
@@ -188,6 +202,7 @@ def run_branch(
         "seconds": round(time.perf_counter() - t_start, 1),
         "steps": steps,
         "final": final,
+        "metrics": tm,
     }
 
 

@@ -16,7 +16,7 @@ import time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from common import load_record  # noqa: E402
-from alts import action_for  # noqa: E402
+from alts import action_for, wrap_compact  # noqa: E402
 from physbranch import run_branch  # noqa: E402
 
 from bench.arms import make_arm  # noqa: E402
@@ -34,6 +34,7 @@ def key(e):
         e.get("extra", ""),
         int(e.get("pi", -1)),
         e.get("arm", "record"),
+        e.get("wrap", ""),
     )
 
 
@@ -62,6 +63,10 @@ def run_one(e):
 
     extra = "deterministic_budgets=true" + ("," + e["extra"] if e.get("extra") else "")
     t0 = time.perf_counter()
+    wrapper = None
+    if e.get("wrap", "").startswith("compact"):
+        n = e["wrap"].partition(":")[2]
+        wrapper = lambda ag: wrap_compact(ag, int(n) if n else None)  # noqa: E731
     arm = None
     if e.get("arm") == "ship":
         # the shipped form (submission/agent.py) as the bench arm files of
@@ -77,6 +82,7 @@ def run_one(e):
         extra=extra,
         r=r,
         arm=arm,
+        wrap=wrapper,
     )
     after = [
         s
@@ -93,6 +99,8 @@ def run_one(e):
         "pi": int(e.get("pi", -1)),
         "tag": e.get("tag", ""),
         "arm": e.get("arm", "record"),
+        "wrap": e.get("wrap", ""),
+        "metrics": out.get("metrics"),
         "placed": out["placed"],
         "thr": out["thr"],
         "mg": out["mg"],
