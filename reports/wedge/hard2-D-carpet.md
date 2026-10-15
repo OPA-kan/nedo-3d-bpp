@@ -382,7 +382,99 @@ packer fits in three cases:
   c-s0014 and b-s0014 cross with 0 slots: their hard items go onto soft tops by
   count-mode covers and onto the shelf. c-s0075 misses with 3.
 
-<!-- COMPACTION -->
+
+### 4.1 A realisable compaction, branched: it does not deliver the bound
+
+`alts.wrap_compact` replaces every soft floor pose the agent chooses (`compact`)
+or the first six (`compact:6`) with a compaction pose:
+- a fully supported floor pose from the guard's own generator;
+- in the deepest 5 cm band still open (back wall first, so the block grows from
+  the back and cannot seal the door side, the G investigation's failure);
+- flush with a wall or with a soft box already on the floor;
+- then from the chamfer side.
+
+The rule is lexicographic, with no weights. The pose goes through the agent's own
+shadow check, and the agent's pose stands when the check vetoes it. Whole
+episodes (k = 0) on the record's arm, deterministic budgets. The baseline is the
+same arm unwrapped on this machine. The slots are counted at the first big hard
+item, on the branch's own intended poses (`compact_slots.py`).
+
+| scene | branch | placed / margin | soft floor share at the first big hard item | slots real / compact bound | soft placed / covered |
+|---|---|---|---:|---|---|
+| b-hard2-s0006 | baseline | 32 / -2 | 0.63 | 0 / 1 | 21 / 0 |
+| b-hard2-s0006 | compact | 26 / -8 | 0.65 | 0 / 0 | 21 / 3 |
+| b-hard2-s0006 | compact:6 | 26 / -8 | 0.64 | 0 / 1 | 21 / 0 |
+| b-hard2-s0036 | baseline | 74 / -9 | 0.56 (end, no big hard item) | 2 / 6 | 74 / 0 |
+| b-hard2-s0036 | compact | 69 / -14 | 0.69 (end, no big hard item) | 0 / 4 | 69 / 0 |
+| b-hard2-s0069 | baseline | 25 / -14 | 0.65 | 0 / 0 | 20 / 0 |
+| b-hard2-s0069 | compact | 33 / -6 | 0.47 | 1 / 2 | 19 / 0 |
+| b-hard2-s0069 | compact:6 | 32 / -7 | 0.47 | 1 / 2 | 18 / 0 |
+| c-hard2-s0004 | baseline | 20 / -2 | 0.45 | 1 / 1 | None / None |
+| c-hard2-s0004 | compact | 21 / -1 | 0.51 | 1 / 1 | 12 / 1 |
+| c-hard2-s0004 | compact:6 | 21 / -1 | 0.51 | 1 / 1 | 12 / 1 |
+| c-hard2-s0006 | baseline | 32 / -2 | 0.70 | 0 / 0 | None / None |
+| c-hard2-s0006 | compact | 33 / -1 | 0.65 | 0 / 0 | 21 / 4 |
+| c-hard2-s0006 | compact:6 | 32 / -2 | 0.68 | 0 / 0 | 21 / 6 |
+| c-hard2-s0009 | baseline | 55 / +2 | 0.42 | 3 / 5 | 35 / 0 |
+| c-hard2-s0009 | compact | 54 / +1 | 0.55 | 1 / 5 | 35 / 2 |
+| c-hard2-s0010 | baseline | 47 / +3 | 0.35 | 4 / 7 | 25 / 0 |
+| c-hard2-s0010 | compact | 42 / -2 | 0.40 | 5 / 6 | 25 / 0 |
+| c-hard2-s0014 | baseline | 40 / +1 | 0.65 | 0 / 0 | 39 / 0 |
+| c-hard2-s0014 | compact | 36 / -3 | 0.69 (end, no big hard item) | 0 / 0 | 36 / 0 |
+| c-hard2-s0036 | baseline | 80 / -3 | 0.59 (end, no big hard item) | 1 / 5 | 80 / 0 |
+| c-hard2-s0036 | compact | 81 / -2 | 0.67 (end, no big hard item) | 0 / 3 | 81 / 0 |
+| c-hard2-s0049 | baseline | 33 / -16 | 0.70 (end, no big hard item) | 0 / 0 | 33 / 0 |
+| c-hard2-s0049 | compact | 29 / -20 | 0.63 (end, no big hard item) | 0 / 2 | 29 / 0 |
+| c-hard2-s0049 | compact:6 | 32 / -17 | 0.70 (end, no big hard item) | 0 / 0 | 32 / 0 |
+| c-hard2-s0053 | baseline | 44 / -3 | 0.00 | 10 / 10 | 31 / 0 |
+| c-hard2-s0053 | compact | 40 / -7 | 0.00 | 10 / 10 | 28 / 4 |
+| c-hard2-s0068 | baseline | 42 / -38 | 0.54 (end, no big hard item) | 0 / 1 | 20 / 0 |
+| c-hard2-s0068 | compact | 44 / -36 | 0.47 (end, no big hard item) | 0 / 2 | 22 / 0 |
+| c-hard2-s0068 | compact:6 | 42 / -38 | 0.45 (end, no big hard item) | 0 / 2 | 20 / 0 |
+| c-hard2-s0069 | baseline | 26 / -13 | 0.67 | 0 / 0 | 20 / 4 |
+| c-hard2-s0069 | compact | 22 / -17 | 0.69 | 0 / 0 | 20 / 1 |
+| c-hard2-s0069 | compact:6 | 28 / -11 | 0.74 | 0 / 0 | 20 / 2 |
+| c-hard2-s0072 | baseline | 37 / -31 | 0.54 (end, no big hard item) | 1 / 4 | 37 / 0 |
+| c-hard2-s0072 | compact | 52 / -16 | 0.74 (end, no big hard item) | 0 / 0 | 52 / 0 |
+| c-hard2-s0075 | baseline | 87 / -22 | 0.45 | 4 / 5 | 41 / 0 |
+| c-hard2-s0075 | compact | 71 / -38 | 0.58 | 1 / 5 | 41 / 0 |
+
+
+- **Crossings: 3 → 1** on the 15 boards. The three baseline crossings (c-s0009
+  +2, s0010 +3, s0014 +1) become +1, −2 and −3. No miss crosses.
+- **Placed items: −1.4 per board on average** (sum −21 over 15). The spread is
+  wide:
+  - large gains: c-s0072 +15, b-s0069 +8, c-s0068 +2;
+  - large losses: c-s0075 −16, b-s0006 −6, b-s0036 −5, c-s0010 −5.
+- **Slots at the first big hard item do not rise.** The real count equals or
+  falls below the baseline's on 12 of the 14 boards that reach the hard run or
+  the end. The soft floor share at that moment *rises* on 9. The compaction moves
+  floor-bound boxes; it does not send fewer boxes to the floor. A box flush in
+  the back row is also one the guard would otherwise have moved onto a soft top
+  later: the soft-on-soft placements drop.
+- **Soft quality.** Covered soft boxes change by 0 to +4 a board (e.g. c-s0006 0
+  → 4 against the near1 run, which had no metrics; c-s0053 0 → 4; c-s0009 0 → 2;
+  b-s0069 0 → 0). So the compaction does not buy soft score either. The count
+  of uncovered soft boxes falls with the placed count where the episode ends
+  earlier (b-s0006, b-s0036, c-s0010, c-s0014, c-s0049, c-s0075).
+- **How this differs from the zone form** ("The zone form", findings, lost
+  3 stretch crossings in the deterministic pair).
+  - The zone raised the cap to 1.2 m, so soft columns grew taller. The
+    compaction keeps the cap and the column rules and changes only *where on the
+    floor* a floor-bound soft box goes.
+  - The zone's cost was height: settle endings 1 → 6 and the cog. The compaction
+    adds no height. Its cost is the soft-on-soft placements it pre-empts, and a
+    back-row block that leaves the hard rows less depth.
+  - Neither reduces the number of floor-bound soft boxes. The counterfactual
+    rescues of §3 do: they move one box *off* the floor.
+- **No compaction branch rescued a board**, so there is nothing to confirm on the
+  shipped arm.
+
+What the compact *bound* of §4 measures is real floor area left in pieces. What
+this branch says is that the online rule does not recover it. The bound assumes
+the soft area is known in advance and laid out as one block. The stream lays it
+one box at a time, and every floor box also creates the next soft top.
+
 
 
 ## 7. Against the taxonomy's labels, and other surprises
