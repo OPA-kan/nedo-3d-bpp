@@ -384,4 +384,40 @@ packer fits in three cases:
 
 <!-- COMPACTION -->
 
+
+## 7. Against the taxonomy's labels, and other surprises
+
+- **"The soft-edge rung makes the largest drop"** is true of the label, not of the
+  ladder. On the 7 priority-container boards the label is the last resort's
+  *relaxed* ladder (the strict ladder never sees a soft box there). On the (N)
+  boards about half of the soft floor poses the records label `soft-edge` or
+  `pocket-soft` are the pocket guard's choice, or a guard cut short by its 0.8 s
+  window (§2.4).
+- **"Time pressure is concentrated here"** is right, and the binding clock is
+  the guard's 0.8 s window, not the 4.5 s budget. On the multi-container
+  soft-first boards 55 of the 72 record floor placements are soft-top placements
+  in the deterministic agent's hands.
+  - The deterministic record still misses most of them (s0072, s0075).
+  - On this machine c-s0036 misses deterministically too (80 / 81 of 83).
+  - So the clock explains the C/C-det difference on s0036, not the carpet.
+- **The carpet is mostly the soft cargo's own problem.** In 9 of the 18 carpets
+  the big hard cargo comes only after the threshold. 11 decline on a soft item.
+  The volume the soft cargo can use is bounded by the cap and the shelf: columns
+  two high under the shelf, nothing above about 1.2 m except via the rescues.
+- **The cap is mostly the shelf's.** In 24 of the 29 floor placements where only
+  the cap stood between the box and a soft top, the soft top was the soft layer
+  on the shelf (≥ 0.75 m), not a floor column.
+- **The shadow world refuses soft-on-soft poses that the simulator keeps**
+  (c-s0006 steps 19-20, §3). Its soft-box model is the likely reason (not traced).
+- **The pocket guard compares containers wrongly.** It ranks by the slots left in
+  each pose's own container, so on a multi-container board it prefers the floor
+  of the emptier container to a soft top in the fuller one. That happened in 21 of
+  the 228 floor placements. In all 20 measured cases the soft top cost fewer
+  slots.
+- **Replays break between machines.** The local PyBullet build moves soft boxes
+  by centimetres against the CI's. Recorded late poses fail the sweep (4 of the
+  long episodes), and near-threshold outcomes swing by ±1-3 items with the board
+  (c-s0006: −5 to +1 from neighbouring steps of one record). Any "a single move
+  crosses it" claim on a −1 board needs a noise reference like §0's.
+
 <!-- BODY -->
