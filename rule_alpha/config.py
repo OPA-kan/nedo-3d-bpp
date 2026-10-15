@@ -2770,23 +2770,28 @@ class RuleAlphaConfig:
     plan_count_secure: bool = False
     """Task A: when the planner's best plan holds fewer than the count
     threshold plus ``plan_value_margin`` items, the manifest is planned
-    again around a count frame (``rule_alpha/count_secure.py``): the
-    threshold plus the margin smallest items across classes, the priority
-    cargo always among them; the frame's soft cargo as a block of soft-on-
-    soft rows on a strip of the floor (``plan_count_secure_blocks``), the
-    frame's hard cargo in rows on the rest of the floor, then the rest of
-    the manifest for fill.  The plans are ranked first by whether they
-    hold the threshold plus the margin, then by the plan score, and the
-    planner's plan stands whenever it holds it.  On dense single-container
-    manifests the row planner places the hard cargo first and the soft
-    cargo, the smallest items, never gets a turn (c1x60 seed 2: 27
-    planned against a threshold of 31, 16 soft boxes out; the smallest
-    33 items take 0.34 of the container)."""
+    again (``rule_alpha/count_secure.py``, ``plan_count_secure_blocks``):
+    the row planner with standing rows and the soft cargo's own rows, and
+    / or a count frame (the threshold plus the margin smallest items
+    across classes, the priority cargo always among them) planned before
+    the rest, its soft cargo as a block of soft-on-soft rows on a strip of
+    the floor or over its hard rows.  The plans are ranked first by
+    whether they hold the threshold plus the margin, then by the plan
+    score (under the threshold, by the count), and the planner's plan
+    stands whenever it holds it.  On dense single-container manifests the
+    row planner places the hard cargo first and the soft cargo never gets
+    a turn (c1x60 seed 2: 27 planned against a threshold of 31, 16 soft
+    boxes out)."""
 
     plan_count_secure_blocks: str = "plain"
-    """Where the count frame's soft block goes, one plan each: "left" /
-    "right" (a strip along that wall, the whole depth), "back" (a strip
-    along the back wall, the whole width)."""
+    """The count-secured plans, one each: "plain" (the row planner under
+    the count-secured overrides), "left" / "right" (the count frame's
+    soft block on a strip along that wall, the whole depth), "back" (on a
+    strip along the back wall, the whole width), "top" (the count frame
+    without a block: its soft cargo over its hard rows).  A token may
+    carry fields of its own: "plain@field=value&field=value".  On the
+    dense manifests the block plans hold 15-30 items against plain's
+    26-34 (``reports/wedge/a-count-secure.md``)."""
 
     plan_count_secure_block_layers: int = 2
     """The soft block's strip is sized for its soft footprint over this
