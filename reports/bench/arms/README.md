@@ -71,6 +71,12 @@ To measure a change, append `,field=value` to the ship arm's line.
   same at `cliff_veto_close=0.08`. Records `reports/bench/cliff-sample-c`,
   `cliff-sample-b`, `cliff-core`, `cliff-core-b` and `cliff08-*`, priced
   against `ship-sample-c`, `ship-sample-b`, `ship-core`, `ship-core-b`.
+- `arm_pair_b.txt`: the shipped B form with the same-class pair
+  reservation (`pair_reserve`: a narrow-topped floor box laid where its
+  partner in the pool fits flush beside it, the partner placed there on
+  the next call; `reports/wedge/pair-reserve.md`).  Records
+  `reports/bench/pair-sample-b`, `pair-core-b`, `pair-hard2-b`, priced
+  against `ship-sample-b` / `ship-core-b` / `ship-hard2-b`.
 
 ## Judging a run
 
