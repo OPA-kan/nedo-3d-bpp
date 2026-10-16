@@ -856,6 +856,19 @@ v51, the optimize time 139.2 s at the budget.  The re-plan itself loses
 a counted A episode on the platform; not kept, the shipped form stays
 v50's (`reports/submission/official-results.md`).
 
+Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
+/ `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
+the v50 form with the row planner alone (`offline_dry_run=False`) or the
+ladder's dry-run alone (`offline_planner=""`), through
+`DIAGNOSTIC_TASK_A_OVERRIDES`.  Official sample A: the planner alone
+places 21 of 41 (exactly the count threshold) at a fill of 20.11 in
+5 s; the dry-run alone places 25 at 32.11 in 18 s, which is the shipped
+v50's sample result, so on the sample the dry-run's plan is the one
+that plays.  On the platform (v50's optimize time about 119 s of 140,
+v51 / v52 139 s with one counted episode lost) the two builds read from
+the stability lattice how many A episodes each plan crosses alone, and
+so which offline plan to give the budget to.
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this
