@@ -1215,6 +1215,13 @@ def _replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict
                                             transport_clearance=config.settled_clearance)
         nudge = float(getattr(config, "plan_replay_nudge", 0.02))
         shifts = sorted({0.0, nudge / 2.0, -nudge / 2.0, nudge, -nudge}, key=abs)
+        own = float(entry.get("replay_nudge", 0.0) or 0.0)
+        if own > nudge + 1e-9:
+            # a pose of the soft frame block (count_secure.pack_soft_block):
+            # a standing soft box settles 2-3 cm towards the opening, and
+            # the next row's pose slides by up to the block's own nudge
+            n = int(round(own / 0.01))
+            shifts = sorted({0.0} | {k * 0.01 for k in range(-n, n + 1)}, key=abs)
         # the planned height, and the height the box comes to rest at on
         # the board as it settled (config.plan_replay_drop): a soft box
         # under load settles a centimetre or two lower than planned, and
@@ -1601,18 +1608,19 @@ def _gallery_poses(profile, mode: str, max_top: float) -> list:
     return sorted((o for o in fits if abs(o.dz - dz) < 1e-9), key=lambda o: (o.dy, o.dx))
 
 
-def _tower_height(profile, orientation, mode: str) -> int:
+def _tower_height(profile, orientation, mode: str, layers: int = 4) -> int:
     """How many items of the class a slot of the gallery holds: one, or in
     a ``tower`` gallery as many flat soft boxes as stack while the
-    supporting top stays under the soft structure cap."""
-    if mode != "tower" or not profile.is_soft:
+    supporting top stays under the soft structure cap; in a ``column``
+    gallery as many standing soft boxes, up to ``layers``."""
+    if mode not in ("tower", "column") or not profile.is_soft:
         return 1
     from . import stability
 
     cap = stability.SOFT_STRUCTURE_MAX_TOP
     if cap is None:
-        return 4
-    return 1 + int(max(0.0, float(cap)) / max(orientation.dz, 1e-6) + 1e-9)
+        return max(1, int(layers))
+    return min(max(1, int(layers)), 1 + int(max(0.0, float(cap)) / max(orientation.dz, 1e-6) + 1e-9))
 
 
 def _class_key(profile) -> tuple:
@@ -1621,7 +1629,8 @@ def _class_key(profile) -> tuple:
             bool(profile.is_prioritized))
 
 
-def _commit_pose(board, container_idx: int, profile, orientation, box, plan: list, planned: list, items: list):
+def _commit_pose(board, container_idx: int, profile, orientation, box, plan: list, planned: list, items: list,
+                 extra: dict | None = None):
     model = board.model(container_idx)
     cand = _Pose(box, orientation, model.z_floor)
     placement = _placement(cand, 1, profile, container_idx, model)
@@ -1633,12 +1642,14 @@ def _commit_pose(board, container_idx: int, profile, orientation, box, plan: lis
                  "orientation": int(orientation.index),
                  "center": [float(v) for v in box.center], "size": [float(v) for v in box.size],
                  "bottom": float(box.minimum[2]), "on_floor": bool(float(box.minimum[2]) <= model.z_floor + 1e-6),
-                 "archetype": ARCHETYPE})
+                 "archetype": ARCHETYPE, **(extra or {})})
 
 
 def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
                        planned: list, deadline: float, log=None, mode: str = "stand", max_rows: int = 2,
-                       y_top: float | None = None, y_bottom: float | None = None) -> float | None:
+                       y_top: float | None = None, y_bottom: float | None = None,
+                       layers: int = 4, priority_last: bool = False, ledge: bool = False,
+                       row_gap_extra: float = 0.0, replay_nudge: float = 0.0) -> float | None:
     """The typed-standing gallery: ``items`` (consumed as placed) in up to
     ``max_rows`` rows from ``y_top`` (default: the back wall) towards the
     opening, each row left to right.  ``stand``: every box on its smallest
@@ -1646,12 +1657,31 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
     soft boxes flat, every row's floor laid first (the soft floor share the
     support rule asks), then towers of the same class on each base while
     the supporting top stays under the soft structure cap; the priority
-    boxes stand.  A row's depth is the one that holds the most items per
-    metre of depth; the priority cargo is taken first.  Returns the y of
-    the gallery's front edge (None when nothing was placed)."""
+    boxes stand.  ``column`` (the count-secured soft block,
+    ``rule_alpha/count_secure.py``): every box standing as in ``stand``,
+    and a second standing layer on the first (``layers``: at most this
+    many, the soft structure cap permitting -- a standing 0.65 m box's
+    top at 0.69 carries, so two of them stand to 1.34 m): the rows stop
+    once the floor holds a base for every box left and the soft floor
+    share the support rule asks is covered, so the block takes the depth
+    its boxes need and no more; a base takes its own class first, then
+    any standing soft box its top carries.  A row's depth is the one that
+    holds the most items per metre of depth; the priority cargo is taken
+    first (``priority_last``: last, on the top layer, so no normal box
+    rests on a priority one).  ``ledge``: before the rows, the boxes
+    standing on the small shelf over the chamfer pocket (the ledge the row
+    planner never reaches: a box dropped there fits under it).
+    ``row_gap_extra`` widens the gap between the rows (a standing soft box
+    settles 2-3 cm towards the opening, and the next row's pose is then
+    under the replay's clearance); ``replay_nudge`` is written into every
+    pose's plan entry, the shift the replay may slide it by (over
+    ``plan_replay_nudge``).  Returns the y of the gallery's front edge
+    (None when nothing was placed)."""
     model = board.model(container_idx)
     rect = model.floor_rect
     gap = config.settled_clearance + config.anchor_slack
+    row_gap = gap + max(0.0, float(row_gap_extra))
+    extra = {"replay_nudge": float(replay_nudge)} if replay_nudge > 0.0 else None
     slack = config.anchor_slack
     wall = config.inclusion_clearance + slack
     x_right = rect.x_max - slack
@@ -1664,6 +1694,12 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
     edge = None
     bases: list = []   # (box, orientation, class key) of every floor slot
     refusals: dict = {}
+    column = mode == "column"
+    shelf = getattr(model, "small_shelf", None)
+    if column and layers > 1 and shelf is not None and float(shelf.minimum[2]) < model.z_floor + 2.0 * max_top:
+        # the second layer reaches the small shelf's height: the rows start
+        # clear of it, or the box over the first slot is refused up there
+        x_left = max(x_left, float(shelf.maximum[0]) + wall)
 
     def poses(p):
         return _gallery_poses(p, mode, max_top)
@@ -1680,22 +1716,27 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
             dx, k, o = min(fit, key=lambda t: t[:2])
             p = pool.pop(k)
             key = _class_key(p)
-            same = [q for q in pool if _class_key(q) == key][:_tower_height(p, o, mode) - 1]
+            same = [q for q in pool if _class_key(q) == key][:_tower_height(p, o, mode, layers) - 1]
             for q in same:
                 pool.remove(q)
             cursor += dx + gap
             n += 1 + len(same)
         return n
 
-    def attempt(profile, o, x: float, y: float, z_cap):
-        box, why = _try_pose(board, container_idx, profile, o, x, y, config, z_cap)
+    def attempt(profile, o, x: float, y: float, z_cap, bottom=None):
+        box, why = _try_pose(board, container_idx, profile, o, x, y, config, z_cap, bottom=bottom)
         if box is None:
             refusals[why] = refusals.get(why, 0) + 1
         return box
 
+    # the rows' front limit: a column block short of the floor share may
+    # pass the configured depth (nothing would stand on its first layer
+    # otherwise), never the floor's front
+    y_limit = [y_front]
+
     def slide(profile, o, x_cursor: float, y_line: float):
         y = y_line - o.dy / 2.0
-        if y - o.dy / 2.0 < y_front - 1e-9:
+        if y - o.dy / 2.0 < y_limit[0] - 1e-9:
             return None
         x = x_cursor + o.dx / 2.0
         cap = None if (mode == "tower" and profile.is_soft) else stand_cap
@@ -1712,7 +1753,8 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
         cursor, n = x_left, 0
         while items and time.perf_counter() < deadline:
             width = x_right - cursor
-            choices = [(not p.is_prioritized, abs(o.dy - depth) > 1e-6, o.dx, k, o, p)
+            choices = [(p.is_prioritized if priority_last else not p.is_prioritized,
+                        abs(o.dy - depth) > 1e-6, o.dx, k, o, p)
                        for k, p in enumerate(items) for o in poses(p)
                        if o.dy <= depth + 1e-9 and o.dx <= width + 1e-9]
             if not choices:
@@ -1722,7 +1764,7 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
             for _p, _e, _w, _k, o, p in choices[:8]:
                 box = slide(p, o, cursor, y_line)
                 if box is not None:
-                    _commit_pose(board, container_idx, p, o, box, plan, planned, items)
+                    _commit_pose(board, container_idx, p, o, box, plan, planned, items, extra)
                     bases.append((box, o, _class_key(p), p))
                     break
             if box is None:
@@ -1731,13 +1773,60 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
             cursor = float(box.maximum[0]) + gap
         return n
 
+    def share_met() -> bool:
+        """``column``: the soft floor share soft-on-soft waits for is
+        covered (with a little over it, for the settle)."""
+        from . import stability
+
+        share = float(stability.SOFT_STRUCTURE_FLOOR_SHARE or 0.0)
+        return share <= 0.0 or stability.soft_floor_share(board.container(container_idx)) >= share + 0.03
+
+    def floor_enough() -> bool:
+        """``column``: the rows may stop -- every box left has a base to
+        stand on and the floor share is covered."""
+        if not column or layers < 2 or not items:
+            return False
+        if len([b for b in bases if not b[3].is_prioritized]) < len(items):
+            return False
+        return share_met()
+
+    if ledge and shelf is not None and column:
+        # the ledge: standing boxes along the small shelf's top, from the
+        # back; the pose's bottom is the shelf's top (the drop height
+        # would put the box on the floor under it, in the chamfer)
+        x_ledge = model.x_wall_min + wall
+        y_line = y_back
+        on_ledge = 0
+        while items and time.perf_counter() < deadline:
+            fit = [(o.dy, o.dx, k, o, p) for k, p in enumerate(items) for o in poses(p)
+                   if not p.is_prioritized and o.dx <= float(shelf.maximum[0]) - x_ledge + 1e-9]
+            if not fit:
+                break
+            fit.sort(key=lambda t: (t[0], -t[1], t[2]))
+            box = None
+            for _dy, _dx, _k, o, p in fit[:6]:
+                y = y_line - o.dy / 2.0
+                if y - o.dy / 2.0 < y_front - 1e-9:
+                    continue
+                box = attempt(p, o, x_ledge + o.dx / 2.0, y, None, bottom=float(shelf.maximum[2]))
+                if box is not None:
+                    _commit_pose(board, container_idx, p, o, box, plan, planned, items, extra)
+                    break
+            if box is None:
+                break
+            on_ledge += 1
+            y_line = float(box.minimum[1]) - row_gap
+        if log and on_ledge:
+            log(f"  [typed] container {container_idx} ledge: {on_ledge} standing on the small shelf")
+
     for _row in range(max(0, int(max_rows))):
-        if not items or time.perf_counter() >= deadline:
+        if not items or time.perf_counter() >= deadline or floor_enough():
             break
+        y_limit[0] = rect.y_min + slack if (column and layers > 1 and bases and not share_met()) else y_front
         depths = sorted({round(o.dy, 4) for p in items for o in poses(p)})
         ranked = []
         for d in depths:
-            if y_back - d < y_front - 1e-9:
+            if y_back - d < y_limit[0] - 1e-9:
                 continue
             n = row_count(d)
             if n:
@@ -1753,32 +1842,49 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
         if not placed:
             break
         edge = y_back - depth
-        y_back = edge - gap
-    if mode == "tower":
-        # the towers: each soft base takes boxes of its own class on top,
-        # a layer over all bases at a time
+        y_back = edge - row_gap
+    if mode in ("tower", "column"):
+        # the towers: each soft base takes boxes of its own class on top
+        # (a column: any standing soft box its top carries, its own class
+        # first), a layer over all bases at a time
         tops = {id(b): b for b, _o, _k, _p in bases}
+        heights = {id(b): 1 for b, _o, _k, _p in bases}
         for _layer in range(5):
             stacked = 0
             for n, (box, o, key, p0) in enumerate(bases):
                 if not p0.is_soft or time.perf_counter() >= deadline:
                     continue
                 top = tops[id(box)]
-                if _layer + 1 >= _tower_height(p0, o, mode):
+                if heights[id(box)] >= _tower_height(p0, o, mode, layers):
                     continue
-                same = [q for q in items if _class_key(q) == key]
+                same = [(q, oq) for q in items if _class_key(q) == key
+                        for oq in q.orientations if abs(oq.dx - o.dx) < 1e-9 and abs(oq.dy - o.dy) < 1e-9
+                        and abs(oq.dz - o.dz) < 1e-9]
+                if column:
+                    # then any standing soft box within the base's footprint
+                    # (the support rule wants most of the footprint
+                    # carried), the normal ones first, the widest first; a
+                    # box the neighbours' pitch refuses yields to the next
+                    others = [(q, oq) for q in items if q.is_soft and _class_key(q) != key for oq in poses(q)
+                              if oq.dx <= o.dx + 0.02 and oq.dy <= o.dy + 0.02]
+                    others.sort(key=lambda t: (t[0].is_prioritized, -t[1].dx * t[1].dy, t[0].index))
+                    seen = set()
+                    for q, oq in others:
+                        if q.index not in seen:
+                            seen.add(q.index)
+                            same.append((q, oq))
                 if not same:
                     continue
-                q = same[0]
-                oq = next((oo for oo in q.orientations if abs(oo.dx - o.dx) < 1e-9 and abs(oo.dy - o.dy) < 1e-9
-                           and abs(oo.dz - o.dz) < 1e-9), None)
-                if oq is None:
-                    continue
-                new = attempt(q, oq, float(top.center[0]), float(top.center[1]), None)
+                new = None
+                for q, oq in same[:4]:
+                    new = attempt(q, oq, float(top.center[0]), float(top.center[1]), None)
+                    if new is not None:
+                        break
                 if new is None:
                     continue
-                _commit_pose(board, container_idx, q, oq, new, plan, planned, items)
+                _commit_pose(board, container_idx, q, oq, new, plan, planned, items, extra)
                 tops[id(box)] = new
+                heights[id(box)] += 1
                 stacked += 1
             if log:
                 log(f"  [typed] container {container_idx} tower layer {_layer + 2}: {stacked} placed, {len(items)} left")

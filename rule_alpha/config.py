@@ -3117,10 +3117,12 @@ class RuleAlphaConfig:
     the count-secured overrides), "left" / "right" (the count frame's
     soft block on a strip along that wall, the whole depth), "back" (on a
     strip along the back wall, the whole width), "top" (the count frame
-    without a block: its soft cargo over its hard rows).  A token may
-    carry fields of its own: "plain@field=value&field=value".  On the
-    dense manifests the block plans hold 15-30 items against plain's
-    26-34 (``reports/wedge/a-count-secure.md``)."""
+    without a block: its soft cargo over its hard rows), "soft" (the
+    count frame with its soft cargo standing two deep against the back
+    wall, ``plan_count_secure_soft_*``).  A token may carry fields of its
+    own: "plain@field=value&field=value".  On the dense manifests the
+    flat block plans hold 15-30 items against plain's 26-34
+    (``reports/wedge/a-count-secure.md``)."""
 
     plan_count_secure_block_layers: int = 2
     """The soft block's strip is sized for its soft footprint over this
@@ -3184,6 +3186,52 @@ class RuleAlphaConfig:
     against the ladder's dry-run plan is decided first by whether each
     holds the count threshold plus ``plan_value_margin``, then by the
     plan score."""
+
+    plan_count_secure_soft_layers: int = 2
+    """The soft frame block (``plan_count_secure_blocks`` token ``soft``,
+    ``count_secure.pack_soft_block``): the count frame's soft cargo
+    standing on its smallest face in rows against the back wall, in up to
+    this many standing layers, the frame's hard rows on the floor in front
+    of it.  The ``plain`` re-plan holds 5-9 of the frame's 15-21 soft boxes
+    on the dense manifests: it lays the hard rows first, two flat layers
+    and a standing one to 1.09 m, and the soft cargo gets the one layer
+    left under the ceiling, since soft carries soft only under
+    ``soft_structure_max_top`` (0.7 m).  On the floor a standing 0.65 m
+    box's top is at 0.69 m, so a second standing box rests on it (to 1.34
+    m) once the soft floor share ``soft_structure_floor_share`` is
+    covered: two boxes on 0.08 m^2, where a hard column of the smallest
+    boxes holds one item on 0.06 (``reports/wedge/a-soft-frame.md``).  1:
+    the typed-standing gallery's single layer."""
+
+    plan_count_secure_soft_rows: int = 4
+    """The most rows the soft frame block lays; it stops earlier once the
+    floor holds a base for every box left and the soft floor share the
+    support rule asks is covered."""
+
+    plan_count_secure_soft_depth_share: float = 0.6
+    """The soft frame block takes at most this share of the floor's depth
+    (from the back wall); the hard rows get the rest."""
+
+    plan_count_secure_soft_gap: float = 0.03
+    """Extra gap (m) between the soft frame block's rows, and between the
+    block and the hard rows in front of it.  A standing soft box settles
+    2.3 cm towards the opening (every one, on every row, a-c1x60-s0001 in
+    physics), the next row's planned pose is then 0.7 cm from it, under
+    the replay's 2.6 cm clearance and beyond its 2 cm nudge, and the
+    ladder lays the missed box on the floor where the hard rows were
+    planned (29 placed of a 33-item plan)."""
+
+    plan_count_secure_soft_nudge: float = 0.04
+    """The shift (m) the replay may slide a pose of the soft frame block
+    by, written into its plan entries (``replay_nudge``), over
+    ``plan_replay_nudge`` for the rest of the plan."""
+
+    plan_count_secure_soft_ledge: bool = False
+    """The soft frame block first stands boxes along the small shelf over
+    the chamfer pocket (the c1 container's ledge at 0.85 m, 0.44 m wide),
+    their bottom the shelf's top.  The row planner never rests cargo
+    there: a box dropped over the ledge fits under it and lands in the
+    chamfer, which the validator refuses."""
 
     transport_clearance: float = 0.0
     """Clearance of the transport sweep from packed cargo and shelves when

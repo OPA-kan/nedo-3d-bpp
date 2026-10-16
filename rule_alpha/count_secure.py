@@ -274,6 +274,32 @@ def pack_block(agent, board: layer1.Board, container_idx: int, items: list, conf
     return count
 
 
+def pack_soft_block(agent, board: layer1.Board, container_idx: int, items: list, config, plan: list,
+                    planned: list, deadline: float, log=None) -> float | None:
+    """The soft frame block (``plan_count_secure_blocks`` token ``soft``):
+    ``items`` (the frame's soft cargo, consumed as placed) standing on the
+    smallest face in rows against the back wall, the normal boxes first and
+    the priority ones last (nothing normal may rest on them), then a second
+    standing layer on the first where the soft-structure cap and the soft
+    floor share let soft carry soft (``plan_count_secure_soft_layers``);
+    the rows stop once the floor holds a base for every box left, and never
+    pass ``plan_count_secure_soft_depth_share`` of the floor's depth or
+    ``plan_count_secure_soft_rows`` rows.  Returns the block's front edge
+    (y), or None when nothing was placed."""
+    from .planner import pack_typed_gallery
+
+    model = board.model(container_idx)
+    rect = model.floor_rect
+    share = float(getattr(config, "plan_count_secure_soft_depth_share", 0.6))
+    y_bottom = rect.y_max - share * (rect.y_max - rect.y_min)
+    return pack_typed_gallery(agent, board, container_idx, items, config, plan, planned, deadline, log,
+                              mode="column", max_rows=int(getattr(config, "plan_count_secure_soft_rows", 4)),
+                              y_bottom=y_bottom, layers=int(getattr(config, "plan_count_secure_soft_layers", 2)),
+                              priority_last=True, ledge=bool(getattr(config, "plan_count_secure_soft_ledge", False)),
+                              row_gap_extra=float(getattr(config, "plan_count_secure_soft_gap", 0.03)),
+                              replay_nudge=float(getattr(config, "plan_count_secure_soft_nudge", 0.04)))
+
+
 def plan_frame(agent, item_list: list[dict], deadline: float, frame: list[int], side: str,
                log=None) -> tuple[list[int], list[dict], dict]:
     """One count-secured plan with the soft block on ``side``.  Returns
@@ -284,6 +310,7 @@ def plan_frame(agent, item_list: list[dict], deadline: float, frame: list[int], 
     config = agent.config
     layers = max(1, int(getattr(config, "plan_count_secure_block_layers", 2)))
     max_share = float(getattr(config, "plan_count_secure_block_share", 0.6))
+    gap = config.settled_clearance + config.anchor_slack
     containers = copy.deepcopy(agent.board.containers)
     for container in containers:
         container.setdefault("packed_items", [])
@@ -339,7 +366,21 @@ def plan_frame(agent, item_list: list[dict], deadline: float, frame: list[int], 
             pack_rows(agent, board, ci, left_of([p for p in soft if p.is_prioritized]), config, plan, planned,
                       deadline, log)
             continue
-        if soft:
+        if side == "soft":
+            # the soft frame block (config.plan_count_secure_soft_*): the
+            # frame's soft cargo standing in rows against the back wall,
+            # two standing layers where the soft-structure cap lets the
+            # first carry the second (planner.pack_typed_gallery, mode
+            # "column"), the frame's hard rows on the floor in front of it
+            edge = pack_soft_block(agent, board, ci, soft, config, plan, planned, deadline, log)
+            if edge is not None:
+                # the hard rows start the block's row gap in front of its
+                # planned edge: its front row settles towards them
+                rest_rect = Rect(rest_rect.x_min, rest_rect.x_max, rest_rect.y_min,
+                                 edge - gap - float(getattr(config, "plan_count_secure_soft_gap", 0.03)))
+                info["regions"].append([round(v, 3) for v in
+                                        Rect(rest_rect.x_min, rest_rect.x_max, edge, model.floor_rect.y_max).as_tuple()])
+        elif soft:
             regions = block_regions(model, config, soft, side, layers, max_share)
             if regions is not None:
                 block_rect, rest_rect = regions
