@@ -1215,46 +1215,85 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
             # staircase only: the support has to be a step in the strip
             if not tri.in_strip(surface, model, config):
                 continue
+        # the grid's verdicts in one pass (fastgeom.validate_points: the
+        # same numbers as validate, three quarters of the dry-run's time
+        # less) where nothing changes a box before the validator looks at
+        # it: not the staircase steps (their own tests first) nor the lift
+        # to tops
+        batch = (getattr(config, "batch_validate", True) and getattr(config, "fast_validate", False)
+                 and float(getattr(config, "lift_to_tops", 0.0) or 0.0) <= 0.0)
+        grid = []
         for x in surface_xs:
             for y in surface_ys:
                 key = (round(x, 4), round(y, 4), round(z, 4))
                 if key in seen:
                     continue
                 seen.add(key)
-                box = AABB((float(x), float(y), float(z)), (dx, dy, dz), "candidate")
-                if kind == "item":
-                    state = board.triangle_state(container_idx)
-                    support_rect = box_rect(surface)
-                    if not tri.is_wedge_step(box, support_rect, model, config):
-                        continue
-                    if not tri.strip_reserved_for(profile, state, model, config):
-                        continue
+                grid.append((float(x), float(y)))
+        allowed = None
+        if kind == "item":
+            # the staircase tests of a grid at one height and size depend
+            # on x alone (the step's reach past its support), and the
+            # strip's reservation on the item alone: each once
+            state = board.triangle_state(container_idx)
+            support_rect = box_rect(surface)
+            wedge_by_x: dict = {}
+            reserved = None
+            allowed = set()
+            for n_grid, (x, y) in enumerate(grid):
+                step = wedge_by_x.get(x)
+                if step is None:
+                    step = wedge_by_x[x] = tri.is_wedge_step(AABB((x, y, float(z)), (dx, dy, dz), "candidate"),
+                                                             support_rect, model, config)
+                if not step:
+                    continue
+                if reserved is None:
+                    reserved = tri.strip_reserved_for(profile, state, model, config)
+                if not reserved:
+                    continue
+                allowed.add(n_grid)
+        verdicts = None
+        if batch:
+            from . import fastgeom
+
+            indices = [i for i in range(len(grid)) if allowed is None or i in allowed]
+            flags = fastgeom.validate_points([grid[i] for i in indices], float(z), (dx, dy, dz), model, container,
+                                             config, stability.is_stable)
+            verdicts = dict(zip(indices, flags))
+        for n_grid, (x, y) in enumerate(grid):
+            if allowed is not None and n_grid not in allowed:
+                continue
+            box = AABB((x, y, float(z)), (dx, dy, dz), "candidate")
+            if verdicts is not None:
+                if not verdicts[n_grid]:
+                    continue
+            else:
                 box = _lifted(box, container, config)
                 ok, why = validate(box, model, container, config)
                 if not ok:
                     continue
-                role = _role_for(
-                    box, model, profile, orientation, board, container_idx,
-                    config, kind, pocket_ceiling,
+            role = _role_for(
+                box, model, profile, orientation, board, container_idx,
+                config, kind, pocket_ceiling,
+            )
+            candidates.append(
+                Candidate(
+                    box=box,
+                    profile=profile,
+                    orientation=orientation,
+                    container_idx=container_idx,
+                    surface=kind,
+                    surface_name=name,
+                    role=role,
+                    family=(
+                        l2.FAMILY_SHELF if kind == "shelf"
+                        else l2.FAMILY_WEDGE_STEP if kind == "item"
+                        else l2.FAMILY_FLOOR
+                    ),
                 )
-                candidates.append(
-                    Candidate(
-                        box=box,
-                        profile=profile,
-                        orientation=orientation,
-                        container_idx=container_idx,
-                        surface=kind,
-                        surface_name=name,
-                        role=role,
-                        family=(
-                            l2.FAMILY_SHELF if kind == "shelf"
-                            else l2.FAMILY_WEDGE_STEP if kind == "item"
-                            else l2.FAMILY_FLOOR
-                        ),
-                    )
-                )
-                if len(candidates) >= config.max_candidates_per_orientation:
-                    return candidates
+            )
+            if len(candidates) >= config.max_candidates_per_orientation:
+                return candidates
     return candidates
 
 

@@ -147,3 +147,101 @@ class ContactFeatureTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ValidatePointsTests(unittest.TestCase):
+    """``fastgeom.validate_points`` gives ``validate``'s verdict for every point."""
+
+    def _grids(self, rng, model, board, idx):
+        tops = [model.z_floor] + [float(s.maximum[2]) for s in model.shelves]
+        tops += [float(p.box.maximum[2]) for p in board.placements[idx]]
+        for _ in range(12):
+            size = (rng.uniform(0.3, 0.75), rng.uniform(0.25, 0.56), rng.uniform(0.2, 0.4))
+            z = rng.choice(tops) + size[2] / 2.0 + rng.choice((0.0, 0.0, 0.0, 0.03, -0.01, 0.0005))
+            pts = [(rng.uniform(-0.95, 0.95), rng.uniform(-0.75, 0.75)) for _ in range(40)]
+            # anchors on packed edges too, where the clearances bite
+            for p in board.placements[idx][:6]:
+                pts.append((float(p.box.maximum[0]) + size[0] / 2.0 + 0.02, float(p.box.center[1])))
+                pts.append((float(p.box.minimum[0]) + size[0] / 2.0, float(p.box.minimum[1]) + size[1] / 2.0))
+            yield pts, z, size
+
+    def test_agrees_with_validate(self):
+        from rule_alpha import stability
+
+        rng = random.Random(1)
+        checked = accepted = 0
+        for board, slow, scene in _boards():
+            for conservative in (False, True):
+                for band in (0.0, 0.01):
+                    cfg = dataclasses.replace(slow, fast_validate=True, conservative_transport=conservative, band_lift=band)
+                    for idx in range(len(board.containers)):
+                        model = board.model(idx)
+                        container = board.container(idx)
+                        for pts, z, size in self._grids(rng, model, board, idx):
+                            got = fastgeom.validate_points(pts, z, size, model, container, cfg, stability.is_stable)
+                            self.assertEqual(len(got), len(pts))
+                            for (x, y), verdict in zip(pts, got):
+                                ref = layer1.validate(AABB((x, y, z), size, "probe"), model, container, cfg)
+                                self.assertEqual(verdict, ref[0], (scene.name, idx, conservative, band, (x, y, z), size, ref))
+                                checked += 1
+                                accepted += int(ref[0])
+        self.assertGreater(checked, 3000)
+        self.assertGreater(accepted, 30)
+
+    def test_empty_grid(self):
+        from rule_alpha import stability
+
+        board, slow, _scene = _boards()[0]
+        self.assertEqual(fastgeom.validate_points([], 0.3, (0.5, 0.4, 0.2), board.model(0), board.container(0),
+                                                  slow, stability.is_stable), [])
+
+
+class DropHeightTests(unittest.TestCase):
+    def test_vectorised_drop_height_agrees_with_the_loop(self):
+        from rule_alpha import planner
+
+        rng = random.Random(2)
+        for board, slow, _scene in _boards():
+            for idx in range(len(board.containers)):
+                model = board.model(idx)
+                container = board.container(idx)
+                for _ in range(200):
+                    x, y = rng.uniform(-0.95, 0.95), rng.uniform(-0.75, 0.75)
+                    dx, dy, dz = rng.uniform(0.3, 0.75), rng.uniform(0.25, 0.56), rng.uniform(0.2, 0.4)
+                    planner._drop_height._vectorised = False
+                    try:
+                        ref = planner._drop_height(container, model, x, y, dx, dy, dz)
+                    finally:
+                        planner._drop_height._vectorised = True
+                    self.assertEqual(planner._drop_height(container, model, x, y, dx, dy, dz), ref)
+
+
+class EvaluatePointsTests(unittest.TestCase):
+    def test_agrees_with_evaluate(self):
+        from rule_alpha import stability
+
+        rng = random.Random(3)
+        checked = supported = 0
+        for board, slow, _scene in _boards():
+            for prio, soft in ((False, False), (True, True)):
+                cfg = dataclasses.replace(slow, priority_is_structure=prio, soft_is_structure=soft)
+                for idx in range(len(board.containers)):
+                    model = board.model(idx)
+                    container = board.container(idx)
+                    tops = [model.z_floor] + [float(s.maximum[2]) for s in model.shelves]
+                    tops += [float(p.box.maximum[2]) for p in board.placements[idx]]
+                    for _ in range(10):
+                        size = (rng.uniform(0.3, 0.75), rng.uniform(0.25, 0.56), rng.uniform(0.2, 0.4))
+                        z = rng.choice(tops) + size[2] / 2.0 + rng.choice((0.0, 0.0, 0.0, 0.004, -0.004))
+                        pts = [(rng.uniform(-0.95, 0.95), rng.uniform(-0.75, 0.75)) for _ in range(30)]
+                        for p in board.placements[idx][:6]:
+                            pts.append((float(p.box.center[0]) + 0.1, float(p.box.center[1]) - 0.05))
+                        got = stability.evaluate_points([x for x, _y in pts], [y for _x, y in pts], z, size, container, cfg)
+                        for (x, y), state in zip(pts, got):
+                            ref = stability.evaluate(AABB((x, y, z), size, "probe"), container, cfg)
+                            self.assertEqual((state.margin, state.contact_area, state.contact_count, state.polygon),
+                                             (ref.margin, ref.contact_area, ref.contact_count, ref.polygon), (x, y, z, size))
+                            checked += 1
+                            supported += int(ref.contact_count > 0)
+        self.assertGreater(checked, 1000)
+        self.assertGreater(supported, 100)

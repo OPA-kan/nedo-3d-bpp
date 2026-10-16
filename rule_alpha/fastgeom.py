@@ -398,6 +398,11 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
         )
 
     sweep = float(getattr(config, "transport_clearance", None) or config.settled_clearance)
+    return _sweep_verdict(cx, cy, hx, hy, hz, transport_z, start_x, entry_y, obs, sweep)
+
+
+def _sweep_verdict(cx, cy, hx, hy, hz, transport_z, start_x, entry_y, obs, sweep):
+    """The transport sweep's verdict for one box: ``(ok, reason)``."""
     omin, omax = obs["all_min"], obs["all_max"]
     if omin.shape[0] == 0:
         return True, "ok"
@@ -430,6 +435,144 @@ def validate(box: AABB, model, container: dict, config, action_center_fn, stabil
             return False, f"transport-hits-{obs['shelf_names'][k]}"
         return False, "transport-hits-packed-item"
     return True, "ok"
+
+
+# --- many boxes at once ---------------------------------------------------------
+#
+# The candidate generators (``layer1.generate_candidates``, the stack
+# option's ``stack_candidates``) validate a grid of anchors at one height
+# and one size, and read only the verdict.  On the sample's Task A dry-run
+# that is 190 000 distinct calls of ``validate`` at 0.13 ms each, three
+# quarters of the dry-run.  ``validate_points`` gives the same verdicts for
+# a whole grid: the geometry of every check in one numpy pass over the
+# points (the same expressions, so the same floating-point numbers), the
+# stability rule and the transport sweep only for the points the geometry
+# accepts, one at a time as before.
+
+
+def _inside_many(model, cx, cy, cz, hx, hy, hz, clearance, floor_clearance):
+    """``_inside`` for arrays ``cx``, ``cy`` and a scalar or array ``cz``."""
+    rows, floor_index = _planes(model)
+    limit = -clearance + 1e-9
+    floor_limit = limit if floor_clearance is None else -floor_clearance + 1e-9
+    ok = np.ones(cx.shape[0], dtype=bool)
+    for i, (n0, n1, n2, p0, p1, p2, a0, a1, a2) in enumerate(rows):
+        signed = (n0 * (cx - p0) + n1 * (cy - p1) + n2 * (cz - p2)) + (a0 * hx + a1 * hy + a2 * hz)
+        ok &= ~(signed > (floor_limit if i == floor_index else limit))
+    return ok
+
+
+def validate_points(points, z: float, size, model, container: dict, config, stability_fn) -> list:
+    """``validate(AABB((x, y, z), size))[0]`` for every ``(x, y)`` of
+    ``points``, in order.  The same verdicts as ``validate``, from the same
+    expressions; the reasons are not computed.  With
+    ``conservative_transport`` the boxes go through ``validate`` one by one."""
+    points = list(points)
+    if not points:
+        return []
+    if getattr(config, "conservative_transport", True):
+        return [validate(AABB((float(x), float(y), float(z)), size, "candidate"), model, container, config,
+                         action_center, stability_fn)[0] for x, y in points]
+    obs = obstacles(container)
+    k = _constants()
+    cz = float(z)
+    sx, sy, sz = (float(v) for v in size)
+    hx, hy, hz = sx / 2.0, sy / 2.0, sz / 2.0
+    cx = np.array([float(x) for x, _y in points], dtype=np.float64)
+    cy = np.array([float(y) for _x, y in points], dtype=np.float64)
+    n = cx.shape[0]
+
+    # the commanded pose (rule-alpha's action centre) and the sweep's height
+    zmin = cz - hz
+    cmin_x, cmax_x, cmin_y, cmax_y = cx - hx, cx + hx, cy - hy, cy + hy
+    sim_z = np.full(n, cz, dtype=np.float64)
+    lifted = np.zeros(n, dtype=bool)
+    smin, smax = obs["shelf_min"], obs["shelf_max"]
+    for i in range(obs["n_shelves"]):
+        if abs(zmin - float(smax[i, 2])) <= CONTACT_TOLERANCE:
+            ox = np.maximum(0.0, np.minimum(cmax_x, float(smax[i, 0])) - np.maximum(cmin_x, float(smin[i, 0])))
+            oy = np.maximum(0.0, np.minimum(cmax_y, float(smax[i, 1])) - np.maximum(cmin_y, float(smin[i, 1])))
+            lifted |= ox * oy > EPS
+    if lifted.any():
+        sim_z[lifted] = cz + k["SHELF_LIFT"]
+    if abs(zmin - obs["floor_top"]) <= CONTACT_TOLERANCE:
+        sim_z[~lifted] = cz + k["FLOOR_LIFT"]
+        lifted[:] = True
+    cmd_z = sim_z.copy()
+    if not lifted.all():
+        # the points the simulator lifts nothing for: the floor lift of
+        # rule-alpha's own, else the band lift (a function of z alone)
+        if abs((cz - hz) - model.z_floor) <= config.contact_tolerance:
+            cmd_z[~lifted] = cz + config.floor_action_lift
+        else:
+            band = band_lift_z(cz, hz, container, config)
+            sim_z[~lifted] = band
+            cmd_z[~lifted] = band
+    wall = float(config.settled_wall_clearance)
+    ok = _inside_many(model, cx, cy, cz, hx, hy, hz, wall, 0.0)
+    ok &= _inside_many(model, cx, cy, cmd_z, hx, hy, hz, float(config.inclusion_clearance), None)
+
+    # ``_transport``
+    length = float(container["length"])
+    width = float(container["width"])
+    thickness = float(container["thickness"])
+    cut_x = float(container.get("cut_x", 0.0))
+    x_min = -length / 2.0 + thickness + cut_x + hx + k["START"]
+    x_max = length / 2.0 - thickness - hx - k["START"]
+    start_x = np.minimum(np.maximum(cx, x_min), x_max)
+    entry_y = -width / 2.0
+    height = float(container["height"])
+    buffer = float(container.get("buffer", 0.0))
+    bottom_z = sim_z - hz
+    eff = np.full(n, k["DROP"], dtype=np.float64)
+    for resting_z in (thickness, height / 2.0 + thickness + buffer):
+        rest = bottom_z - resting_z
+        eff[(0.0 <= rest) & (rest <= 0.05)] = 0.0
+    top_z = sim_z + hz
+    open_ = eff > 0.0
+    for ceiling_z in (height / 2.0 + buffer, height + buffer - thickness):
+        clearance = ceiling_z - top_z
+        hit = open_ & (0.0 <= clearance) & (clearance < eff + k["CEIL_MARGIN"])
+        if hit.any():
+            eff[hit] = np.maximum(0.0, clearance[hit] - k["CEIL_MARGIN"] - k["CEIL_CLIP"])
+            open_ &= ~hit
+    maximum_start_z = height + buffer - thickness - hz - k["START"]
+    transport_z = np.minimum(maximum_start_z, sim_z + eff)
+    ok &= _inside_many(model, cx, cy, transport_z, hx, hy, hz, wall, 0.0)
+
+    # the settled box against every shelf and packed item
+    omin, omax = obs["all_min"], obs["all_max"]
+    if omin.shape[0] and ok.any():
+        clearance = config.settled_clearance
+        cmin_z, cmax_z = cz - hz, cz + hz
+        vertical_gap = np.maximum(omin[None, :, 2] - cmax_z, cmin_z - omax[None, :, 2])
+        x_gap = np.maximum(omin[None, :, 0] - cmax_x[:, None], cmin_x[:, None] - omax[None, :, 0])
+        y_gap = np.maximum(omin[None, :, 1] - cmax_y[:, None], cmin_y[:, None] - omax[None, :, 1])
+        hit = (vertical_gap < -CONTACT_TOLERANCE) & (x_gap < clearance - EPS) & (y_gap < clearance - EPS)
+        ok &= ~hit.any(axis=1)
+
+    sweep = float(getattr(config, "transport_clearance", None) or config.settled_clearance)
+    out = ok.tolist()
+    survivors = np.nonzero(ok)[0].tolist()
+    if not survivors:
+        return out
+    # the stability rule for every survivor in one pass over the structure
+    # (stability.evaluate_points), unless the caller's rule is another
+    from . import stability as _stability
+
+    if stability_fn is _stability.is_stable:
+        states = _stability.evaluate_points(cx[survivors], cy[survivors], cz, (sx, sy, sz), container, config)
+        stable = [s.margin >= config.com_margin for s in states]
+    else:
+        stable = [stability_fn(AABB((float(cx[i]), float(cy[i]), cz), (sx, sy, sz), "candidate"), container, config)[0]
+                  for i in survivors]
+    for i, ok_i in zip(survivors, stable):
+        if not ok_i:
+            out[i] = False
+            continue
+        x, y = float(cx[i]), float(cy[i])
+        out[i] = _sweep_verdict(x, y, hx, hy, hz, float(transport_z[i]), float(start_x[i]), entry_y, obs, sweep)[0]
+    return out
 
 
 def lift_to_tops(box: AABB, container: dict, config) -> AABB:

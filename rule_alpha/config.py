@@ -1768,6 +1768,15 @@ class RuleAlphaConfig:
     check then rejects it."""
 
     fast_validate: bool = True
+
+    batch_validate: bool = True
+    """With ``fast_validate``: the candidate generators (the ladder's
+    anchors, the stack option's) validate a whole grid of anchors in one
+    numpy pass (``fastgeom.validate_points``, the same expressions and so
+    the same verdicts as ``validate``) instead of one box at a time; the
+    stability rule and the transport sweep still run per accepted box.
+    On the sample's Task A dry-run the per-box path spent three quarters
+    of its time in 190 000 calls of ``validate``."""
     """Use the vectorised ``fastgeom.validate`` instead of the per-pair
     reference.  Same verdicts (tested on random boxes and by the bench's
     negative control); about four times less planner time per decision."""

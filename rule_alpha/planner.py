@@ -32,6 +32,8 @@ import math
 import dataclasses
 import time
 
+import numpy as np
+
 from . import classify as cls
 from . import layer1
 from .geometry import AABB
@@ -112,10 +114,25 @@ def _drop_height(container: dict, model, x: float, y: float, dx: float, dy: floa
     where a shelf covers the footprint and the box would not fit under it,
     the shelf's top (the ladder's shelf archetypes rest cargo there too)."""
     bottom = model.z_floor
-    for b, _s, _p in _packed(container):
-        if (min(x + dx / 2.0, float(b.maximum[0])) - max(x - dx / 2.0, float(b.minimum[0])) > 0.01
-                and min(y + dy / 2.0, float(b.maximum[1])) - max(y - dy / 2.0, float(b.minimum[1])) > 0.01):
-            bottom = max(bottom, float(b.maximum[2]))
+    if getattr(_drop_height, "_vectorised", True):
+        # the packed boxes' corners as the cached arrays (fastgeom.obstacles),
+        # the same comparisons at once: the AABB properties rebuilt two
+        # arrays a box a call, half the planner's time on the sample
+        from .fastgeom import obstacles
+
+        obs = obstacles(container)
+        pmin, pmax = obs["packed_min"], obs["packed_max"]
+        if pmin.shape[0]:
+            over_x = np.minimum(x + dx / 2.0, pmax[:, 0]) - np.maximum(x - dx / 2.0, pmin[:, 0]) > 0.01
+            over_y = np.minimum(y + dy / 2.0, pmax[:, 1]) - np.maximum(y - dy / 2.0, pmin[:, 1]) > 0.01
+            under = over_x & over_y
+            if under.any():
+                bottom = max(bottom, float(pmax[under, 2].max()))
+    else:
+        for b, _s, _p in _packed(container):
+            if (min(x + dx / 2.0, float(b.maximum[0])) - max(x - dx / 2.0, float(b.minimum[0])) > 0.01
+                    and min(y + dy / 2.0, float(b.maximum[1])) - max(y - dy / 2.0, float(b.minimum[1])) > 0.01):
+                bottom = max(bottom, float(b.maximum[2]))
     for shelf in getattr(model, "shelves", []) or []:
         if (min(x + dx / 2.0, float(shelf.maximum[0])) - max(x - dx / 2.0, float(shelf.minimum[0])) > 0.01
                 and min(y + dy / 2.0, float(shelf.maximum[1])) - max(y - dy / 2.0, float(shelf.minimum[1])) > 0.01):

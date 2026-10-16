@@ -422,6 +422,11 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
         z = round(float(b.maximum[2]), 3)
         tops.setdefault(z, []).append(b)
     supports = [(model.z_floor, True, [])] + [(z, False, bs) for z, bs in sorted(tops.items())]
+    # every packed box's corners once: the AABB properties rebuild two
+    # arrays a call, and the anchor sets below read them per orientation
+    # and support (600 000 calls on the sample's dry-run)
+    corners = {id(b): (float(b.minimum[0]), float(b.maximum[0]), float(b.minimum[1]), float(b.maximum[1])) for b in packed}
+    packed_corners = [corners[id(b)] for b in packed]
     out: list[Candidate] = []
     seen = set()
     is_soft = bool(getattr(profile, "is_soft", False))
@@ -450,11 +455,12 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
             ys = {rect.y_max - dy / 2.0 - slack, rect.y_min + dy / 2.0 + slack}
             for b in bases:
                 # flush with the support's edges and stepped in by the gap
-                xs.update((float(b.minimum[0]) + dx / 2.0, float(b.maximum[0]) - dx / 2.0))
-                ys.update((float(b.minimum[1]) + dy / 2.0, float(b.maximum[1]) - dy / 2.0))
-            for b in packed:
-                xs.update((float(b.maximum[0]) + dx / 2.0 + gap, float(b.minimum[0]) - dx / 2.0 - gap))
-                ys.update((float(b.maximum[1]) + dy / 2.0 + gap, float(b.minimum[1]) - dy / 2.0 - gap))
+                bx0, bx1, by0, by1 = corners[id(b)]
+                xs.update((bx0 + dx / 2.0, bx1 - dx / 2.0))
+                ys.update((by0 + dy / 2.0, by1 - dy / 2.0))
+            for bx0, bx1, by0, by1 in packed_corners:
+                xs.update((bx1 + dx / 2.0 + gap, bx0 - dx / 2.0 - gap))
+                ys.update((by1 + dy / 2.0 + gap, by0 - dy / 2.0 - gap))
             if dense > 0.0:
                 spans = [(float(b.minimum[0]), float(b.maximum[0]), float(b.minimum[1]), float(b.maximum[1])) for b in bases] \
                     if bases else [(model.x_wall_min, rect.x_max, rect.y_min, rect.y_max)]
@@ -469,18 +475,39 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                 pairs = prefilter(model, cfg, container, dx, dy, dz, bottom, xs, ys, on_floor)
             else:
                 pairs = [(x, y) for x in sorted(xs) for y in sorted(ys)]
+            # the validator's verdicts for the whole grid in one pass
+            # (fastgeom.validate_points, the same numbers as validate)
+            verdicts = None
+            if getattr(cfg, "batch_validate", True) and getattr(cfg, "fast_validate", False):
+                from rule_alpha import fastgeom, stability as _stability
+
+                fresh = []
+                for x, y in pairs:
+                    key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
+                    if key in seen:
+                        continue
+                    seen.add(key)
+                    fresh.append((x, y))
+                pairs = fresh
+                verdicts = fastgeom.validate_points(pairs, bottom + dz / 2.0, (dx, dy, dz), model, container, cfg,
+                                                    _stability.is_stable)
             for n_pair, (x, y) in enumerate(pairs):
                 if deadline is not None and n_pair % 64 == 0 and _time.perf_counter() > deadline:
                     out_of_time = True
                     break
-                key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
-                if key in seen:
-                    continue
-                seen.add(key)
+                if verdicts is not None:
+                    if not verdicts[n_pair]:
+                        continue
+                else:
+                    key = (o.index, round(x, 3), round(y, 3), round(bottom, 3))
+                    if key in seen:
+                        continue
+                    seen.add(key)
                 box = AABB((x, y, bottom + dz / 2.0), (dx, dy, dz), "stack")
-                ok, _why = layer1.validate(box, model, container, cfg)
-                if not ok:
-                    continue
+                if verdicts is None:
+                    ok, _why = layer1.validate(box, model, container, cfg)
+                    if not ok:
+                        continue
                 if getattr(cfg, "allow_cover_other_attribute", False):
                     # the count pass: the physics is the only judge -- except
                     # over priority cargo when the pass keeps that cover

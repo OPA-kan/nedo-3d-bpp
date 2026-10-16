@@ -344,6 +344,54 @@ def is_stable(box: AABB, container: dict, config) -> tuple[bool, float]:
     return state.margin >= config.com_margin, state.margin
 
 
+def evaluate_points(cx, cy, cz: float, size, container: dict, config) -> list[Stability]:
+    """``evaluate`` for boxes of one size at one height centred at every
+    ``(cx[i], cy[i])``: the contact rectangles of all of them in one pass
+    over the structure arrays (the same numbers as ``contact_patches``),
+    the hull and the margin per box as before."""
+    from ._reuse import cache_lookup
+
+    cx = np.asarray(cx, dtype=np.float64)
+    cy = np.asarray(cy, dtype=np.float64)
+    n = cx.shape[0]
+    if n == 0:
+        return []
+    structure = cache_lookup(_STRUCTURE_CACHE, 32, container, _Structure)
+    smin_x, smax_x, smin_y, smax_y, stop = structure.arrays(
+        bool(getattr(config, "priority_is_structure", False)), bool(getattr(config, "soft_is_structure", False)))
+    sx, sy, sz = (float(v) for v in size)
+    hx, hy, hz = sx / 2.0, sy / 2.0, sz / 2.0
+    bottom = float(cz) - hz
+    idx = np.nonzero(np.abs(bottom - stop) <= config.contact_tolerance)[0]
+    none = Stability(-float("inf"), 0.0, 0, ())
+    if idx.shape[0] == 0:
+        return [none] * n
+    x_min = np.maximum((cx - hx)[:, None], smin_x[idx][None, :])
+    x_max = np.minimum((cx + hx)[:, None], smax_x[idx][None, :])
+    y_min = np.maximum((cy - hy)[:, None], smin_y[idx][None, :])
+    y_max = np.minimum((cy + hy)[:, None], smax_y[idx][None, :])
+    keep = (x_max - x_min > 1e-9) & (y_max - y_min > 1e-9)
+    out = []
+    for i in range(n):
+        ks = np.nonzero(keep[i])[0]
+        if ks.shape[0] == 0:
+            out.append(none)
+            continue
+        corners = []
+        area = 0.0
+        count = 0
+        for k in ks.tolist():
+            rect = Rect(float(x_min[i, k]), float(x_max[i, k]), float(y_min[i, k]), float(y_max[i, k]))
+            area += rect.area
+            count += 1
+            corners.extend([(rect.x_min, rect.y_min), (rect.x_max, rect.y_min),
+                            (rect.x_max, rect.y_max), (rect.x_min, rect.y_max)])
+        polygon = convex_hull(corners)
+        out.append(Stability(margin=point_margin(polygon, (float(cx[i]), float(cy[i]))),
+                             contact_area=area, contact_count=count, polygon=tuple(polygon)))
+    return out
+
+
 def support_area_ratio(box: AABB, container: dict, config) -> float:
     """Kept for diagnostics only: contact area over footprint.
 
