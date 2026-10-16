@@ -46,6 +46,18 @@ To measure a change, append `,field=value` to the ship arm's line.
   (`plan_tail_order=soft-first` / `soft-first-prio-last` / `small-first`,
   reports/wedge/a-tail-order.md); records `reports/bench/atail*-*`.
 
+- `arm_softl-{base,col,pg,sos,colsos,all}_{c,b}.txt`: the soft-ladder round
+  (`reports/wedge/soft-ladder.md`) on the shipped C and B arms: `base` is
+  the ship arm again (the replicate spread); `col` the typed-column rung
+  (`soft_tops_for_soft`); `pg` the four pocket-guard fixes
+  (`pocket_guard_deadline_share=0.5`, `_all_rooms`, `_tie_soft_top`,
+  `_phase_prior`); `sos` the shadow's soft-on-soft thresholds and pre-settle
+  (`shadow_soft_on_soft_drift_xy=0.08`, `_angle_deg=12`,
+  `shadow_presettle_steps=60`); `colsos` the column rung with the shadow
+  fields; `all` every field and `priority_tops_for_priority`. Records
+  `reports/bench/softl-<arm>-core` (C) and `softl-<arm>-core-b` (B), priced
+  against `ship-core` / `ship-core-b`. None shipped.
+
 ## Judging a run
 
 `python -m bench.platform_score <base_dir> <new_dir> ...` prices every
