@@ -926,6 +926,22 @@ where the re-plan's count frame fits, each worth about 2.7 points; the
 risk is v51 / v52's lost episode returning if the re-plan's time still
 starves the race on the slower machine.
 
+Fifty-sixth build (v56): v55's re-plan with the typed-standing gallery
+(`plan_typed_standing`, `_no_priority_container`,
+`_variants="back-stand-2;back-stand-1"`: the count frame's soft and
+priority cargo standing against the back wall, the braced variants,
+kept off layouts with a priority container; `reports/wedge/a-standing.md`).
+At the 30 s bench budget against the shipped form: dense-a +16.00
+[+9.52, +23.28] (counted 10 -> 23), hard-a +6.01 [+1.18, +11.88]
+(26 -> 31), core-a +0.28 [-0.29, +1.12] (soft +4.3); the re-plan alone
++12.17 / +2.15 / -0.43 (`reports/bench/acsfix30-*`, `acountfix30-*`).
+Optimize on the bench 19-22 s mean, 30 s max at that budget (the
+dry-run cut on 19-27 of 48 core-a / hard-a episodes; the platform's
+140 s is two to three times the bench's 30 s after the slowdown).
+Official sample: A 32.11 / 25 with the optimize 19.5 s, B 29.59 / 26,
+C 26.44 / 25; policy max B 4.37 s, C 4.18 s
+(`official-sample-abc-v56.json`).  Supersedes v55 as the candidate.
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the

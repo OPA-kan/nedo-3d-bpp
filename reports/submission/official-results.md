@@ -668,3 +668,12 @@ the bench's dense manifests 16-23 s (v52's was at the 140 s edge on the
 platform before the speedup).  Expected: the uncounted dense A episodes
 crossing where the count frame fits; the risk is v51 / v52's lost
 episode returning (reports/wedge/a-count-secure.md).
+
+v56 (v55's re-plan with the typed-standing gallery; B and C as v54) is
+built and checked on the official sample (A 32.11 / 25 with the
+optimize 19.5 s, B 29.59 / 26, C 26.44 / 25, policy max B 4.37 s,
+C 4.18 s), awaiting the platform; it supersedes v55 as the candidate.
+At the 30 s bench budget against the shipped form: dense-a +16.0
+(counted 10 -> 23), hard-a +6.0 (26 -> 31), core-a +0.28 n.s.; the
+re-plan alone +12.2 / +2.2 / -0.43 (reports/wedge/a-count-secure.md,
+a-standing.md; records acsfix30-*).

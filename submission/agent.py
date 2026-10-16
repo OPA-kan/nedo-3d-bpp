@@ -190,6 +190,9 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # the offline phase is half its time: at the platform's 20-30 s bench
 # budget the re-plan prices +11 to +12 on dense-a (counted 10 -> 20),
 # hard-a +0.1 / +2.2 n.s., core-a -0.43 n.s., sample-a identical.
+# v56: v55's re-plan with the typed-standing gallery (plan_typed_standing
+# and its switches below): at the 30 s bench budget dense-a +16.0
+# (counted 10 -> 23), hard-a +6.0 (26 -> 31), core-a +0.28 n.s.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -574,7 +577,18 @@ class Agent(RuleAlphaAgent):
                       # records acountfix20 / acountfix30)
                       plan_count_secure=True, plan_count_secure_choice=True, plan_count_secure_margin=0,
                       plan_count_secure_race_chosen=True, plan_count_secure_early=True,
-                      plan_count_secure_blocks="plain")
+                      plan_count_secure_blocks="plain",
+                      # v56: the re-plan with the typed-standing gallery
+                      # (reports/wedge/a-standing.md: the count frame's soft
+                      # and priority cargo standing against the back wall,
+                      # the braced variants, kept off layouts with a priority
+                      # container).  At the 30 s bench budget against the
+                      # shipped form: dense-a +16.0 [+9.5, +23.3] (counted
+                      # 10 -> 23), hard-a +6.0 [+1.2, +11.9] (26 -> 31),
+                      # core-a +0.28 n.s. (soft +4.3); the re-plan alone
+                      # +12.2 / +2.2 / -0.43 (records acsfix30-*)
+                      plan_typed_standing=True, plan_typed_standing_no_priority_container=True,
+                      plan_typed_standing_variants="back-stand-2;back-stand-1")
         # v51 / v52 (not kept): the count-secured re-plan
         # (plan_count_secure and its switches) lost a counted A episode on
         # the platform twice; the shipped form is v50's again
