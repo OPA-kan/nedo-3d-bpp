@@ -107,6 +107,9 @@ class RuleAlphaAgent:
         self._manifest_total: int | None = None
         self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
         self.phase_stats: dict = {}
+        # the cliff veto's counters (config.cliff_veto; surface.cliff_veto
+        # fills checks / cliffs / fired, _cliff_band the band steps)
+        self.cliff_stats: dict = {}
         self.pool_level_stats: dict = {}
         self._phase_low = False
         self._count_cover = True
@@ -1116,6 +1119,13 @@ class RuleAlphaAgent:
                 action = self._emit(pool_index, placement)
                 if action is not None:
                     return action
+
+        # the cliff veto's band (config.cliff_veto): the containers whose
+        # usable surface lies in the middle band, read once a call before
+        # any ladder call; the ladder reads it off the board
+        if getattr(self.config, "cliff_veto", False):
+            self.board.cliff_band = self._cliff_band()
+            self.board.cliff_stats = self.cliff_stats
 
         # Task B: which of the visible items goes next (see the config's
         # ``pool_item_search``); the ladder's own item is tried first, so
@@ -2257,6 +2267,34 @@ class RuleAlphaAgent:
         if low:
             self.phase_stats["low_steps"] = self.phase_stats.get("low_steps", 0) + 1
         return low
+
+    def _cliff_band(self) -> frozenset:
+        """The containers whose usable surface over their floor area lies
+        in the cliff veto's band, cliff_veto_low to cliff_veto_high
+        (``surface.usable_surface_ratio``, about 1 ms a container; the
+        phase switch's window)."""
+        from .surface import usable_surface_ratio
+
+        if self.board is None:
+            return frozenset()
+        low = float(getattr(self.config, "cliff_veto_low", 0.25))
+        high = float(getattr(self.config, "cliff_veto_high", 0.6))
+        window = str(getattr(self.config, "phase_switch_window", "0.40x0.55x0.24"))
+        t0 = time.perf_counter()
+        band = set()
+        for ci in range(len(self.board.models)):
+            try:
+                ratio = usable_surface_ratio(self.board, ci, window)
+            except Exception:
+                continue
+            if low <= ratio <= high:
+                band.add(ci)
+        stats = self.cliff_stats
+        stats["reads"] = stats.get("reads", 0) + 1
+        stats["read_seconds"] = stats.get("read_seconds", 0.0) + (time.perf_counter() - t0)
+        if band:
+            stats["band_steps"] = stats.get("band_steps", 0) + 1
+        return frozenset(band)
 
     def _under_count(self, containers: list) -> bool:
         threshold = self._count_threshold()

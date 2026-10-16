@@ -4902,6 +4902,26 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             if override is not None:
                 chosen, chosen_archetype = override
 
+        if (
+            getattr(config, "cliff_veto", False)
+            and rung_ordered is not None
+            and len(rung_ordered) > 1
+            and container_idx in (getattr(board, "cliff_band", None) or ())
+        ):
+            # the cliff veto (config.cliff_veto): in the middle band of the
+            # phase (board.cliff_band, the agent's reading once a call) a
+            # pick that closes a cliff's worth of usable surface beyond
+            # its footprint yields to the first survivor of its rung that
+            # closes less than half of it
+            from .surface import cliff_veto
+
+            override = cliff_veto(
+                chosen, chosen_archetype, rung_ordered, board, container_idx, config,
+                stats=getattr(board, "cliff_stats", None),
+            )
+            if override is not None:
+                chosen, chosen_archetype = override
+
         if selector is not None:
             # a learned or otherwise external selector sees exactly what the
             # ladder saw -- the vetoed survivors with their features -- and

@@ -174,6 +174,10 @@ def run_episode(scene, arm, max_steps: int = 400, policy_budget: float = 8.0,
         metrics["shadow"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in agent.shadow_stats.items()}
     if getattr(agent, "phase_stats", None):
         metrics["phase"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in agent.phase_stats.items()}
+    if getattr(agent, "cliff_stats", None):
+        # the cliff veto (config.cliff_veto): the band steps, the checks,
+        # the cliffs seen and the vetoes fired, by the rung they fired on
+        metrics["cliff"] = {k: (round(v, 3) if isinstance(v, float) else v) for k, v in agent.cliff_stats.items()}
     if getattr(agent, "optimize_stats", None):
         # Task A's offline phase: the planner's and the dry-run's seconds and
         # plan sizes, whether the deadline cut the dry-run, the plan played
