@@ -286,6 +286,74 @@ def arbitrate_surface(chosen, chosen_archetype: str, ordered: list, board, conta
     return pool[best], f"surface/{chosen_archetype}"
 
 
+def closed_share(scorer: SurfaceScorer, load: _Load, base: np.ndarray, box: AABB, soft: bool = False) -> float:
+    """The usable surface the box closes beyond its own footprint, as a
+    share of the floor area: the usable surface before it less after it,
+    less the cells of its footprint that were usable (the arbiter's
+    credit: a flat box on a level patch is charged nothing for the cells
+    under it).  Negative when the top the box offers back is more than
+    what it closes beside it."""
+    after = scorer.mask(load, box, soft)
+    credit = load.mask(box) & base
+    floor = float(load.floor.sum())
+    if floor <= 0:
+        return 0.0
+    return (float(base.sum()) - float(after.sum()) - float(credit.sum())) / floor
+
+
+def cliff_veto(chosen, chosen_archetype: str, ordered: list, board, container_idx: int, config,
+               stats: dict | None = None):
+    """The cliff veto (``config.cliff_veto``): when the rung's pick
+    (``chosen``, first in ``ordered``, the rung's own order) closes more
+    than ``cliff_veto_close`` of the floor area beyond its own footprint
+    (``closed_share``), the first of the next ``cliff_veto_k`` - 1
+    survivors of the same rung that closes less than half of that takes
+    its place.  Returns ``(candidate, archetype)`` or None; the pick
+    stands when it is no cliff, when no survivor halves it, or when
+    ``cliff_veto_seconds`` ran out before one was found.  ``stats``
+    counts the checks, the cliffs seen, the vetoes fired and the
+    seconds."""
+    k = int(getattr(config, "cliff_veto_k", 6))
+    pool = list(ordered[:k])
+    if chosen not in pool:
+        pool.insert(0, chosen)
+    others = [c for c in pool if c is not chosen]
+    if not others:
+        return None
+    scorer = scorer_for(config)
+    t0 = time.perf_counter()
+    budget = float(getattr(config, "cliff_veto_seconds", 0.3))
+    limit = float(getattr(config, "cliff_veto_close", 0.12))
+    load = scorer.load(board, container_idx)
+    soft = bool(chosen.profile.is_soft)
+    base = scorer.mask(load)
+    closed = closed_share(scorer, load, base, chosen.box, soft)
+    if stats is not None:
+        stats["checks"] = stats.get("checks", 0) + 1
+    picked = None
+    if closed > limit:
+        if stats is not None:
+            stats["cliffs"] = stats.get("cliffs", 0) + 1
+            stats["closed_sum"] = stats.get("closed_sum", 0.0) + closed
+        for c in others:
+            if time.perf_counter() - t0 > budget:
+                if stats is not None:
+                    stats["timeouts"] = stats.get("timeouts", 0) + 1
+                break
+            if closed_share(scorer, load, base, c.box, soft) < 0.5 * closed:
+                picked = c
+                break
+    if stats is not None:
+        stats["seconds"] = stats.get("seconds", 0.0) + (time.perf_counter() - t0)
+    if picked is None:
+        return None
+    if stats is not None:
+        stats["fired"] = stats.get("fired", 0) + 1
+        key = "fired_" + str(chosen_archetype)
+        stats[key] = stats.get(key, 0) + 1
+    return picked, f"cliff/{chosen_archetype}"
+
+
 def usable_surface_ratio(board, container_idx: int, window: str = "0.40x0.55x0.24",
                          cell: float = 0.02, gap: float = 0.05) -> float:
     """The usable surface of one container over its floor area: the phase

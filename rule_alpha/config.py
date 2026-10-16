@@ -587,6 +587,41 @@ class RuleAlphaConfig:
     """Gaps between tops at one height up to this wide, in metres, are
     part of one patch (the settled clearance is 2.6 cm; a box spans it)."""
 
+    cliff_veto: bool = False
+    """The cliff veto (``surface.cliff_veto``), a narrower lever than the
+    arbiter.  The usable-surface trajectory is a staircase, not a slope
+    (findings, "The usable surface falls in cliffs"): 3-5 placements an
+    episode each close 0.12-0.21 of the floor area, two to three times
+    the box's own footprint, from every archetype, and the ratio then
+    sits on a plateau (0.26, 0.14) for 5-8 placements until the decline.
+    In the middle band of the phase -- a container's usable surface over
+    its floor area (``surface.usable_surface_ratio``, read once a policy
+    call like the phase switch's) between ``cliff_veto_low`` and
+    ``cliff_veto_high``; above it the floor is open and a cliff costs
+    nothing yet, under it the low phase's rescues place -- the rung's
+    pick is stamped on the 2 cm heightmap the arbiter uses, and when it
+    closes more than ``cliff_veto_close`` of the floor area beyond its own
+    footprint (the usable surface before less after, less the cells of
+    its footprint that were usable: the arbiter's credit), the first of
+    the rung's other survivors within ``cliff_veto_k`` that closes less
+    than half of that takes its place.  Otherwise the pick stands, so
+    the rung's order decides every step that is not a cliff.  The
+    arbiter (the top-4 candidate keeping the most surface, margin 0.05
+    m^2, every step) priced -0.42 on sample C; this one acts only on the
+    cliffs and asks for a halving, not a maximum."""
+
+    cliff_veto_low: float = 0.25
+    cliff_veto_high: float = 0.6
+    cliff_veto_close: float = 0.12
+    """Share of the floor area the pick must close beyond its footprint
+    for the question to be asked (the probe's cliffs: 0.12-0.21; the
+    0.55 x 0.40 box's footprint is 0.11 of the 2.03 m^2 floor)."""
+    cliff_veto_k: int = 6
+    cliff_veto_seconds: float = 0.3
+    """Seconds one call may spend on the readings (about 1-3 ms each at
+    2 cm: the load, the surface before, the pick and up to k - 1
+    survivors)."""
+
     standing_row_rule: bool = False
     """Standing poses at the back wall form rows (``layer1._standing_off_row``,
     veto ``standing-off-row``): a box on end against the back wall, on
