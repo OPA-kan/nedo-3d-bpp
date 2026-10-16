@@ -48,4 +48,5 @@ To measure a change, append `,field=value` to the ship arm's line.
   `shadow_presettle_steps=60`); `colsos` the column rung with the shadow
   fields; `all` every field and `priority_tops_for_priority`. Records
   `reports/bench/softl-<arm>-core` (C) and `softl-<arm>-core-b` (B), priced
-  against `ship-core` / `ship-core-b`. None shipped.
+  against `ship-core` / `ship-core-b`; `softl-col-hard2` and
+  `softl-all-hard2` against `ship-hard2`. None shipped.
