@@ -330,6 +330,20 @@ class RuleAlphaAgent:
             return None
         return "planner" if a else "dry-run"
 
+    def _dense_manifest(self, item_list: list) -> bool:
+        """config.plan_dry_run_first_dense: True when the manifest's volume
+        is at least this share of the containers' (box) volume, or always
+        when the share is 0."""
+        share = float(getattr(self.config, "plan_dry_run_first_dense", 0.0) or 0.0)
+        if share <= 0.0:
+            return True
+        if self.board is None:
+            return False
+        capacity = sum(float(c.get("length", 0)) * float(c.get("width", 0)) * float(c.get("height", 0))
+                       for c in self.board.containers) or 1.0
+        volume = sum(float(i["length"]) * float(i["width"]) * float(i["height"]) for i in item_list)
+        return volume / capacity >= share
+
     def _valuable_before_tail(self, order: list, item_list: list) -> list:
         """config.plan_valuable_before_tail: the soft and priority items
         that the constructive order would play after the last share of
@@ -421,6 +435,20 @@ class RuleAlphaAgent:
         # fills the budget, so this decides which plan a layout gets.
         dry_run_first = use_dry_run and getattr(self.config, "plan_dry_run_first_with_shelf", False) \
             and any(getattr(m, "main_shelf", None) is not None for m in self.board.models)
+        # config.plan_dry_run_first: the dry-run first on every layout (or
+        # on dense manifests only, plan_dry_run_first_dense), the planner
+        # with what is left
+        if use_dry_run and getattr(self.config, "plan_dry_run_first", False) and self._dense_manifest(item_list):
+            dry_run_first = True
+        planner_deadline = deadline
+        reserve = float(getattr(self.config, "plan_dry_run_reserve", 0.0) or 0.0)
+        if use_dry_run and reserve > 0.0:
+            # config.plan_dry_run_reserve: the planner stops this share of
+            # the budget before the deadline, which the dry-run keeps
+            planner_deadline = deadline - reserve * float(self.config.offline_budget_seconds)
+        self.optimize_stats = {"dry_first": bool(dry_run_first), "planner_seconds": None, "dry_seconds": None,
+                               "planner_planned": None, "dry_planned": None, "dry_cut": None}
+        self.dry_run_stats = None
 
         def run_planner():
             from .planner import plan_packing
@@ -428,19 +456,27 @@ class RuleAlphaAgent:
             # the headroom reserve belongs to the planner's plan (see
             # _soft_headroom_reserve); it is set while planning
             self.plan_source = "planner"
+            t_plan = time.perf_counter()
             if str(getattr(self.config, "offline_planner", "")) == "layers":
                 from .layers import pack_layers
 
-                result = pack_layers(self, item_list, deadline)
+                result = pack_layers(self, item_list, planner_deadline)
             else:
-                result = plan_packing(self, item_list, deadline)
+                result = plan_packing(self, item_list, planner_deadline)
             self.plan_source = ""
+            self.optimize_stats["planner_seconds"] = round(time.perf_counter() - t_plan, 2)
+            self.optimize_stats["planner_planned"] = len(result[1]) if result else None
             return result
 
         def run_dry_run():
             from .offline import dry_run_order
 
-            return dry_run_order(self, item_list, order, deadline)
+            t_dry = time.perf_counter()
+            result = dry_run_order(self, item_list, order, deadline)
+            self.optimize_stats["dry_seconds"] = round(time.perf_counter() - t_dry, 2)
+            self.optimize_stats["dry_planned"] = len(result[1])
+            self.optimize_stats["dry_cut"] = (getattr(self, "dry_run_stats", None) or {}).get("cut")
+            return result
 
         dry = None
         dry_seconds = 0.0
@@ -544,6 +580,9 @@ class RuleAlphaAgent:
                 self.plan_by_index = {}
                 self.plan_source = f"search:{label}"
         self._order = [int(i) for i in order]
+        if getattr(self, "optimize_stats", None) is not None:
+            self.optimize_stats["source"] = self.plan_source
+            self.optimize_stats["seconds"] = round(time.perf_counter() - started, 2)
         return list(self._order)
 
     def policy(self, observation: dict):

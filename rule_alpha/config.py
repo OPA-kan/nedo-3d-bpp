@@ -2921,6 +2921,24 @@ class RuleAlphaConfig:
 
     plan_min_seconds: float = 15.0
 
+    plan_dry_run_first: bool = False
+    """Task A: the ladder's dry-run before the planner on every layout
+    (``plan_dry_run_first_with_shelf`` does it on shelf layouts only), the
+    planner only with ``plan_min_seconds`` of the budget left; the race
+    between the two plans is unchanged.  On the official sample A the
+    dry-run alone places 25 of 41 at a fill of 32.1 (v50's shipped
+    result), the planner alone 21 (the threshold) at 20.1, and on the
+    platform's slower machine the planner and the re-plan took the time
+    the dry-run needed (v51 / v52: optimize 139 s of 140)."""
+
+    plan_dry_run_first_dense: float = 0.0
+    """With ``plan_dry_run_first``: only on manifests whose volume is at
+    least this share of the containers' box volume (0: every manifest)."""
+
+    plan_dry_run_reserve: float = 0.0
+    """Task A, the planner first: the planner stops this share of the
+    offline budget before the deadline, which the dry-run keeps."""
+
     plan_count_secure: bool = False
     """Task A: when the planner's best plan holds fewer than the count
     threshold plus ``plan_value_margin`` items, the manifest is planned

@@ -28,4 +28,11 @@ for d in sys.argv[1:]:
                 switched.append(f"{r['scene']}({race.get('score_pick')}->{final} {race.get('planner')}/{race.get('dry_run')})")
     print(d)
     print("  ", fmt(stats(rs)))
+    by_class = collections.defaultdict(list)
+    for r in rs:
+        by_class[r["scene"].split("-")[1]].append(r)
+    if len(by_class) > 1:
+        print("   crossings by class:", " ".join(
+            f"{k} {sum(1 for r in v if r['metrics']['placed_count'] >= r['metrics']['total_items'] // 2 + 1)}/{len(v)}"
+            for k, v in sorted(by_class.items())))
     print("  ", dict(sorted(c.items())), " ".join(switched))
