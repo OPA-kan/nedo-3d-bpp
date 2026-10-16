@@ -851,6 +851,10 @@ was cut), so the loss is read as the `top` pick or the re-plan's time
 on the slower machine, not confirmed (`reports/wedge/a-count-secure.md`,
 section 6).  Official sample: A 32.11 / 25, B 29.59 / 26, C 26.44 / 25;
 policy max B 4.88 s, C 3.67 s (`official-sample-abc-v52.json`).
+Official platform: 53.43 (v51 53.50, v50 56.04): stability 18 steps as
+v51, the optimize time 139.2 s at the budget.  The re-plan itself loses
+a counted A episode on the platform; not kept, the shipped form stays
+v50's (`reports/submission/official-results.md`).
 
 ## Known limits
 
