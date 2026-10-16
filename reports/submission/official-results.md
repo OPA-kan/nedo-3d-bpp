@@ -635,3 +635,12 @@ question, and the two diagnostic builds of Task A's offline phase
 (`submit_diag_a_planner.zip`, `submit_diag_a_dryrun.zip`: the planner
 alone, the dry-run alone) would answer it directly.  Not kept; the
 shipped form is v50's.
+
+v54 (v50's form with Task A's offline phase 35-40 % faster, every
+decision the same: the anchor grids validated in one pass,
+`batch_validate`) is built and checked on the official sample (A
+32.11 / 25 with the optimize 27.2 -> 14.6 s, B 29.59 / 26, C 26.44 / 25,
+policy max B 3.65 s, C 3.23 s), awaiting the platform.  Expected: v50's
+result where the dry-run was already finishing inside the 140 s budget;
+where it was cut, the race now sees the whole dry-run plan
+(reports/wedge/findings.md).

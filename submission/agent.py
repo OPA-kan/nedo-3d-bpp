@@ -177,6 +177,11 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # scored 55.86 (v50 56.04): soft +1.45, cog +0.74, fill -0.86,
 # placement -2.2, the count unchanged; not kept, the shipped form is
 # v50's again.
+# v54: v50's form with Task A's offline phase 35-40 % faster and every
+# decision the same (rule_alpha.fastgeom.validate_points and
+# stability.evaluate_points: the anchor grids validated in one pass;
+# config.batch_validate).  Official sample as v50's, the optimize
+# 27.2 -> 14.6 s.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses

@@ -884,6 +884,24 @@ The planner's plans lose priority credit on the platform's manifests in
 a way the bench's placement model does not price; not kept, the
 shipped form stays v50's (`reports/submission/official-results.md`).
 
+Fifty-fourth build (v54): v50's form, every decision the same, with
+Task A's offline phase 35-40 % faster: the ladder's and the stack
+option's anchor grids validated in one numpy pass
+(`fastgeom.validate_points`, `stability.evaluate_points`, the sweep of
+the stable survivors stacked), the staircase tests once per x, the
+stack option's packed corners read once a call, the planner's drop
+height off the cached corner arrays (`batch_validate`, default on;
+`reports/wedge/findings.md`).  The agreement tests check every verdict
+and stability state against the per-box path; the plans are identical
+in order and pose on sample 0 / 3, c1s 2, c2p 2 and hard 7 (the
+dry-run 20.5 -> 13.3 s, 82 -> 47 s, 99 -> 64 s).  The online ladder
+runs the same code, so Tasks B and C are a little faster too, with the
+same placements.  Official sample: A 32.11 / 25 with the optimize
+27.2 -> 14.6 s, B 29.59 / 26, C 26.44 / 25; policy max B 3.65 s,
+C 3.23 s (`official-sample-abc-v54.json`).  Expected on the platform:
+v50's result where the dry-run was already finishing; where the 140 s
+budget had cut it, the race now sees the whole dry-run plan.
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the
