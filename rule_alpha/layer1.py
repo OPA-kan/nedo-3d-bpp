@@ -4468,6 +4468,10 @@ class Decision:
     # nothing in rule-alpha consults it.
     survivors: list = field(default_factory=list)
     chosen: "Candidate | None" = None
+    # the chosen rung's candidates in the rung's order (the pick first),
+    # for a reader that wants the rung's next few (the pair reservation,
+    # config.pair_reserve); empty when no rung chose
+    rung_ordered: list = field(default_factory=list)
 
 
 def _surface_filters(profile: cls.ItemProfile, model: ContainerModel, config) -> list[tuple]:
@@ -4924,6 +4928,7 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             ladder=ladder,
             survivors=list(survivors),
             chosen=chosen,
+            rung_ordered=list(rung_ordered) if rung_ordered else [],
         )
         if chosen_archetype == A_BRIDGE_SLIDE:
             # the late sliding bridge is last across containers too: a later

@@ -627,6 +627,35 @@ class RuleAlphaConfig:
     pair_key_tolerance: float = 0.02
     pair_key_window: str = "0.40x0.55"
 
+    pair_reserve: bool = False
+    """The same-class pair reservation on Task B (``rule_alpha/pair.py``,
+    ``RuleAlphaAgent._pair_reserve`` / ``_pair_honour``): when the
+    ladder's pick for a pool item is a floor pose of a box whose flat top
+    alone cannot hold the window of the smallest hard class
+    (``pair_key_window`` plus the clearances; the 0.55 x 0.40 x 0.24 box,
+    0.40 against 0.43) and the pool holds another item of the same class,
+    footprint and height, the pick is taken from the first
+    ``pair_reserve_k`` survivors of its rung, in the rung's order, that
+    leave room beside themselves for the partner: the same pose flush
+    along the side whose pair holds the window (0.55 x 0.80; 1.10 x 0.40
+    holds nothing), the settled clearance plus ``pair_reserve_slack``
+    between them, inside the floor and clear of the packed boxes.  The
+    spot is reserved for one call: on the next, the partner still in the
+    pool and the spot still free beside the box as it settled, the
+    partner goes there first (``layer1.validate``, the cover rule, the
+    shadow gate); otherwise the call falls through to the normal flow.
+    ``pair_key`` was inert because the lone box is laid when nothing of
+    its height is near it yet; the pair needs the next box, which Task C
+    cannot see and Task B's pool can (findings, "Where the empty volume
+    is made": the lone box's own top is a tenth of the container an
+    episode).  The search is bounded by ``pair_reserve_seconds``; what
+    it did is in the phase stats (``pair_eligible``, ``pair_reserved``,
+    ``pair_switched``, ``pair_honoured``, ``pair_lost``)."""
+
+    pair_reserve_k: int = 6
+    pair_reserve_slack: float = 0.01
+    pair_reserve_seconds: float = 0.3
+
     phase_switch: bool = False
     """The phase change read from the state (findings, "The phase change"):
     when a container's usable surface over its floor area

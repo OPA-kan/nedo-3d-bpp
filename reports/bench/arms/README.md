@@ -59,6 +59,13 @@ To measure a change, append `,field=value` to the ship arm's line.
   against `ship-core` / `ship-core-b`; `softl-col-hard2` and
   `softl-all-hard2` against `ship-hard2`. None shipped.
 
+- `arm_pair_b.txt`: the shipped B form with the same-class pair
+  reservation (`pair_reserve`: a narrow-topped floor box laid where its
+  partner in the pool fits flush beside it, the partner placed there on
+  the next call; `reports/wedge/pair-reserve.md`).  Records
+  `reports/bench/pair-sample-b`, `pair-core-b`, `pair-hard2-b`, priced
+  against `ship-sample-b` / `ship-core-b` / `ship-hard2-b`.
+
 ## Judging a run
 
 `python -m bench.platform_score <base_dir> <new_dir> ...` prices every

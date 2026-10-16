@@ -20,6 +20,7 @@ import numpy as np
 
 from . import classify as cls
 from . import layer1
+from ._reuse import AABB
 from .config import DEFAULT_CONFIG
 
 
@@ -108,6 +109,10 @@ class RuleAlphaAgent:
         self.shadow_stats = {"checks": 0, "vetoes": 0, "replaced": 0, "kept": 0, "skipped": 0, "seconds": 0.0}
         self.phase_stats: dict = {}
         self.pool_level_stats: dict = {}
+        # the pair reservation (config.pair_reserve): the spot kept beside
+        # the last floor box for its partner in the pool, for one call
+        self._pair_reservation: dict | None = None
+        self._pair_pending: dict | None = None
         self._phase_low = False
         self._count_cover = True
         self._really_under = True
@@ -941,6 +946,15 @@ class RuleAlphaAgent:
                 if action is not None:
                     return action
 
+        # the pair reservation's second half (config.pair_reserve): the
+        # partner of the last call's floor box on the spot kept beside it,
+        # before any other stage can take the spot
+        self._pair_pending = None
+        if self._pair_reservation is not None:
+            action = self._pair_honour(pool)
+            if action is not None:
+                return action
+
         # soft cargo where it costs the hard stacks nothing (Task B, and any
         # item off the plan): the pool order puts every soft item behind
         # every hard one, so on the Task B suite the ladder placed 23 % of
@@ -1193,9 +1207,14 @@ class RuleAlphaAgent:
                 continue
             if getattr(self.config, "checkmate_guard", False):
                 decision = self._checkmate_guard(decision, pool, pool_index, profile)
+            if getattr(self.config, "pair_reserve", False) and len(pool) > 1:
+                # the pair reservation's first half (config.pair_reserve)
+                decision = self._pair_reserve(decision, pool, pool_index, profile)
             self.last_decision = decision
             action = self._emit(pool_index, self._pocket_guarded(pool, pool_index, profile, decision))
             if action is not None:
+                if self._pair_pending is not None:
+                    self._pair_commit()
                 return action
 
         # Layer 1 is finished.  The stack option is the learned Layer 2: it
@@ -1315,6 +1334,180 @@ class RuleAlphaAgent:
         self.last_decision = None
         self.declined.append(len(self.declined))
         return None
+
+    # -- the pair reservation (config.pair_reserve, rule_alpha/pair.py) -----
+    def _pair_stat(self, key: str, value: float = 1) -> None:
+        self.phase_stats[key] = self.phase_stats.get(key, 0) + value
+
+    def _pair_reserve(self, decision, pool: list, pool_index: int, profile):
+        """The first half: when the ladder's pick is a flat floor pose of a
+        narrow-topped box and the pool holds its partner, the first of the
+        rung's next ``pair_reserve_k`` poses (the pick first) that leaves
+        room for the partner flush beside it replaces the pick, and the
+        spot is noted for ``_pair_commit``.  Returns the decision."""
+        from . import pair
+
+        placement = decision.placement
+        if placement.surface != "floor" or profile.is_soft:
+            return decision
+        dims = (placement.orientation.dx, placement.orientation.dy, placement.orientation.dz)
+        if not pair.is_flat(dims) or not pair.narrow_top(dims[0], dims[1], self.config):
+            return decision
+        partner = pair.same_class_partner(pool, pool_index, pool[pool_index])
+        if partner is None:
+            return decision
+        self._pair_stat("pair_eligible")
+        t0 = time.perf_counter()
+        deadline = t0 + float(getattr(self.config, "pair_reserve_seconds", 0.3))
+        k = max(1, int(getattr(self.config, "pair_reserve_k", 6)))
+        ci = int(placement.container_idx)
+        model, container = self.board.model(ci), self.board.container(ci)
+        gap = float(self.config.settled_clearance) + float(getattr(self.config, "pair_reserve_slack", 0.01))
+        chosen = decision.chosen
+        ordered = list(decision.rung_ordered or decision.survivors)[:k]
+        cands = ([chosen] if chosen is not None else []) + [c for c in ordered if c is not chosen]
+        found = None
+        try:
+            for n, cand in enumerate(cands[:k]):
+                if n and time.perf_counter() > deadline:
+                    break
+                if cand is chosen or cand is None:
+                    pl = placement
+                else:
+                    if cand.surface != "floor":
+                        continue
+                    cdims = (cand.orientation.dx, cand.orientation.dy, cand.orientation.dz)
+                    if not pair.is_flat(cdims) or not pair.narrow_top(cdims[0], cdims[1], self.config):
+                        continue
+                    pl = layer1.build_placement(cand, placement.archetype, self.board, ci, profile, self.config)
+                spot = pair.find_spot(pl.box, model, container, self.config, gap)
+                if spot is None:
+                    continue
+                found = (cand, pl, spot)
+                break
+        except Exception as exc:
+            print(f"[pair] reservation failed: {exc!r}", flush=True)
+            found = None
+        self._pair_stat("pair_seconds", round(time.perf_counter() - t0, 4))
+        if found is None:
+            self._pair_stat("pair_no_room")
+            return decision
+        cand, pl, (axis, sign, _box) = found
+        if cand is not chosen:
+            self._pair_stat("pair_switched")
+            pl.reason = "pair reserve: " + pl.reason
+            decision = dataclasses.replace(decision, placement=pl, chosen=cand)
+        self._pair_pending = {
+            "container": ci, "first": int(profile.index), "partner": int(partner[1]),
+            "dims": tuple(float(v) for v in pl.box.size), "direction": (int(axis), int(sign)),
+        }
+        return decision
+
+    def _pair_commit(self) -> None:
+        """The reservation, from the pose that was actually emitted (the
+        shadow gate may have replaced the pick with another survivor): the
+        spot is found again beside it, and kept when there is one."""
+        from . import pair
+
+        pending, self._pair_pending = self._pair_pending, None
+        decision = self.last_decision
+        if pending is None or decision is None:
+            return
+        placement = decision.placement
+        ci = int(placement.container_idx)
+        if (placement.surface != "floor" or ci != pending["container"]
+                or int(placement.profile.index) != pending["first"]):
+            return
+        dims = tuple(float(v) for v in placement.box.size)
+        if not pair.is_flat(dims) or not pair.narrow_top(dims[0], dims[1], self.config):
+            return
+        gap = float(self.config.settled_clearance) + float(getattr(self.config, "pair_reserve_slack", 0.01))
+        try:
+            spot = pair.find_spot(placement.box, self.board.model(ci), self.board.container(ci), self.config, gap,
+                                  preferred=pending["direction"])
+        except Exception as exc:
+            print(f"[pair] commit failed: {exc!r}", flush=True)
+            spot = None
+        if spot is None:
+            return
+        axis, sign, _box = spot
+        self._pair_reservation = dict(pending, dims=dims, direction=(int(axis), int(sign)))
+        self._pair_stat("pair_reserved")
+
+    def _pair_honour(self, pool: list) -> dict | None:
+        """The second half: the partner of the last call's floor box on the
+        spot beside it, as the box settled, when the partner is still in
+        the pool and the spot is still free; through the validator, the
+        cover rule and the shadow gate.  The reservation lasts one call."""
+        from . import pair
+
+        reservation, self._pair_reservation = self._pair_reservation, None
+        if reservation is None or self.board is None:
+            return None
+
+        def lost(why: str):
+            self._pair_stat("pair_lost")
+            self._pair_stat("pair_lost_" + why)
+            return None
+
+        pool_index = next((j for j, item in enumerate(pool)
+                           if int(item.get("index", -1)) == reservation["partner"]), None)
+        if pool_index is None:
+            return lost("partner")
+        ci = int(reservation["container"])
+        if ci >= len(self.board.models):
+            return lost("container")
+        model, container = self.board.model(ci), self.board.container(ci)
+        first = pair.packed_box(container, reservation["first"])
+        if first is None:
+            return lost("first")
+        dims = tuple(reservation["dims"])
+        settled = tuple(float(v) for v in first.size)
+        if any(abs(a - b) > 0.02 for a, b in zip(settled, dims)) or float(first.minimum[2]) > model.z_floor + 0.03:
+            # the box settled on its side or off the floor: no pair to make
+            return lost("settled")
+        item = pool[pool_index]
+        profile = cls.classify_item(int(item["index"]), item, self.config)
+        orientation = next((o for o in profile.orientations
+                            if all(abs(float(a) - float(b)) <= 1e-3 for a, b in zip((o.dx, o.dy, o.dz), dims))), None)
+        if orientation is None:
+            return lost("orientation")
+        gap = float(self.config.settled_clearance) + float(getattr(self.config, "pair_reserve_slack", 0.01))
+        covers = None
+        if getattr(self.config, "no_cover_other_attribute", False):
+            shelves = model.shelves if getattr(self.config, "cover_veto_ignores_shelf", False) else None
+            covers = lambda box: layer1._covers_other_attribute(  # noqa: E731
+                box, container, profile.is_soft, profile.is_prioritized, shelves=shelves)
+        t0 = time.perf_counter()
+        try:
+            # the partner's own box, the first's as it settled: the same
+            # dimensions, so the first box's as the spot's template
+            template = AABB(first.center, dims, "first")
+            spot = pair.find_spot(template, model, container, self.config, gap,
+                                  preferred=reservation["direction"], covers=covers)
+        except Exception as exc:
+            print(f"[pair] honour failed: {exc!r}", flush=True)
+            spot = None
+        finally:
+            self._longest_call = max(getattr(self, "_longest_call", 0.0), time.perf_counter() - t0)
+        if spot is None:
+            return lost("spot")
+        axis, sign, box = spot
+        placement = layer1.Placement(
+            profile=profile, orientation=orientation, container_idx=ci, box=box,
+            surface="floor", surface_name="floor", role=cls.ROLE_NONE, archetype="pair-reserve",
+            reason=(f"pair reserve: flush beside item {reservation['first']} along "
+                    f"{'xy'[axis]}{'+' if sign > 0 else '-'}, gap {gap:.3f} m"),
+            container_is_prioritized=bool(model.is_prioritized), container_has_shelf=bool(model.has_shelf),
+            layer=1,
+        )
+        self.last_decision = layer1.Decision(placement=placement, candidate_counts={"pair": 1},
+                                             veto_counts={}, considered=1, ladder=[])
+        action = self._emit(pool_index, placement)
+        if action is None:
+            return lost("shadow")
+        self._pair_stat("pair_honoured")
+        return action
 
     def _levels_a_neighbour(self, placement) -> bool:
         """The placement's top meets a neighbouring top (within
