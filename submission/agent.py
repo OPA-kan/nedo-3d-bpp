@@ -185,6 +185,11 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # (v50 56.04): the optimize 56.0 s against 118.9, so the race saw whole
 # dry-run plans; fill +0.63, placement +2.15, cog -1.13, the counted
 # episodes unchanged.  Kept.
+# v55: v54 plus v52's count-secured re-plan for Task A (plan_count_secure
+# and its switches in the task_a overrides below), affordable now that
+# the offline phase is half its time: at the platform's 20-30 s bench
+# budget the re-plan prices +11 to +12 on dense-a (counted 10 -> 20),
+# hard-a +0.1 / +2.2 n.s., core-a -0.43 n.s., sample-a identical.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -555,7 +560,21 @@ class Agent(RuleAlphaAgent):
                       # and cog up as read, fill and placement down -- the
                       # planner's plans lose priority credit there in a way
                       # the bench does not price.  Not kept.
-                      plan_prefer_planner=False)
+                      plan_prefer_planner=False,
+                      # v55: v52's count-secured re-plan again, affordable
+                      # since v54 halved the offline phase.  v51 / v52 lost
+                      # a counted A episode on the platform with the
+                      # optimize at the 140 s budget's edge (139 s); with
+                      # the batched validator the same form runs in 16-23 s
+                      # on the bench's dense manifests at a 30 s budget
+                      # (about 40-85 s on the platform) and prices +12.2
+                      # [+6.4, +18.8] on dense-a (counted 10 -> 20), hard-a
+                      # +2.2 n.s., core-a -0.43 [-1.29, +0.01], sample-a
+                      # identical (reports/wedge/a-count-secure.md, the
+                      # records acountfix20 / acountfix30)
+                      plan_count_secure=True, plan_count_secure_choice=True, plan_count_secure_margin=0,
+                      plan_count_secure_race_chosen=True, plan_count_secure_early=True,
+                      plan_count_secure_blocks="plain")
         # v51 / v52 (not kept): the count-secured re-plan
         # (plan_count_secure and its switches) lost a counted A episode on
         # the platform twice; the shipped form is v50's again

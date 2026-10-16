@@ -907,6 +907,25 @@ budget), fill +0.63, placement +2.15, cog -1.13, stability -0.39,
 soft -0.1, the counted episodes unchanged.  Kept; the shipped form is
 v54's (`reports/submission/official-results.md`).
 
+Fifty-fifth build (v55): v54 plus v52's count-secured re-plan for
+Task A (`plan_count_secure`, `_choice`, `_margin=0`, `_race_chosen`,
+`_early`, `_blocks="plain"` in the task_a overrides; Tasks B and C as
+v54).  v51 and v52 had lost a counted A episode on the platform with
+the optimize at the 140 s budget's edge (139 s); with the batched
+validator the same form runs in 16-23 s on the bench's dense manifests
+at a 30 s offline budget (about 40-85 s on the platform) and, priced
+against the shipped form at the same budget, reads dense-a +12.17
+[+6.40, +18.75] at 30 s and +11.12 [+4.72, +18.01] at 20 s (counted
+10 -> 20), hard-a +2.15 n.s. / +0.09, core-a -0.43 [-1.29, +0.01],
+sample-a identical (`reports/bench/acountfix20-*`, `acountfix30-*`).
+Official sample: A 32.11 / 25 with the optimize 20.2 s, B 29.59 / 26,
+C 26.44 / 25; policy max B 4.64 s, C 3.92 s
+(`official-sample-abc-v55.json`).  Expected on the platform: the dense
+A manifests the count had been losing (4-5 of 8-10 A episodes) crossing
+where the re-plan's count frame fits, each worth about 2.7 points; the
+risk is v51 / v52's lost episode returning if the re-plan's time still
+starves the race on the slower machine.
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the

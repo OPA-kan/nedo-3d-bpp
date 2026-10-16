@@ -657,3 +657,14 @@ the short-budget ones: fill 39.25 (+0.63), placement 52.55 (+2.15), cog
 episodes unchanged), soft 50.0 (-0.1), placed fraction 0.654 (+0.009).
 At the weights: fill +0.18, placement +0.31, cog -0.25, stability -0.08,
 soft -0.01.  Policy time 6.84 s (6.75).  Kept: the shipped form is v54's.
+
+v55 (v54 plus v52's count-secured re-plan for Task A; B and C as v54)
+is built and checked on the official sample (A 32.11 / 25 with the
+optimize 20.2 s, B 29.59 / 26, C 26.44 / 25, policy max B 4.64 s,
+C 3.92 s), awaiting the platform.  At the platform's 20-30 s bench
+budget the re-plan prices +11 to +12 on dense-a (counted 10 -> 20),
+hard-a level, core-a -0.43 n.s., sample-a identical; its optimize on
+the bench's dense manifests 16-23 s (v52's was at the 140 s edge on the
+platform before the speedup).  Expected: the uncounted dense A episodes
+crossing where the count frame fits; the risk is v51 / v52's lost
+episode returning (reports/wedge/a-count-secure.md).
