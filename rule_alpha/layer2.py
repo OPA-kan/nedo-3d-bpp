@@ -59,10 +59,12 @@ FAMILY_HOLE_FILL = "hole-fill"
 FAMILY_TYPED_CAP = "typed-cap"
 FAMILY_LAST_RESORT = "last-resort"
 FAMILY_FRONT_WEDGE = "front-wedge"
+FAMILY_TYPED_COLUMN = "typed-column"
 
 ALL_FAMILIES = (
     FAMILY_FLOOR, FAMILY_SHELF, FAMILY_WEDGE_STEP, FAMILY_TERRACE,
     FAMILY_BRIDGE, FAMILY_WEDGE_BRIDGE, FAMILY_HOLE_FILL, FAMILY_TYPED_CAP, FAMILY_LAST_RESORT, FAMILY_FRONT_WEDGE,
+    FAMILY_TYPED_COLUMN,
 )
 
 ROLE_TERRACE = "terrace"
@@ -73,6 +75,7 @@ ROLE_TYPED_CAP = "typed-cap"
 ROLE_LAST_RESORT = "last-resort"
 ROLE_RESIDUAL = "residual"
 ROLE_FRONT_WEDGE = "front-wedge"
+ROLE_TYPED_COLUMN = "typed-column"
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +90,43 @@ def hard_tops(container: dict, model: ContainerModel, config) -> list[tuple[Rect
     out = []
     for box, is_soft, is_prioritized in packed_aabbs_local(container):
         if is_soft or is_prioritized:
+            continue
+        top = float(box.maximum[2])
+        if top >= model.z_ceiling - config.contact_tolerance:
+            continue
+        out.append((box_rect(box), top))
+    return out
+
+
+def typed_tops(container: dict, model: ContainerModel, profile, config) -> list[tuple[Rect, float]]:
+    """``(footprint, top z)`` of every packed item of the item's own
+    attribute that carries load (config.soft_tops_for_soft,
+    config.priority_tops_for_priority): soft tops for a soft item, priority
+    tops for a priority item, soft-priority tops for a soft-priority item.
+    A soft top carries only where the stability model says it does (soft
+    as structure, under ``soft_structure_max_top`` and the floor share); a
+    priority top only with ``priority_is_structure``.  Covering cargo of
+    the same attribute costs nothing on the platform; covering another
+    attribute is the cover rule's to refuse."""
+    from . import stability
+
+    soft = bool(profile.is_soft)
+    prio = bool(profile.is_prioritized)
+    if soft and not getattr(config, "soft_tops_for_soft", False):
+        return []
+    if prio and not soft and not getattr(config, "priority_tops_for_priority", False):
+        return []
+    if not soft and not prio:
+        return []
+    soft_here = soft and stability._soft_structure_here(container, bool(getattr(config, "soft_is_structure", False)))
+    prio_carries = bool(getattr(config, "priority_is_structure", False))
+    out = []
+    for box, is_soft, is_prioritized in packed_aabbs_local(container):
+        if bool(is_soft) != soft or bool(is_prioritized) != prio:
+            continue
+        if soft and not (soft_here and stability._soft_carries(box)):
+            continue
+        if prio and not soft and not prio_carries:
             continue
         top = float(box.maximum[2])
         if top >= model.z_ceiling - config.contact_tolerance:
@@ -800,13 +840,13 @@ __all__ = [
     "ALL_FAMILIES", "FAMILY_BRIDGE", "FAMILY_FLOOR", "FAMILY_HOLE_FILL",
     "FAMILY_SHELF", "FAMILY_WEDGE_STEP",
     "FAMILY_FRONT_WEDGE", "FAMILY_LAST_RESORT", "FAMILY_TERRACE",
-    "FAMILY_TYPED_CAP",
+    "FAMILY_TYPED_CAP", "FAMILY_TYPED_COLUMN",
     "FAMILY_WEDGE_BRIDGE", "Hole",
     "ROLE_BRIDGE", "ROLE_FRONT_WEDGE", "ROLE_HOLE_FILL",
     "ROLE_LAST_RESORT", "ROLE_RESIDUAL", "ROLE_TERRACE",
-    "ROLE_TYPED_CAP",
+    "ROLE_TYPED_CAP", "ROLE_TYPED_COLUMN",
     "ROLE_WEDGE_BRIDGE", "bridge_anchors", "flattest_fitting_tier",
-    "hard_plateau_stats", "hard_tops", "hole_anchors", "hole_fits",
+    "hard_plateau_stats", "hard_tops", "typed_tops", "hole_anchors", "hole_fits",
     "fits_with_clearance", "free_rectangles", "front_steps",
     "largest_plateau_area",
     "level_groups",

@@ -61,6 +61,10 @@ class ClassFrequencies:
         # counted, not estimated (set by ``manifest``)
         self.manifest: dict[tuple, int] | None = None
         self.seen_by_class: dict[tuple, int] = {}
+        # config.pocket_guard_phase_prior: while the phase switch reads the
+        # high phase (every container's usable surface over the switch's
+        # share), at least this many items are taken as still to come
+        self.phase_floor: float = 0.0
 
     def set_manifest(self, items: list) -> None:
         counts: dict[tuple, int] = {}
@@ -91,7 +95,7 @@ class ClassFrequencies:
 
     @property
     def remaining(self) -> float:
-        return max(0.0, self.expected_total - self.seen_count)
+        return max(0.0, self.expected_total - self.seen_count, self.phase_floor)
 
     def arrival_probabilities(self) -> list[tuple[float, float, float, float]]:
         """(l, w, h, P(at least one more of this class arrives)) per hard
@@ -139,6 +143,29 @@ class SoftAwareScorer(RoomScorer):
 class PocketGuard:
     """See the module docstring."""
 
+    @staticmethod
+    def _soft_tops(board, container_idx: int):
+        boxes = [b for packed, (b, _s, _p) in zip(board.container(container_idx).get("packed_items", []),
+                                                  packed_aabbs_local(board.container(container_idx)))
+                 if packed.get("is_soft")]
+        if not boxes:
+            return np.zeros((0, 5))
+        return np.array([[float(b.minimum[0]), float(b.maximum[0]), float(b.minimum[1]), float(b.maximum[1]),
+                          float(b.maximum[2])] for b in boxes])
+
+    @staticmethod
+    def _rests_on(box: AABB, tops, tolerance: float = 0.02) -> bool:
+        if tops is None or len(tops) == 0:
+            return False
+        bottom = float(box.minimum[2])
+        near = np.abs(tops[:, 4] - bottom) <= tolerance
+        if not near.any():
+            return False
+        t = tops[near]
+        ox = np.minimum(t[:, 1], float(box.maximum[0])) - np.maximum(t[:, 0], float(box.minimum[0]))
+        oy = np.minimum(t[:, 3], float(box.maximum[1])) - np.maximum(t[:, 2], float(box.minimum[1]))
+        return bool(((ox > 0.01) & (oy > 0.01)).any())
+
     def __init__(self, config):
         self.config = config
         self.margin = float(getattr(config, "pocket_guard_margin", 0.25))
@@ -150,6 +177,8 @@ class PocketGuard:
         self.min_support = float(getattr(config, "pocket_guard_min_support", 0.6))
         self.scorer = SoftAwareScorer(config, [], cell=float(getattr(config, "room_selector_cell", 0.05)),
                                       tolerance=float(getattr(config, "room_selector_tolerance", 0.02)))
+        self.all_rooms = bool(getattr(config, "pocket_guard_all_rooms", False))
+        self.tie_soft_top = bool(getattr(config, "pocket_guard_tie_soft_top", False))
         self.frequencies: ClassFrequencies | None = None
         self.calls = 0
         self.overrides = 0
@@ -169,6 +198,17 @@ class PocketGuard:
 
     def observe(self, pool: list, containers: int) -> None:
         self._ensure(containers).observe(pool)
+
+    def set_phase(self, phase_low: bool | None, containers: int) -> None:
+        """The phase switch's reading (config.pocket_guard_phase_prior): in
+        the high phase the board still has room the stream will fill, so
+        the guard does not stand down on the count prior alone; in the low
+        phase (or with no reading) the prior speaks."""
+        freq = self._ensure(containers)
+        if phase_low is None or phase_low:
+            freq.phase_floor = 0.0
+        else:
+            freq.phase_floor = float(getattr(self.config, "pocket_guard_phase_items", 10.0)) * max(1, int(containers))
 
     def classes(self) -> list[tuple[float, float, float, float]]:
         """The hard classes with a large footprint still likely to arrive,
@@ -199,24 +239,57 @@ class PocketGuard:
             chosen_score = self.scorer.slots(board, container_idx, extra=dataclasses.replace(chosen_box, name=alt_name))
             cfg = dataclasses.replace(self.config, stack_soft_min_support=0.0, stack_soft_standing=False)
             best = None
-            for ci in range(len(board.containers)):
+            best_top = None  # the best pose on a soft top (pocket_guard_tie_soft_top)
+            order = list(range(len(board.containers)))
+            base: dict[int, float] = {}
+            if self.all_rooms and len(order) > 1:
+                # config.pocket_guard_all_rooms: every container's room
+                # counts, so a pose is scored by the whole load's slots --
+                # its own container's with the box, every other's as it
+                # stands (the home container's slots alone made a pose in
+                # a roomier container look better or worse than it is);
+                # the home container is searched first, so a deadline cuts
+                # the others
+                order = [container_idx] + [ci for ci in order if ci != container_idx]
+                for ci in order:
+                    base[ci] = self.scorer.slots(board, ci)
+                chosen_score = chosen_score + sum(v for ci, v in base.items() if ci != container_idx)
+            for ci in order:
                 if time.perf_counter() > deadline:
                     break
                 cands = stack_candidates(board.model(ci), board.container(ci), cfg, profile,
                                          max_candidates=self.max_candidates, mass=float(mass), tower_min=None,
                                          extra_clearance=0.0, z_top=None, dense=self.anchor_step)
                 cands = [c for c in cands if c.on_floor or c.support_ratio >= self.min_support]
+                soft_tops = self._soft_tops(board, ci) if (self.tie_soft_top and soft) else None
                 for c in cands:
                     if time.perf_counter() > deadline:
                         break
                     s = self.scorer.slots(board, ci, extra=dataclasses.replace(c.box, name=alt_name))
-                    # ties go to the lower pose, then the ladder's own container
-                    key = (round(s, 3), -round(c.bottom, 3), 1 if ci == container_idx else 0)
+                    if base:
+                        s += sum(v for cj, v in base.items() if cj != ci)
+                    # ties go to the lower pose, then the ladder's own container;
+                    # with config.pocket_guard_tie_soft_top a pose on a soft top
+                    # first (a soft column keeps the floor the next soft box
+                    # would take)
+                    on_soft = 0
+                    if soft_tops is not None and not c.on_floor:
+                        on_soft = 1 if self._rests_on(c.box, soft_tops) else 0
+                    key = (round(s, 3), on_soft, -round(c.bottom, 3), 1 if ci == container_idx else 0)
                     if best is None or key > best[0]:
                         best = (key, c, ci, s)
+                    if on_soft and (best_top is None or key > best_top[0]):
+                        best_top = (key, c, ci, s)
         finally:
             self.seconds += time.perf_counter() - t0
-        if best is None or best[3] <= chosen_score + self.margin:
+        if best is None:
             return None
+        if best[3] <= chosen_score + self.margin:
+            # config.pocket_guard_tie_soft_top: a soft top that keeps at
+            # least the room the ladder's floor pose keeps wins without the
+            # margin (the floor pose spreads the carpet, the column does not)
+            if best_top is None or best_top[3] < chosen_score - 1e-9:
+                return None
+            best = best_top
         self.overrides += 1
         return best[1], best[2], chosen_score, best[3]
