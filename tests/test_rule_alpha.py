@@ -3009,3 +3009,63 @@ class BandLiftTest(unittest.TestCase):
         container, model, box = self._tall_board(self.MID - 0.02, shelf=True)
         self.assertAlmostEqual(float(layer1.action_center(box, model, container, on)[2]), box.center[2], places=9)
         self.assertEqual(layer1.validate(box, model, container, on)[0], False)
+
+
+class TypedColumnTest(unittest.TestCase):
+    """config.soft_tops_for_soft: the ladder's typed-column rung offers a soft
+    item the tops of soft cargo, and only where the stability model lets a
+    soft top carry."""
+
+    def _board(self, config):
+        container = make_container_dict(index=0, **ULD)
+        container["packed_items"] = [{
+            "index": 0, "length": 0.5, "width": 0.4, "height": 0.4, "mass": 10.0,
+            "is_soft": True, "is_prioritized": False, "orientation": 0,
+            "dims": (0.5, 0.4, 0.4), "pos": (0.4, 0.3, 0.04 + 0.2), "layer": 1,
+        }]
+        board = layer1.Board([container], config)
+        item = {"index": 1, "length": 0.5, "width": 0.4, "height": 0.4, "mass": 10.0,
+                "is_soft": True, "is_prioritized": False}
+        return board, cls.classify_item(1, item, config)
+
+    def _candidates(self, config):
+        board, profile = self._board(config)
+        out = []
+        for orientation in cls.layer2_orientation_order(profile, config)[: config.max_orientations_layer2]:
+            out.extend(layer1.generate_typed_column_candidates(board, profile, 0, orientation, config))
+        return out
+
+    def test_soft_tops_are_offered_to_soft_items(self):
+        config = dataclasses.replace(DEFAULT_CONFIG, soft_is_structure=True, soft_tops_for_soft=True)
+        cands = self._candidates(config)
+        self.assertTrue(cands)
+        for c in cands:
+            self.assertEqual(c.role, l2.ROLE_TYPED_COLUMN)
+            self.assertAlmostEqual(float(c.box.minimum[2]), 0.44, places=2)
+            self.assertGreaterEqual(c.features["typed_column_support"], config.typed_column_min_support - 1e-9)
+            self.assertEqual(layer1.eligible_archetypes(c, config), {layer1.A_TYPED_COLUMN})
+
+    def test_off_by_default_and_without_soft_structure(self):
+        self.assertFalse(DEFAULT_CONFIG.soft_tops_for_soft)
+        self.assertEqual(self._candidates(DEFAULT_CONFIG), [])
+        no_structure = dataclasses.replace(DEFAULT_CONFIG, soft_tops_for_soft=True)
+        self.assertEqual(self._candidates(no_structure), [])
+
+    def test_the_height_cap_holds(self):
+        config = dataclasses.replace(DEFAULT_CONFIG, soft_is_structure=True, soft_tops_for_soft=True)
+        saved = stability.SOFT_STRUCTURE_MAX_TOP
+        stability.SOFT_STRUCTURE_MAX_TOP = 0.3
+        try:
+            self.assertEqual(self._candidates(config), [])
+        finally:
+            stability.SOFT_STRUCTURE_MAX_TOP = saved
+
+    def test_the_rung_order(self):
+        config = dataclasses.replace(DEFAULT_CONFIG, soft_is_structure=True, soft_tops_for_soft=True)
+        board, profile = self._board(config)
+        ladder = layer1.archetype_ladder(profile, board, 0, config)
+        self.assertLess(ladder.index(layer1.A_TYPED_COLUMN), ladder.index(layer1.A_SOFT_EDGE))
+        last = dataclasses.replace(config, soft_tops_rung="last")
+        ladder = layer1.archetype_ladder(profile, board, 0, last)
+        self.assertGreater(ladder.index(layer1.A_TYPED_COLUMN), ladder.index(layer1.A_BACK_CORNER))
+        self.assertNotIn(layer1.A_TYPED_COLUMN, layer1.archetype_ladder(profile, board, 0, DEFAULT_CONFIG))
