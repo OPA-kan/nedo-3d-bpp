@@ -1988,6 +1988,39 @@ class RuleAlphaConfig:
     makes the rule the stream's: the sample's floors carry 0-0.3 of soft
     at any time, the carpets 0.5-0.8."""
 
+    soft_tops_for_soft: bool = False
+    """The ladder offers a soft item the tops of soft cargo as supports (the
+    ``typed-column`` rung, ``layer1.generate_typed_column_candidates``): a
+    flat pose flush with a soft top's edges or centred on it, built and
+    validated as every Layer 2 proposal is, a soft top carrying only where
+    the stability model says it does (``soft_is_structure``, under
+    ``soft_structure_max_top`` and ``soft_structure_floor_share``), with at
+    least ``typed_column_min_support`` of the footprint in contact.  Soft on
+    soft costs nothing on the platform (the cover rule penalises hard or
+    priority on soft).  Without it the ladder's soft rungs offered the
+    floor, the shelf and hard tops only, and every soft-on-soft placement
+    of the shipped v50 form came from the rescues (the physics resort,
+    the pocket guard's override, the stack option, the count pass, the
+    grid rescue)."""
+
+    priority_tops_for_priority: bool = False
+    """The same rung for priority cargo on priority tops (with
+    ``priority_is_structure``; soft-priority on soft-priority goes with
+    ``soft_tops_for_soft``)."""
+
+    soft_tops_rung: str = "first"
+    """Where the typed-column rung stands in the typed ladders: ``first``
+    (after the shelf, ahead of every floor rung: a soft item takes a
+    column over a floor pose whenever a column exists, so the soft carpet
+    stops spreading, and keeps the floor pose when no soft top does) or
+    ``last`` (after the floor rungs, before the typed cap)."""
+
+    typed_column_min_support: float = 0.7
+    """The least share of a typed-column pose's footprint in contact with
+    its support (a soft box with a corner off its soft support tilts and
+    slides in the settle; the stack option's soft poses at 0.4 support
+    tipped under the shake)."""
+
     stack_soft_is_structure: bool = True
     """Off, the stack option judges its poses with soft cargo carrying no
     load whatever ``soft_is_structure`` says.  On the Task C physics suite
@@ -2049,6 +2082,34 @@ class RuleAlphaConfig:
     pocket_guard_min_footprint: float = 0.2
     """Only hard classes with a flat footprint of at least this area (m^2)
     are protected: 0.55 x 0.40 (0.22) and up."""
+    pocket_guard_deadline_share: float = 0.0
+    """When positive, the guard's window is deadline-aware: it may run until
+    this share of the policy budget from the call's start (never past
+    0.85 of it), or ``pocket_guard_seconds`` from now if that is later.
+    The fixed 0.8 s window timed out on 91 of 228 soft floor decisions of
+    the soft-carpet boards before the guard had scored the poses it
+    generated (a candidate generation is 0.3-0.9 s a container)."""
+    pocket_guard_all_rooms: bool = False
+    """The guard compares poses by the whole load's room: every container's
+    slots, the pose's own with the box in it, the others as they stand.
+    Off, a pose in another container was scored by that container's
+    slots alone against the home container's for the ladder's pose, so a
+    roomier container won or lost on its size, not on the pose; the home
+    container is also searched first, so the deadline cuts the others."""
+    pocket_guard_tie_soft_top: bool = False
+    """Ties among the guard's poses go to a pose on a soft top before the
+    lower pose (off: the lowest, i.e. the floor), and a soft-top pose that
+    keeps at least the ladder's floor pose's room replaces it without the
+    margin: a soft box on the floor spreads the carpet even where the slots
+    the scorer counts do not see it."""
+    pocket_guard_phase_prior: bool = False
+    """The guard's count prior (``pocket_guard_items_per_container`` items a
+    container, after which nothing is expected and the guard stands down)
+    yields to the phase switch's reading: while every container is in the
+    high phase (usable surface over ``phase_switch_surface``), at least
+    ``pocket_guard_phase_items`` items a container are taken as still to
+    come.  Needs ``phase_switch``; without its reading the prior speaks."""
+    pocket_guard_phase_items: float = 10.0
 
     count_mode: bool = False
     """The platform scores every component but the fill as zero for an
@@ -3109,6 +3170,24 @@ class RuleAlphaConfig:
     """A settle that moves the box sideways by more than this is a veto
     (the drop from the lifted target is expected and not counted)."""
     shadow_max_angle_deg: float = 5.0
+    shadow_soft_on_soft_drift_xy: float = -1.0
+    """When non-negative, a soft item whose settled pose in the shadow world
+    rests on a soft packed item is vetoed only for a slide over this (m)
+    instead of ``shadow_max_drift_xy`` (the hard limits still apply).  The
+    probe (reports/wedge/soft-ladder.md): on 26 soft-on-soft poses the
+    shadow vetoed and the official simulator accepted, the official
+    settle moved the box past 2 cm or 5 degrees on 18 -- the shadow was
+    right about the motion, the veto is the agent's own rule, and the
+    official limits are 0.3 m and 45 degrees."""
+    shadow_soft_on_soft_angle_deg: float = -1.0
+    """The same for the tilt (degrees)."""
+    shadow_presettle_steps: int = 0
+    """After a sync the shadow world is stepped this many times before the
+    first check (``ShadowSim.presettle_steps``).  The official world's soft
+    stacks are still sinking when the observation is taken; the shadow
+    rebuilds them at rest.  60 steps took the median disagreement with the
+    official settle on those 26 poses from 1.2 cm / 1.0 degree to 0.3 cm /
+    0.6 degree."""
     shadow_hard_drift_xy: float = 0.10
     shadow_hard_angle_deg: float = 15.0
     """A pose the sweep or the settle rejects, or one that lands over these

@@ -63,6 +63,7 @@ A_LAST_RESORT = "last-resort"
 A_FRONT_WEDGE = "front-wedge"
 A_RESIDUAL = "residual"
 A_BRIDGE_SLIDE = "bridge-slide"
+A_TYPED_COLUMN = "typed-column"
 
 ALL_ARCHETYPES = (
     A_MAX_FOOTPRINT,
@@ -88,6 +89,7 @@ ALL_ARCHETYPES = (
     A_FRONT_WEDGE,
     A_RESIDUAL,
     A_BRIDGE_SLIDE,
+    A_TYPED_COLUMN,
 )
 
 
@@ -2477,6 +2479,17 @@ def _key_typed_cap(c):
     )
 
 
+def _key_typed_column(c):
+    # the best-supported pose first (a soft box half on a soft top tilts and
+    # slides in the settle), then the lowest top (the column grows level
+    # with its neighbours instead of up), then the deepest
+    return (
+        -round(c.features.get("typed_column_support", 0.0), 1),
+        round(c.features["top_z"], 2),
+        -c.features["y_back"],
+    )
+
+
 def _key_hole_fill(c):
     # take the most of the pocket, lying as flat as the pocket allows, and
     # among equals the one furthest back
@@ -2521,6 +2534,7 @@ ARCHETYPE_KEYS = {
     A_FRONT_WEDGE: _key_front_wedge,
     A_RESIDUAL: _key_residual,
     A_BRIDGE_SLIDE: _key_bridge,
+    A_TYPED_COLUMN: _key_typed_column,
 }
 
 
@@ -2535,6 +2549,12 @@ def eligible_archetypes(candidate: Candidate, config) -> set:
     if candidate.role == l2.ROLE_RESIDUAL:
         # its own rung after the floor rungs (config.residual_anchors)
         tags.add(A_RESIDUAL)
+        return tags
+    if candidate.role == l2.ROLE_TYPED_COLUMN:
+        # a typed item on a top of its own attribute (config.soft_tops_for_soft):
+        # its own rung, placed by config.soft_tops_rung; the floor rungs
+        # never see it
+        tags.add(A_TYPED_COLUMN)
         return tags
     if candidate.features.get("bridge_slide") and getattr(config, "bridge_slide_late", False):
         # a sliding bridge as the ladder's last real rung
@@ -2689,6 +2709,17 @@ def archetype_ladder(profile: cls.ItemProfile, board: Board, container_idx: int,
             A_SP_CLUSTER, A_PRIORITY_EDGE, A_HOLE_FILL, A_MIN_HOLE,
             A_BACK_CORNER, A_TYPED_CAP,
         ])
+    if _typed_column_wanted(profile, config):
+        # the typed column (config.soft_tops_for_soft): a soft box on a soft
+        # top (a priority box on a priority top) takes no floor.  "first":
+        # ahead of every floor rung (the shelf stays first), so the carpet
+        # stops spreading once a column can start; "last": after the floor
+        # rungs, a column only where the floor has nothing
+        if str(getattr(config, "soft_tops_rung", "first")) == "last":
+            at = ladder.index(A_TYPED_CAP) if A_TYPED_CAP in ladder else len(ladder)
+        else:
+            at = ladder.index(A_SHELF_SAVING) + 1 if A_SHELF_SAVING in ladder else 3
+        ladder.insert(at, A_TYPED_COLUMN)
     if getattr(config, "residual_anchors", False):
         # the empty rectangles of every level, after the floor rungs and
         # before the growth rungs: pack out before building up
@@ -2794,6 +2825,56 @@ def generate_layer2_candidates(board: "Board", profile: cls.ItemProfile,
             board, profile, container_idx, orientation, tops, built, config
         ))
     return built
+
+
+def _typed_column_wanted(profile: cls.ItemProfile, config) -> bool:
+    if profile.is_soft:
+        return bool(getattr(config, "soft_tops_for_soft", False))
+    if profile.is_prioritized:
+        return bool(getattr(config, "priority_tops_for_priority", False))
+    return False
+
+
+def generate_typed_column_candidates(board: "Board", profile: cls.ItemProfile,
+                                     container_idx: int, orientation: cls.Orientation,
+                                     config) -> list[Candidate]:
+    """Soft on soft, priority on priority (config.soft_tops_for_soft,
+    config.priority_tops_for_priority): the item's flat pose on a top of
+    its own attribute, flush with the top's edges or centred on it, built
+    and validated as every Layer 2 proposal is (the analytic validate with
+    the stability model's support polygon, soft tops carrying under
+    ``soft_structure_max_top``), and kept only with at least
+    ``typed_column_min_support`` of the footprint in contact.  Before this
+    the ladder offered soft cargo the floor, the shelf and hard tops only:
+    every soft-on-soft placement came from the rescues."""
+    if not _typed_column_wanted(profile, config):
+        return []
+    model = board.model(container_idx)
+    container = board.container(container_idx)
+    tops = l2.typed_tops(container, model, profile, config)
+    if not tops:
+        return []
+    dx, dy, dz = orientation.dx, orientation.dy, orientation.dz
+    gap = config.settled_clearance
+    proposals = []
+    for rect, top in tops:
+        if top + dz > model.z_ceiling:
+            continue
+        anchors = [(0.5 * (rect.x_min + rect.x_max), 0.5 * (rect.y_min + rect.y_max))]
+        anchors.extend(l2.terrace_anchors(rect, dx, dy, gap))
+        for x, y in anchors:
+            proposals.append((l2.FAMILY_TYPED_COLUMN, l2.ROLE_TYPED_COLUMN, x, y, top))
+    built = _build_layer2(board, profile, container_idx, orientation, proposals, config)
+    need = float(getattr(config, "typed_column_min_support", 0.7))
+    out = []
+    for candidate in built:
+        share = stability.support_area_ratio(candidate.box, container, config)
+        if share + 1e-9 < need:
+            continue
+        candidate.surface_name = "typed-top"
+        candidate.features["typed_column_support"] = float(share)
+        out.append(candidate)
+    return out
 
 
 def _bridge_slide_candidates(board: "Board", profile: cls.ItemProfile,
@@ -3936,7 +4017,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
     if config.support_coverage_at_any_depth:
         kept = []
         for candidate in survivors:
-            if candidate.surface != "item":
+            if candidate.surface != "item" or candidate.role == l2.ROLE_TYPED_COLUMN:
                 kept.append(candidate)
                 continue
             _area, coverage = plateau_support(
@@ -3988,7 +4069,7 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
                 if (
                     candidate.surface == "item"
                     and candidate.role not in (
-                        cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL
+                        cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL, l2.ROLE_TYPED_COLUMN
                     )
                     and tri.in_strip(candidate.box, model, config)
                     and not tri.cap_allows(candidate.profile, state, config)
@@ -4018,6 +4099,12 @@ def apply_vetoes(candidates: list[Candidate], board: Board, container_idx: int,
         for candidate in survivors:
             if candidate.role in (cls.ROLE_WEDGE_STEP, cls.ROLE_SLOPE_INFILL):
                 kept.append(candidate)  # the ramp grows as far as it can
+                continue
+            if candidate.role == l2.ROLE_TYPED_COLUMN:
+                # a typed column is bounded by the stability model's height
+                # cap on its support (soft_structure_max_top) and its own
+                # contact share, not by the hard plateau rule
+                kept.append(candidate)
                 continue
             if candidate.surface != "item":
                 kept.append(candidate)
@@ -4566,6 +4653,16 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                             board, profile, container_idx, orientation, tops,
                             [], config,
                         ))
+
+        if _typed_column_wanted(profile, config):
+            # the typed column (config.soft_tops_for_soft) over the flat
+            # Layer 2 orientations
+            for orientation in cls.layer2_orientation_order(profile, config)[: config.max_orientations_layer2]:
+                pool.extend(
+                    generate_typed_column_candidates(
+                        board, profile, container_idx, orientation, config
+                    )
+                )
 
         # Hole filling is generated once for the whole item rather than per
         # pose, because the pose is what it decides: which orientation to use

@@ -237,6 +237,13 @@ class ShadowSim:
         self.shake_max_shift = 0.10
         self.shake_max_angle = 30.0
         self.settle_steps_used = 0
+        # config.shadow_presettle_steps: after a sync the world is stepped
+        # this many times before any check, so the packed items take the
+        # contacts the official world has carried since their own settle
+        # (a world rebuilt at rest from the reported poses misses the slow
+        # sink of a soft stack still under way there)
+        self.presettle_steps = 0
+        self._soft_ids: set = set()
         self._key = None
         self._containers: list[dict] = []   # per container: geometry and body ids
         self._item_ids: list[int] = []
@@ -328,6 +335,7 @@ class ShadowSim:
         for body in self._item_ids:
             client.removeBody(body)
         self._item_ids = []
+        self._soft_ids = set()
         for ci, c in enumerate(containers):
             self._containers[ci]["item_ids"] = []
             for item in c.get("packed_items", []):
@@ -346,8 +354,12 @@ class ShadowSim:
                 client.changeDynamics(body, -1, **_dynamics(item))
                 self._item_ids.append(body)
                 self._containers[ci]["item_ids"].append(body)
+                if bool(item.get("is_soft", False)):
+                    self._soft_ids.add(body)
         # let the contacts form as the simulator's world has them
         client.stepSimulation()
+        for _ in range(max(0, int(self.presettle_steps))):
+            client.stepSimulation()
 
     # -- the placement test --------------------------------------------------
     def check(self, container_idx: int, item: dict, local_pos, orientation_idx: int,
@@ -471,6 +483,14 @@ class ShadowSim:
                         and fz + ext[2] <= height + buffer - thickness + m)
                 except Exception:
                     out["included"] = True
+                # what the settled box rests on: a soft packed item under it
+                # (a contact below its centre with a soft body)
+                try:
+                    below = float(final_pos[2]) - 0.25 * min(lwh)
+                    out["on_soft"] = any(int(pt[2]) in self._soft_ids and float(pt[5][2]) < below
+                                         for pt in client.getContactPoints(bodyA=body))
+                except Exception:
+                    out["on_soft"] = False
                 out["drift"] = displacement
                 # the drop from the lifted target to the surface is expected
                 # (2-5 cm on the ladder's poses); a slide is not

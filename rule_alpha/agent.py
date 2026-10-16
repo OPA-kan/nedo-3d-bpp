@@ -565,6 +565,7 @@ class RuleAlphaAgent:
                 if not shadow.available():
                     raise RuntimeError("pybullet is not available")
                 self._shadow = shadow.ShadowSim()
+                self._shadow.presettle_steps = int(getattr(self.config, "shadow_presettle_steps", 0) or 0)
             except Exception as exc:  # the check is optional: without it the agent is v18
                 self._shadow_failed = True
                 print(f"[shadow] disabled: {exc!r}", flush=True)
@@ -603,9 +604,23 @@ class RuleAlphaAgent:
             self.shadow_stats["shaken"] = self.shadow_stats.get("shaken", 0) + 1
             if not shake["ok"]:
                 self.shadow_stats["shake_vetoes"] = self.shadow_stats.get("shake_vetoes", 0) + 1
+        max_drift = float(getattr(self.config, "shadow_max_drift_xy", 0.02))
+        max_angle = float(getattr(self.config, "shadow_max_angle_deg", 5.0))
+        sos_drift = float(getattr(self.config, "shadow_soft_on_soft_drift_xy", -1.0))
+        sos_angle = float(getattr(self.config, "shadow_soft_on_soft_angle_deg", -1.0))
+        if (sos_drift >= 0.0 or sos_angle >= 0.0) and bool(item.get("is_soft", False)) and out.get("on_soft"):
+            # a soft box settling on a soft top sinks and leans by a few
+            # centimetres and degrees in the official world too, which
+            # accepts up to 0.3 m and 45 degrees
+            # (config.shadow_soft_on_soft_drift_xy)
+            if sos_drift >= 0.0:
+                max_drift = max(max_drift, sos_drift)
+            if sos_angle >= 0.0:
+                max_angle = max(max_angle, sos_angle)
+            self.shadow_stats["soft_on_soft"] = self.shadow_stats.get("soft_on_soft", 0) + 1
         out["ok"] = bool(out["transport_ok"] and out["settle_ok"] and out["shake_ok"]
-                         and out["drift_xy"] <= float(getattr(self.config, "shadow_max_drift_xy", 0.02))
-                         and out["angle_deg"] <= float(getattr(self.config, "shadow_max_angle_deg", 5.0)))
+                         and out["drift_xy"] <= max_drift
+                         and out["angle_deg"] <= max_angle)
         return out
 
     def _shadow_hard(self, verdict: dict) -> bool:
@@ -2070,12 +2085,24 @@ class RuleAlphaAgent:
             # at the second step (45 -> 37 items)
             return placement
         started = float(getattr(self, "_policy_started", time.perf_counter()))
-        deadline = min(started + 0.85 * float(self.config.policy_budget_seconds),
-                       time.perf_counter() + float(getattr(self.config, "pocket_guard_seconds", 0.8)))
+        window_end = time.perf_counter() + float(getattr(self.config, "pocket_guard_seconds", 0.8))
+        share = float(getattr(self.config, "pocket_guard_deadline_share", 0.0) or 0.0)
+        if share > 0.0:
+            # a deadline-aware window (config.pocket_guard_deadline_share)
+            window_end = max(window_end, started + share * float(self.config.policy_budget_seconds))
+        deadline = min(started + 0.85 * float(self.config.policy_budget_seconds), window_end)
         if getattr(self.config, "deterministic_budgets", False):
             deadline = float("inf")
         if time.perf_counter() >= deadline:
             return placement
+        if getattr(self.config, "pocket_guard_phase_prior", False):
+            # the phase switch's reading in place of the count prior
+            # (config.pocket_guard_phase_prior)
+            reading = bool(getattr(self, "_phase_low", False)) if getattr(self.config, "phase_switch", False) else None
+            try:
+                self.pocket.set_phase(reading, len(self.board.models) if self.board is not None else 1)
+            except Exception as exc:
+                print(f"[pocket] phase reading failed: {exc!r}", flush=True)
         try:
             item = pool[pool_index]
             found = self.pocket.alternative(self.board, profile, float(item.get("mass", 0.0)),
