@@ -82,9 +82,10 @@ budget 4.5 s, 48 scenes a suite, three CI shards.
 The second round's CI runs (01:48 UTC 2026-10-16, head 422c3add), read off
 each run's shard artifacts (`summary.json` `arm`, the scene file names):
 38837079468 = `softl-base-core`, 38837089716 = `softl-base-core-b`,
-38837099934 = `softl-colsos-core`, 38837109553 = `softl-colsos-core-b`;
-38837119685 and 38837129778 (four shards each) were still running when this
-was written and are read in section 8 once their artifacts exist.
+38837099934 = `softl-colsos-core`, 38837109553 = `softl-colsos-core-b`,
+38837119685 = `softl-col-hard2`, 38837129778 = `softl-all-hard2` (the two
+hard2 runs on four shards, 96 scenes, priced against `ship-hard2` in
+section 8).
 
 ## 3. platform_score, Task C (base `ship-core`: 62.31, 48 of 48 counted, soft 59.0, placement 53.0)
 
@@ -124,7 +125,8 @@ The B intervals are three to seven points wide because they are made of
 crossing swaps at the count threshold (42 of 82 on the two-container
 boards), each worth about 51 points on its episode. The shipped form places
 41 on `b-c2-s0002` (one short, as the ship record and its replicate both do)
-and every arm but the replicate crosses it (42, 42, 53, 44, 45 items); the
+and every arm but the replicate crosses it (col 42, pg 45, sos 53, colsos
+51, all 45 items); the
 column arms lose `b-c2-s0006` (50 -> 41: a stack-option pose at step 41 the
 shadow hard-vetoed at 0.30 m / 54 degrees, played as the fallback when
 nothing else was found, refused by the official settle, which ends the
@@ -251,10 +253,32 @@ pre-settle, 0.4 cm after 300, 0.5 cm warm-started; the median |tilt error|
 was never the veto's problem: the shadow's drift is the official world's
 drift, and the thresholds were set for hard boxes on hard tops.
 
-## 8. The two pending runs
+## 8. The hard2 suite, Task C (base `ship-hard2`: 34.77, 47 of 96 counted, soft 23.3, placement 30.7)
 
-Runs 38837119685 and 38837129778 (four shards each) had not finished when
-sections 3-7 were written; this section is filled in from their artifacts.
+The column rung and the full set on the 96-scene hard2 suite, whose boards
+are 30-170 items and where half the episodes end under the count threshold.
+
+| arm | score | delta [95 % CI] | counted | up / down | fill | cog | stability | placement | soft | placed |
+|---|---:|---|---:|---|---:|---:|---:|---:|---:|---:|
+| softl-col | 33.93 | -0.85 [-4.13, +2.34] | 45 (-2) | 36 / 24 | +0.5 | -1.3 | -1.9 | -2.6 | +0.6 | -0.32 |
+| softl-all | 34.94 | +0.16 [-4.23, +4.64] | 47 (+0) | 43 / 35 | +0.9 | -0.2 | +0.4 | -0.7 | -0.3 | +0.76 |
+
+Crossing swaps again make the intervals: softl-col crosses s0006, s0020 and
+s0030 and loses s0021, s0056, s0059, s0065 and s0069 (eight swaps, -2 net);
+softl-all swaps fourteen boards for a net of zero (the ship record's own
+hard2 replicate swapped two, `findings.md`, "The shipped form on the
+bench"). Over the episodes counted in both runs: softl-col +0.05 [-0.55,
++0.56] (n 88; soft +0.7, placement -1.1), softl-all +0.09 [-0.36, +0.50]
+(n 82; soft +0.1, placement -0.8). The soft credit an episode is 14.75 on
+the ship record, 14.61 on softl-col (the rung makes 233 of its 469
+soft-on-soft placements and the floor loses 39 boxes, but the shelf loses
+22 and the credit does not rise) and 15.15 on softl-all (+0.4 boxes, with
+the pocket-guard fixes moving 37 boxes onto hard tops), for soft shares of
++0.6 and -0.3 points. The shadow's soft-on-soft thresholds take the soft
+poses kept after a veto from 61 to 4. The slowest call 6.0-6.4 s against
+the ship's 6.2 s. hard2 reads as core did: nothing clears its interval,
+the soft share moves by less than a point, and the column rung costs
+placement.
 
 ## 9. Reading
 
@@ -271,14 +295,16 @@ sections 3-7 were written; this section is filled in from their artifacts.
   score does not move because the vetoed poses were played anyway and the
   replacements were as good. They are correct and worthless on the bench's
   terms; the pre-settle shortens the shadow's time by a sixth on C.
-- `softl-all` is the best reading on both suites (+0.53 C, +0.46 B
-  ex-crossing), inside both intervals, with the replicate of the ship arm
-  reading -0.19 and -0.09: the sum of three neutral changes.
+- `softl-all` is the best reading on every suite (+0.53 C, +0.46 B
+  ex-crossing, +0.09 hard2 ex-crossing), inside every interval, with the
+  replicate of the ship arm reading -0.19 and -0.09: the sum of three
+  neutral changes. The column rung alone reads -0.85 on hard2 with two
+  crossings lost.
 
 ## 10. Recommendation
 
 **None of the flags ships, on B or on C.** No arm's platform_score delta
-clears its 95 % interval on either suite; the C readings lie inside the
+clears its 95 % interval on any suite (core, core-b, hard2); the C readings lie inside the
 spread of the ship arm's own replicate (-0.19 [-0.89, +0.39]), and the B
 readings are crossing swaps at the 42-item threshold the platform does not
 pay (its B episodes are all counted), with the ex-crossing deltas inside
