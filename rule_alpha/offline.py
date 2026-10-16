@@ -113,4 +113,8 @@ def dry_run_order(agent, item_list: list[dict], order: list[int], deadline: floa
                      "place_pos": [float(v) for v in action["place_pos"]],
                      "archetype": getattr(placement, "archetype", ""),
                      "packed_before": len(board.containers[int(action["container_idx"])]["packed_items"]) - 1})
+    # for the records: whether the deadline cut the dry-run (items never
+    # tried) and how far it got
+    agent.dry_run_stats = {"cut": bool(remaining), "placed": len(plan), "untried": len(remaining),
+                           "declined": len(deferred)}
     return placed + remaining + deferred, plan
