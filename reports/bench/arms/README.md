@@ -51,3 +51,13 @@ prints the suite means and the paired difference with a bootstrap interval;
 `--mix core-a=9,core-b=11,core=3` weights suites by the platform's task
 shares.  This is the objective for every lever from here: a crossing count
 or a placed count is a diagnostic, the platform score is the verdict.
+- The dry-run's time (`reports/wedge/a-count-secure.md`, section 7):
+  `arm_adfirst_a.txt` (`plan_dry_run_first`: the ladder's dry-run before the
+  planner on every layout), `arm_adfirstd_a.txt` (on manifests whose volume
+  is at least 0.62 of the containers', `plan_dry_run_first_dense=0.62`),
+  `arm_adfirsts_a.txt` (on the manifests under that share, `-0.62`). The
+  short-budget records append `offline_budget_seconds=20` / `30` to the
+  arm: `reports/bench/<form><budget>-<suite>` (`ship20-dense-a`,
+  `adry30-hard-a`, `aplan30-core-a`, `adfirsts20-dense-a`, ...), each judged
+  against the `ship<budget>-<suite>` record; `adfirst-*`, `adfirstd-*`,
+  `adfirsts-*` at 140 s.
