@@ -70,14 +70,15 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(a.containers, config["000"]["containers"]["container_list"])
         self.assertEqual(make_scene(0, "sample", "B").look_ahead, 10)
         self.assertEqual(len(make_scene(0, "sample", "C").items), 42)
-        shuffled = make_scene(3, "sample", "A")
-        self.assertNotEqual([i["length"] for i in shuffled.items], [i["length"] for i in a.items])
-        self.assertEqual(sorted(json.dumps({k: v for k, v in i.items() if k != "index"}, sort_keys=True)
-                                for i in shuffled.items),
-                         sorted(json.dumps({k: v for k, v in i.items() if k != "index"}, sort_keys=True)
-                                for i in a.items))
-        self.assertEqual([i["index"] for i in shuffled.items], list(range(41)))
-        self.assertEqual(shuffled.items, make_scene(3, "sample", "A").items)
+        resampled = make_scene(3, "sample", "A")
+        self.assertEqual(len(resampled.items), 41)
+        self.assertNotEqual([i["length"] for i in resampled.items], [i["length"] for i in a.items])
+        skus = {(i["length"], i["width"], i["height"], i["is_soft"], i["is_prioritized"]) for i in a.items}
+        for item in resampled.items:
+            self.assertIn((item["length"], item["width"], item["height"], item["is_soft"], item["is_prioritized"]), skus)
+        self.assertEqual([i["index"] for i in resampled.items], list(range(41)))
+        self.assertEqual(resampled.items, make_scene(3, "sample", "A").items)
+        self.assertNotEqual(resampled.items, make_scene(4, "sample", "A").items)
         self.assertEqual(len(build_suite("sample-a")), 12)
 
 

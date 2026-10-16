@@ -595,10 +595,20 @@ class RuleAlphaAgent:
         order = [int(i) for i in order]
         if not mode or not self.plan:
             return order
-        planned = {int(e["index"]) for e in self.plan}
-        head = [i for i in order if i in planned]
-        tail = [i for i in order if i not in planned]
         by_index = {int(it["index"]): it for it in item_list}
+        planned = [int(e["index"]) for e in self.plan]
+        # the plan's trailing soft and priority items (the run after its
+        # last hard box) join the tail: on the sample the dry-run's plan
+        # held the 25 hard boxes and then three priority / soft boxes
+        # placed on its analytic board, the first of which had no pose on
+        # the live board as it settled, and the episode ended there
+        special = lambda i: bool(by_index.get(i, {}).get("is_soft")) or bool(by_index.get(i, {}).get("is_prioritized"))
+        keep = len(planned)
+        while keep and special(planned[keep - 1]):
+            keep -= 1
+        kept = set(planned[:keep])
+        head = [i for i in order if i in kept]
+        tail = [i for i in order if i not in kept]
         vol = lambda i: float(by_index[i]["length"]) * float(by_index[i]["width"]) * float(by_index[i]["height"])
         soft = sorted((i for i in tail if by_index[i].get("is_soft")), key=vol)
         prio = [i for i in tail if by_index[i].get("is_prioritized") and not by_index[i].get("is_soft")]

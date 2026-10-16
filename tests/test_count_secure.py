@@ -235,8 +235,28 @@ class TailOrderTest(unittest.TestCase):
         self.assertEqual(vols, sorted(vols))
 
     def test_planned_items_keep_their_order_whatever_their_place(self):
-        agent, items, _by, order = self._agent("soft-first")
+        agent, items, by_index, order = self._agent("soft-first")
         agent.plan = [{"index": i} for i in (14, 3, 8)]
         got = agent._tail_order(order, items)
-        self.assertEqual(got[:3], [3, 8, 14])
+        # 8 is the plan's trailing priority box and joins the tail; 14 and
+        # 3 stay, in the order's own sequence
+        self.assertEqual(got[:3], [3, 14, 2])
+        kinds = ["S" if by_index[i]["is_soft"] else "P" if by_index[i]["is_prioritized"] else "H" for i in got[2:]]
+        self.assertEqual(kinds, ["S"] * 12 + ["P"] * 3 + ["H"] * 24)
         self.assertEqual(sorted(got), sorted(order))
+
+    def test_the_plans_trailing_special_items_join_the_tail(self):
+        agent, items, by_index, order = self._agent("soft-first")
+        # the sample's dry-run plan: the 25 hard boxes, then 8 (P), 30 (P), 14 (S)
+        agent.plan = [{"index": i} for i in order[:28]]
+        got = agent._tail_order(order, items)
+        self.assertEqual(got[:25], order[:25])
+        tail = got[25:]
+        kinds = ["S" if by_index[i]["is_soft"] else "P" if by_index[i]["is_prioritized"] else "H" for i in tail]
+        self.assertEqual(kinds, ["S"] * 13 + ["P"] * 3)
+        self.assertEqual(sorted(got), sorted(order))
+        # a soft box planned among the hard ones stays where the plan put it
+        agent.plan = [{"index": i} for i in [3, 14, 17, 21, 8]]
+        got = agent._tail_order(order, items)
+        self.assertEqual(got[:4], [3, 17, 21, 14])
+        self.assertEqual(got[4], 2)  # the smallest soft box of the tail

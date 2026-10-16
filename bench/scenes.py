@@ -390,23 +390,26 @@ def make_sample_scene(seed: int, task: str = "A") -> Scene:
     abc_config.json``: 000 is Task A, 001 Task B, 002 Task C), the one
     input where the platform's own result is known (reports/submission/
     official-results.md).  Seed 0 is the sample itself, item order and all;
-    a seed above 0 keeps the sample's items (the same multiset, so the
-    same demand on the container) and shuffles their order, which is what
-    the platform's manifests of the sample's kind look like from here."""
+    a seed above 0 draws the same number of items from the sample's items
+    with replacement (a bootstrap of its manifest: the same SKUs at about
+    the same shares and demand, a different multiset) in a random order.
+    A shuffle alone would not do for Task A, where the agent orders the
+    manifest itself and the same items give the same episode."""
     if task not in SAMPLE_ENTRY:
         raise KeyError(f"unknown task {task!r}; known: A, B, C")
     entry = json.loads(SAMPLE_CONFIG.read_text(encoding="utf-8"))[SAMPLE_ENTRY[task]]
     containers = [dict(c) for c in entry["containers"]["container_list"]]
     items = [dict(i) for i in entry["item_stream"]["item_list"]]
     if seed:
-        random.Random(30_000 + seed).shuffle(items)
+        rng = random.Random(30_000 + seed)
+        items = [dict(rng.choice(items)) for _ in items]
     for index, item in enumerate(items):
         item["index"] = index
     look_ahead = int(entry["item_stream"].get("look_ahead", TASK_LOOKAHEAD[task]))
     name = f"{task.lower()}-sample-s{seed:04d}"
     return Scene(name=name, seed=seed, layout="sample", task=task, look_ahead=look_ahead,
                  items=items, containers=containers, spacing=float(entry["containers"].get("spacing", SPACING)),
-                 spec={"sample_entry": SAMPLE_ENTRY[task], "shuffled": bool(seed)})
+                 spec={"sample_entry": SAMPLE_ENTRY[task], "resampled": bool(seed)})
 
 
 def make_scene(seed: int, layout: str = "c1", task: str = "C",
