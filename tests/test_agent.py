@@ -650,6 +650,216 @@ class OfflineOptimizationTests(unittest.TestCase):
         self.assertGreater(solver.last_pair_macro_candidates, 0)
 
 
+class SoftFloorPlanTests(unittest.TestCase):
+    """Task A's soft floor under the hard cargo (config.plan_soft_floor_under_count,
+    reports/wedge/a-soft-floor.md): off by default, planned only under the
+    count gate, the cover rule waived for the soft floor alone."""
+
+    def _config(self, **over):
+        import dataclasses
+
+        from rule_alpha.config import DEFAULT_CONFIG
+
+        return dataclasses.replace(DEFAULT_CONFIG, **over)
+
+    @staticmethod
+    def _box(index, x, y, l, w, h, soft=False, prio=False, z0=0.04):
+        return {"index": index, "length": l, "width": w, "height": h, "mass": 8.0, "is_soft": soft,
+                "is_prioritized": prio, "pos": (x, y, z0 + h / 2.0), "orn": (0.0, 0.0, 0.0, 1.0)}
+
+    def _containers(self, packed=()):
+        from bench.scenes import make_scene
+
+        containers = make_scene(1, "c1", "A").rule_alpha_containers()
+        containers[0]["packed_items"] += list(packed)
+        return containers
+
+    def test_flags_default_off(self):
+        from rule_alpha.config import DEFAULT_CONFIG
+
+        self.assertFalse(DEFAULT_CONFIG.plan_soft_floor_under_count)
+        self.assertFalse(DEFAULT_CONFIG.plan_soft_floor_active)
+        self.assertEqual(DEFAULT_CONFIG.plan_soft_floor_overrides, "")
+
+    def test_cover_view_waives_the_soft_floor_alone(self):
+        from rule_alpha import layer1
+        from rule_alpha.geometry import AABB
+        from rule_alpha.planner import _cover_view
+        from wedge_rl.stack import covers_other_attribute
+
+        cfg = self._config()
+        soft = self._box(1, 0.0, 0.3, 0.6, 0.3, 0.25, soft=True)
+        prio = self._box(2, 0.0, -0.3, 0.55, 0.4, 0.24, prio=True)
+        containers = self._containers([soft, prio])
+        board = layer1.Board(containers, cfg)
+        model, container = board.model(0), board.container(0)
+        over_soft = AABB((0.0, 0.3, 0.29 + 0.125), (0.65, 0.45, 0.25), "t")
+        over_prio = AABB((0.0, -0.3, 0.28 + 0.125), (0.65, 0.45, 0.25), "t")
+        self.assertTrue(covers_other_attribute(over_soft, container, False, False))
+        self.assertFalse(covers_other_attribute(over_soft, _cover_view(container, model, True), False, False))
+        self.assertTrue(covers_other_attribute(over_soft, _cover_view(container, model, False), False, False))
+        # the priority cargo keeps its cover rule
+        self.assertTrue(covers_other_attribute(over_prio, _cover_view(container, model, True), False, False))
+
+    def test_soft_floor_group_is_one_level_band(self):
+        from rule_alpha import classify as cls
+        from rule_alpha.planner import _soft_floor_eligible, _soft_floor_group
+
+        cfg = self._config()
+        dims = [(0.60, 0.30, 0.25)] * 3 + [(0.65, 0.35, 0.23)] * 4 + [(0.45, 0.30, 0.20)] * 2 + [(0.50, 0.40, 0.40)]
+        profiles = [cls.classify_item(i, {"index": i, "length": l, "width": w, "height": h, "mass": 5.0,
+                                          "is_soft": True, "is_prioritized": i == 1}, cfg)
+                    for i, (l, w, h) in enumerate(dims)]
+        eligible = [p for p in profiles if _soft_floor_eligible(p, cfg)]
+        # the 0.40 m box and the priority box stay out
+        self.assertNotIn(9, [p.index for p in eligible])
+        self.assertNotIn(1, [p.index for p in eligible])
+        group = _soft_floor_group(eligible, cfg)
+        self.assertEqual(sorted(p.index for p in group), [3, 4, 5, 6])   # the 0.23 m band, most footprint
+        wide = _soft_floor_group(eligible, self._config(plan_soft_floor_level_tolerance=0.03))
+        self.assertEqual(sorted(p.index for p in wide), [0, 2, 3, 4, 5, 6])
+
+    def test_variant_respects_the_gate(self):
+        from unittest import mock
+
+        from rule_alpha import planner
+
+        agent = mock.Mock()
+        agent.config = self._config(plan_soft_floor_under_count=True, plan_value_margin=2)
+        agent._count_threshold.return_value = 10
+        plan = [{"index": i} for i in range(12)]
+        with mock.patch.object(planner, "_plan_once") as once:
+            order, out = planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                                     ("x", 0, None, None, None, None), [1], plan)
+            once.assert_not_called()
+        self.assertIs(out, plan)
+        agent._count_threshold.return_value = None
+        with mock.patch.object(planner, "_plan_once") as once:
+            planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                        ("x", 0, None, None, None, None), [1], plan[:3])
+            once.assert_not_called()
+
+    def test_variant_plays_when_it_holds_more_and_marks_the_poses(self):
+        from unittest import mock
+
+        from rule_alpha import planner, stability
+
+        agent = mock.Mock()
+        agent.board.models = []
+        agent.config = self._config(plan_soft_floor_under_count=True, plan_value_margin=2,
+                                    plan_soft_floor_needs_gate=False,
+                                    plan_soft_floor_overrides="reserve_headroom_for_soft=false")
+        agent._count_threshold.return_value = 10
+        seen = {}
+        floor = {"index": 1, "container_idx": 0, "center": [0.0, 0.3, 0.165], "size": [0.6, 0.3, 0.25],
+                 "bottom": 0.04, "soft_floor": True}
+        hard = {"index": 2, "container_idx": 0, "center": [0.0, 0.3, 0.415], "size": [0.65, 0.45, 0.25],
+                "bottom": 0.29}
+        beside = {"index": 3, "container_idx": 0, "center": [0.0, -0.4, 0.165], "size": [0.65, 0.45, 0.25],
+                  "bottom": 0.04}
+
+        def fake_once(a, items, deadline, name, log, layout_index=0):
+            seen["active"] = a.config.plan_soft_floor_active
+            seen["reserve"] = a.config.reserve_headroom_for_soft
+            seen["share"] = stability.SOFT_STRUCTURE_FLOOR_SHARE
+            return [1, 2, 3], [floor, hard, beside]
+
+        share = stability.SOFT_STRUCTURE_FLOOR_SHARE
+        with mock.patch.object(planner, "_plan_once", side_effect=fake_once):
+            order, out = planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                                     ("x", 0, None, None, None, None), [9], [{"index": 9}])
+        self.assertEqual(seen, {"active": True, "reserve": False, "share": 0.0})
+        self.assertEqual(stability.SOFT_STRUCTURE_FLOOR_SHARE, share)   # restored
+        self.assertFalse(agent.config.plan_soft_floor_active)           # restored
+        self.assertEqual(order, [1, 2, 3])
+        self.assertTrue(hard.get("over_soft"))
+        self.assertAlmostEqual(hard["replay_drop"], agent.config.plan_soft_floor_replay_drop)
+        self.assertFalse(beside.get("over_soft", False))
+        # fewer items than the plan: the plan stays
+        with mock.patch.object(planner, "_plan_once", side_effect=fake_once):
+            order, out = planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                                     ("x", 0, None, None, None, None), [9],
+                                                     [{"index": i} for i in range(5)])
+        self.assertEqual(order, [9])
+        # with the gate rule (the default) a soft-floor plan under the
+        # threshold plus the margin does not play however many it holds
+        import dataclasses
+
+        agent.config = dataclasses.replace(agent.config, plan_soft_floor_needs_gate=True)
+        with mock.patch.object(planner, "_plan_once", side_effect=fake_once):
+            order, out = planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                                     ("x", 0, None, None, None, None), [9], [{"index": 9}])
+        self.assertEqual(order, [9])
+        agent._count_threshold.return_value = 1
+        with mock.patch.object(planner, "_plan_once", side_effect=fake_once):
+            order, out = planner._soft_floor_variant(agent, [], time.perf_counter() + 10,
+                                                     ("x", 0, None, None, None, None), [9], [{"index": 9}])
+        self.assertEqual(order, [1, 2, 3])   # 3 items hold 1 + 2
+
+    def test_online_view_and_the_dry_run_rule(self):
+        from rule_alpha.planner import soft_floor_board_view, soft_floor_yields
+
+        soft = self._box(1, 0.0, 0.3, 0.6, 0.3, 0.25, soft=True)
+        other = self._box(5, 0.5, -0.3, 0.6, 0.3, 0.25, soft=True)
+        containers = self._containers([soft, other])
+        agent = type("A", (), {})()
+        agent.config = self._config()
+        agent.plan_source = "planner"
+        agent.plan_by_index = {1: {"index": 1, "soft_floor": True}, 2: {"index": 2}}
+        view = soft_floor_board_view(agent, containers)
+        packed = {p["index"]: p for p in view[0]["packed_items"]}
+        self.assertFalse(packed[1]["is_soft"])
+        self.assertTrue(packed[5]["is_soft"])
+        self.assertTrue(containers[0]["packed_items"][-2]["is_soft"])   # the observation untouched
+        agent.config = self._config(plan_soft_floor_online=False)
+        self.assertIs(soft_floor_board_view(agent, containers), containers)
+        agent.config = self._config()
+        agent.plan_source = "dry-run"
+        self.assertIs(soft_floor_board_view(agent, containers), containers)
+        plan = [{"index": 1, "soft_floor": True}, {"index": 2}]
+        agent._count_threshold = lambda: 3
+        self.assertTrue(soft_floor_yields(agent, plan, [{}, {}, {}]))
+        agent._count_threshold = lambda: 2   # the soft-floor plan holds the count: the score decides
+        self.assertFalse(soft_floor_yields(agent, plan, [{}, {}, {}]))
+        agent._count_threshold = lambda: None
+        self.assertFalse(soft_floor_yields(agent, plan, [{}, {}]))
+        self.assertFalse(soft_floor_yields(agent, [{"index": 2}], [{}, {}, {}]))
+
+    def test_replay_accepts_a_hard_pose_over_the_soft_floor_only_when_marked(self):
+        from rule_alpha import classify as cls
+        from rule_alpha import layer1, stability
+        from rule_alpha.planner import replay
+
+        cfg = self._config(no_cover_other_attribute=True, soft_is_structure=True, plan_replay_drop=0.0)
+        # the soft box settled 1.2 cm into the floor, as in the probe
+        soft = self._box(1, 0.0, 0.3, 0.6, 0.3, 0.25, soft=True, z0=0.028)
+        containers = self._containers([soft])
+        board = layer1.Board(containers, cfg)
+        item = {"index": 2, "length": 0.65, "width": 0.45, "height": 0.25, "mass": 13.0,
+                "is_soft": False, "is_prioritized": False}
+        profile = cls.classify_item(2, item, cfg)
+        o = next(o for o in profile.orientations if abs(o.dz - 0.25) < 1e-9 and abs(o.dx - 0.65) < 1e-9)
+        entry = {"index": 2, "step": 2, "container_idx": 0, "orientation": o.index,
+                 "center": [0.0, 0.3, 0.29 + 0.125], "size": [o.dx, o.dy, o.dz], "on_floor": False}
+        agent = mock_agent = type("A", (), {})()
+        mock_agent.config = cfg
+        mock_agent.plan_misses = 0
+        saved = (stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE)
+        try:
+            stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.7, 0.35
+            self.assertIsNone(replay(agent, board, [(0, profile)], {2: dict(entry)}))
+            marked = dict(entry, over_soft=True, replay_drop=0.06)
+            hit = replay(agent, board, [(0, profile)], {2: marked})
+            self.assertIsNotNone(hit)
+            box = hit[1].placement.box
+            # at the planned height (within plan_soft_floor_contact_tolerance
+            # of the settled top) or at the settled top
+            self.assertTrue(0.277 <= float(box.minimum[2]) <= 0.291, float(box.minimum[2]))
+            self.assertEqual((stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE), (0.7, 0.35))
+        finally:
+            stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE = saved
+
+
 def _column(index, x, y, w=0.1, d=0.5, h=0.5, z0=0.04):
     return {"index": index, "length": w, "width": d, "height": h, "mass": 10.0, "is_soft": False,
             "is_prioritized": False, "pos": (x, y, z0 + h / 2.0), "orn": (0.0, 0.0, 0.0, 1.0)}

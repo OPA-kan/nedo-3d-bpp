@@ -25,3 +25,16 @@ To measure a change, append `,field=value` to the ship arm's line.
   count-secured re-plan (`plan_count_secure`) under the threshold plus 2 /
   under the threshold itself (`reports/wedge/a-count-secure.md`). Records:
   `reports/bench/acount-*`, `acount0-*`.
+- `arm_astand_a.txt`: the shipped A arm with the typed-standing plans under
+  the count gate (`plan_typed_standing`, `reports/wedge/a-standing.md`);
+  records `reports/bench/astand-*`. `arm_astandf_back_a.txt` /
+  `arm_astandf_front_a.txt`: the gallery forced on every manifest, braced
+  (against the back wall, the hard rows in front) and at the opening
+  (braced on one side), for the stability cost; records `astandf*-*`.
+  `arm_astand2_a.txt`: the braced variants only; `arm_astand3_a.txt`: the
+  same, kept off layouts with a priority container (the candidate form);
+  records `astand2-*`, `astand3-*` (dense-a has no priority container, so
+  `astand2-dense-a` stands for both).
+- `arm_acs_a.txt`: the v51 A form (`arm_acount0_a`) plus the typed-standing
+  gallery (`plan_typed_standing`, braced variants, no priority container),
+  the combination measured as `reports/bench/acs-*`.

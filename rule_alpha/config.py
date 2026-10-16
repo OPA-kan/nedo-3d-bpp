@@ -2509,6 +2509,62 @@ class RuleAlphaConfig:
     x 0.27 box on its side is 0.56 or 0.75 m of top-heavy stack, and the
     platform's v19 result priced height and topples above the count."""
 
+    plan_typed_standing: bool = False
+    """Task A: when the ordinary plan holds fewer than the count threshold
+    plus ``plan_value_margin`` items, the planner also plans the
+    typed-standing plans of ``plan_typed_standing_variants``: the count
+    frame (every priority item, then the smallest items of any class up
+    to the threshold plus the margin) has its soft and priority cargo
+    planned first, on the floor, standing on the smallest face in rows
+    against the back wall (``planner.pack_typed_gallery``), and the hard
+    rows take the rest of the floor; the soft left over goes on the hard
+    rows as before.  A plan that holds the count replaces the ordinary
+    one; between two that do (or two that do not), the plan score
+    decides.  On a dense manifest the hard rows end at the mid-height
+    band (0.94 m) and the soft rows on their uneven tops place 1 of 21
+    soft boxes (a-c1x60-s0002: 27 planned against the 33 asked).
+    Off: the shipped planner."""
+
+    plan_typed_standing_variants: str = "back-stand-2;back-stand-1"
+    """The typed-standing plans, "<at>-<mode>-<rows>" separated by ";":
+    ``at`` ``back`` (the gallery against the back wall, braced by the
+    wall and the first hard row), ``front`` (the hard rows first, the
+    gallery in front of them at the opening, braced on one side) or
+    ``top`` (no floor gallery: the hard rows over the whole floor, then
+    the gallery's items at their least-footprint legal pose anywhere,
+    standing on the hard rows' tops where the headroom allows);
+    ``mode`` ``stand`` (the smallest face down) or ``tower`` (soft flat
+    in towers of one class while the supporting top is under the soft
+    structure cap, priority standing); ``rows`` the most gallery rows a
+    container gets; optional further parts: ``soft`` keeps the priority
+    cargo out of the gallery, ``prio`` puts it in (default:
+    ``plan_typed_standing_priority``), ``noreserve`` plans the hard rows
+    without the soft headroom reserve (the gallery holds the soft)."""
+
+    plan_typed_standing_no_priority_container: bool = False
+    """The typed-standing plans only on layouts without a priority
+    container.  On core-a the c2p scenes are where the flag cost placed
+    items and added topples (`astand-core-a`: c2p-s0002, s0008, s0011
+    -3 each, s0008 three hard boxes toppled from 1.06-1.3 m, the plan
+    moved from the planner's to the dry-run's)."""
+
+    plan_typed_standing_force: bool = False
+    """Measurement switch: the best typed-standing plan plays on every
+    manifest, whatever the ordinary plan holds (the stability cost of the
+    standing gallery read on the scenes the gate would leave alone)."""
+
+    plan_typed_standing_max_top: float = 0.7
+    """Highest top (m over the floor) of a gallery box: the standing pose
+    is the tallest one under it (a 0.75 m standing box lies on its 0.56
+    side), and towers stop under it (soft on soft: the 0.7 m cap of
+    ``soft_structure_max_top``)."""
+
+    plan_typed_standing_priority: bool = True
+    """The priority cargo of the count frame stands in the gallery too
+    (in a layout without a priority container): nothing but priority
+    cargo may rest on it, so on a hard row's floor it kills the column
+    above it.  Off: the gallery holds the soft cargo alone."""
+
     plan_soft_own_rows: bool = False
     """The soft cargo's rows come from their own layout search over the
     hard stack's top instead of the hard rows' lines.  The hard rows are
@@ -2555,6 +2611,104 @@ class RuleAlphaConfig:
     a-hard-s0041 the two-deep plan replayed 19 of 53 poses and the
     episode ended in the soft block, the second container's rows never
     reached (74 -> 43 placed)."""
+
+    plan_soft_floor_under_count: bool = False
+    """Task A: when the planner's plan holds fewer than the count threshold
+    plus ``plan_value_margin`` items, the manifest is planned once more
+    with the soft cargo as a floor under the hard cargo: the soft boxes of
+    at most ``plan_soft_floor_max_height`` go first, one storey on the
+    floor from the back wall in level rows, and the hard rows ride on them
+    (the cover rule waived for the soft floor alone, the soft floor
+    carrying load), the hard stacks over it capped at
+    ``plan_soft_floor_hard_max_top``; the rest of the soft cargo goes on
+    top as before.  The soft-floor plan plays when it holds more items.
+    On dense manifests the hard cargo overfills the container and the
+    soft boxes, the smallest items, stay out (60 items -> 28 placed
+    against a threshold of 31, 16 soft boxes left); a covered soft box
+    costs about 1 / soft_total of the soft score, the count the four
+    components.  The limits come from the official simulator
+    (``scripts/soft_floor_probe.py``, ``reports/wedge/a-soft-floor.md``)."""
+
+    plan_soft_floor_max_height: float = 0.30
+    """The soft-floor storey takes soft boxes whose flattest pose is at most
+    this tall (m): the sample's E, F and G classes (0.20-0.25 m); the
+    0.40 m D boxes stay for the top (a hard box bridging a 0.40 and a
+    0.25 m soft box tilted 17-24 degrees in the probe)."""
+
+    plan_soft_floor_level_tolerance: float = 0.005
+    """The soft floor is one height band this wide (m), the band with the
+    most footprint: the analytic support reads contact within 6 mm, so a
+    hard box over two heights rests on the taller alone, and in the probe
+    a hard box bridging soft boxes 2-3 cm apart in height settled at 2-4
+    degrees, 5 cm apart at 5-17."""
+
+    plan_soft_floor_hard_max_top: float = 0.0
+    """The top (m, container frame) of the hard cargo standing over the soft
+    floor (0: no cap).  Probe: a level soft floor two to four rows deep
+    under three to five hard layers (tops 0.94-1.45 m) settled within 3.4
+    degrees with no topple under the shake; isolated soft rows or columns
+    under three and four hard layers toppled.  The planner's soft floor is
+    a block of whole rows, so no cap is set by default; a cap of 1.0 m cost
+    the variant every hard layer over the transport band at the shelf
+    level."""
+
+    plan_soft_floor_depth_share: float = 1.0
+    """The share of the floor's depth, from the back wall, the soft floor
+    may take."""
+
+    plan_soft_floor_replay_drop: float = 0.06
+    """``plan_replay_drop`` for the poses planned over the soft floor: a
+    soft box sinks 1-3 cm into the floor under its first hard layer and up
+    to 5 cm under three (probe), and every pose above it with it."""
+
+    plan_soft_floor_sink: float = 0.03
+    """The planner rests the hard rows on the soft floor this far (m) below
+    its nominal top: the soft boxes sink into the floor under their own
+    weight (1.2 cm) and under the hard rows (a local run: the first hard
+    layer settled 3.4-5.4 cm below the nominal top; the probe's blocks
+    2-5 cm under three hard layers).  The replay meets the difference
+    either way within ``plan_soft_floor_replay_drop``."""
+
+    plan_soft_floor_contact_tolerance: float = 0.03
+    """At replay, the poses over the soft floor read their supports within
+    this tolerance (m; ``contact_tolerance`` elsewhere, 6 mm): under their
+    loads the soft boxes sink 1-4 cm and unevenly (a local run: 2.0-3.6 cm
+    under one hard layer), so a planned pose bridging two columns meets
+    tops a few centimetres apart and the replay missed it, the episode
+    ending in the soft block (a-c1x50-s0006: 12 placed of 26 planned)."""
+
+    plan_soft_floor_online: bool = True
+    """Once a soft-floor plan plays, the online stages (the ladder, the
+    stack option, the rescues) read the soft floor as hard cargo: the
+    cover rule no longer refuses every pose over it and the boxes carry
+    load.  Off, a replay miss over the soft floor leaves the ladder no
+    pose over most of the floor and the episode declines."""
+
+    plan_soft_floor_needs_gate: bool = True
+    """The soft-floor plan plays only when it holds the count threshold plus
+    ``plan_value_margin`` items itself (off: whenever it holds more items
+    than the plan).  Under the threshold only the fill counts on the
+    platform, and the bench's first two CI rounds read every soft-floor
+    gain under the threshold as soft boxes covered for no crossing, and a
+    plan at the threshold (a-c1-s0012, 21 of 21) replaying under it."""
+
+    plan_soft_floor_keep_reserve: bool = False
+    """The soft-floor variant keeps the soft headroom reserve
+    (``reserve_headroom_for_soft``).  Off: the variant plans without it,
+    the floor already holding the soft class that tiles it best; with the
+    reserve the hard rows stop under the cap over the soft floor and the
+    variant held fewer items than the plan on 7 of 11 dense scenes
+    (analytic, c1x50 / c1x60 seeds 1-6: 313 -> 315 items best-of, against
+    313 -> 336 without the reserve)."""
+
+    plan_soft_floor_overrides: str = ""
+    """Config fields the soft-floor variant is planned with on top of the
+    plan's own, as ``field=value`` pairs separated by ";" (an arm spec's
+    overrides are comma-separated), e.g. ``reserve_headroom_for_soft=false``."""
+
+    plan_soft_floor_active: bool = False
+    """Set by the planner while it plans the soft-floor variant, not by
+    hand."""
 
     plan_layout_variants: str = ""
     """Layout scorings the planner tries as variants, each against the

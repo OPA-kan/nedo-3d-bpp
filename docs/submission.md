@@ -798,6 +798,60 @@ N = 19 (A placing 97 % at a fill of 56) to N = 24 (A with 4-5 episodes
 scoring zero on the four components while placing most of their
 manifests) are separated by Task A alone (section 7).
 
+Fifty-first build (v51): v50 with Task A's count-secured re-plan
+(`plan_count_secure`, `plan_count_secure_choice`,
+`plan_count_secure_race_replanned`, `plan_count_secure_margin=0`,
+`plan_count_secure_blocks="plain;top"`, the `task_a` overrides in
+`Agent.optimize`; Tasks B and C untouched).  The diagnostics
+(`reports/wedge/stability-lattice.md`) read 3-5 of the platform's Task A
+episodes under the count threshold, each worth about 2.3 points, and on
+dense single-container manifests the shipped plan places 28-29 items
+whatever the manifest holds (`dense-a`: 10 of 48 crossings).  When the
+best plan holds fewer items than the threshold (total // 2 + 1), the
+manifest is re-planned with standing rows and the soft cargo's own rows,
+the plans ranked first by whether they hold the count, and the
+planner-vs-dry-run race decided by the count in those episodes; the soft
+block the diagnosis proposed lost to the standing rows (two soft layers
+hold about 11 items per m^2 against 18-27 for a column of the smallest
+hard boxes).  Bench: dense-a 10 -> 20 of 48 (c1x50 8 -> 10, c1x60 2 -> 8,
+c1x70 0 -> 2, c1x80 0), hard-a 26 -> 29, core-a 48 of 48 with the soft
+(381) and priority (255) counts unchanged (one episode re-planned, 21 ->
+26 placed), topples 4 -> 4, the centre of mass 0.326 -> 0.328, the
+slowest call under 5.4 s (`reports/wedge/a-count-secure.md`).  The
+threshold + 2 trigger was measured and lost a core-a crossing (the race's
+count rule picked a dry-run plan with no soft or priority box); not
+kept.  Official sample: A 32.11 / 25 (the sample's plan is over its
+threshold, so nothing re-plans), B 29.59 / 26, C 26.44 / 25; policy max
+B 5.01 s, C 3.92 s (`official-sample-abc-v51.json`).  Expected on the
+platform: up to +2.3 per Task A episode brought over the count; none if
+the platform's uncounted A manifests are the 80-110-item kind, where no
+plan here passes 36 items against a threshold of 41.
+Official platform: 53.50 (v50 56.04, -2.54): one counted episode lost
+(stability 18 x 4.1775 - 1.2), none gained; cog -3.61, placement -1.95,
+soft -3.50, fill -0.30, the optimize time 118.9 -> 138.8 s at the 140 s
+budget's edge.  Not kept; the shipped form is v50's
+(`reports/submission/official-results.md`).
+
+Fifty-second build (v52): v51's Task A count-secured re-plan with
+the fixes after v51's platform loss (`plan_count_secure_race_chosen`,
+`plan_count_secure_early`, `plan_count_secure_blocks="plain"`, in place
+of v51's `race_replanned` and `"plain;top"`; Tasks B and C untouched).
+The race's count rule now acts only after a re-plan finished and was
+chosen, never hands a plan that holds the threshold to the dry-run, and
+switches to the dry-run's plan only when the planner's plan is under
+the threshold and the dry-run's holds threshold + 2; the re-plan runs
+right after the first base plan; the `top` variant is dropped (it
+doubled the re-plan's time and twice placed no priority box on dense-a).
+Bench at offline budgets of 40, 60 and 140 s (the bench's 38-49 s mean
+against the platform's 119 s): dense-a 20 of 48 at every budget (the
+shipped form 10), core-a 48 of 48 with the soft and priority counts of
+the shipped form at the same budget, no race switch in any run; the
+short-budget bench did not reproduce v51's lost episode (no re-plan
+was cut), so the loss is read as the `top` pick or the re-plan's time
+on the slower machine, not confirmed (`reports/wedge/a-count-secure.md`,
+section 6).  Official sample: A 32.11 / 25, B 29.59 / 26, C 26.44 / 25;
+policy max B 4.88 s, C 3.67 s (`official-sample-abc-v52.json`).
+
 ## Known limits
 
 * Task B policy time is the closest to its limit (5.2 s of 10 on this

@@ -484,8 +484,11 @@ class RuleAlphaAgent:
                 # config.plan_count_secure_choice: the plan that holds the
                 # count threshold plus the margin wins the race outright
                 prefer = race == "planner"
+            from .planner import soft_floor_yields
+
             if not prefer and (planned is None or race == "dry-run"
-                               or (race is None and score_of(dry_plan) > score_of(planned[1]) + 1e-9)):
+                               or (race is None and (score_of(dry_plan) > score_of(planned[1]) + 1e-9
+                                                     or soft_floor_yields(self, planned[1], dry_plan)))):
                 order, self.plan, self.plan_source = dry_order, dry_plan, "dry-run"
                 planned = None
         if planned is not None:
@@ -769,7 +772,10 @@ class RuleAlphaAgent:
                 print(f"[pocket] observe failed: {exc!r}", flush=True)
         # rebuild from the observation so the plan always reflects the settled
         # truth the simulator reports, not what rule-alpha hoped for
-        self.board = layer1.Board(containers, self.config)
+        # (a soft-floor plan's floor read as hard: config.plan_soft_floor_online)
+        from .planner import soft_floor_board_view
+
+        self.board = layer1.Board(soft_floor_board_view(self, containers), self.config)
         self._reapply_zone_scales()
         self._resize_zones_for_what_is_left()
 
