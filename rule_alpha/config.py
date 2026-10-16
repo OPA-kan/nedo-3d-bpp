@@ -2574,6 +2574,51 @@ class RuleAlphaConfig:
     """The lowest hard box (m): a top closer than this to the ceiling
     counts as one no hard box could use."""
 
+    soft_first_restricted: bool = False
+    """The restricted soft-first pass (Task B): before the hard cargo is
+    tried, each soft item in the pool, smallest first, is offered the
+    ladder's pose, and goes first only when that pose rests entirely on
+    soft cargo, or on hard tops whose level patch (the hard tops at that
+    height, gaps closed, with the validator's clearances and the headroom
+    to the ceiling) holds no hard or priority item of the pool; never on a
+    shelf, never on the floor.  What is left of ``soft_first_when_free``
+    after its measurement (findings, "The soft-first pass on the v39
+    base"): that pass took the shelves and the tops the priority cargo
+    needed (placement share 0.73 -> 0.58, three crossings lost); this one
+    takes only surface no hard box in the pool could stand on.  The point
+    is the soft credit: the platform prices the share of the soft cargo
+    placed and not covered, the pool order puts every soft item behind
+    every hard one, and the episode ends on the first hard box with no
+    pose, when no pool item has one -- on sample-b 40 of 128 soft boxes
+    are placed, on core-b 479 of 874; the rest are in the stream at the
+    decline.  So the credit has to be earned while the surface is there."""
+
+    soft_first_restricted_share: float = 0.3
+    """The share of the policy budget the restricted pass may use (its
+    ladder decisions stop when the slowest one so far would carry past
+    it; the first soft item is always tried).  A ladder decision for a
+    soft item costs 0.1-0.5 s; the batched validator (v54) made it about
+    a third cheaper than when ``soft_first_budget_share`` was measured."""
+
+    soft_first_restricted_tops: bool = False
+    """When the ladder's own pick for the soft item is refused (the shelf,
+    the floor, a top the hard cargo can use, or no pose), the pass asks
+    for a pose on tops: the ladder over item surfaces only, with the
+    typed soft-on-soft column (``soft_tops_for_soft``) on for the ask, then
+    the stack option; each is judged the same way.  Without this the
+    pass has nothing to judge on a layout with a shelf: the ladder's
+    pick for a soft item is the shelf while the shelf has room and the
+    floor after (sample-b seeds 0 and 3: 347 ladder decisions, 107 on the
+    shelf, 121 on the floor, 13 on usable tops, 106 without a pose, no
+    fire)."""
+
+    soft_first_restricted_standing: bool = False
+    """The pool's hard and priority items are tried on the patch in every
+    orientation (on: their standing poses too; the ladder rarely stands a
+    box on a top, and a standing footprint fits almost any top, so the
+    pass would almost never fire).  Off: flat only, the item's two
+    largest sides down."""
+
     online_layer_band: float = 0.25
     """The online layer policy's layer band (m): poses are ranked by the
     band their bottom falls in, so the floor fills before the next layer."""

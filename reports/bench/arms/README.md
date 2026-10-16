@@ -79,6 +79,19 @@ To measure a change, append `,field=value` to the ship arm's line.
   against `ship-sample-b` / `ship-core-b` / `ship-hard2-b`; the
   `pair0-*` records are the first form, whose spot skipped the ladder's
   vetoes and went into the priority strip.
+- `arm_sfr_b.txt`: the shipped B form plus the restricted soft-first pass
+  (`soft_first_restricted`: before the hard cargo, each soft item in the
+  pool, smallest first, goes first when the ladder's pose for it rests on
+  soft cargo or on a hard top no hard or priority item of the pool could
+  stand on -- never a shelf, never the floor; 30 % of the budget;
+  `reports/wedge/soft-first-restricted.md`).  `arm_sfr50_b.txt`: the same
+  at `soft_first_restricted_share=0.5`.  `arm_sfrt_b.txt`: the same with
+  the tops ask (`soft_first_restricted_tops`: when the ladder's own pick
+  is refused, the ladder over item surfaces with the soft-on-soft column,
+  then the stack option).  Records `reports/bench/sfr-sample-b`,
+  `sfr-core-b`, `sfr-hard2-b`, `sfr50-sample-b`, `sfr50-core-b`,
+  `sfrt-sample-b`, `sfrt-core-b`, priced against `ship-sample-b` /
+  `ship-core-b` / `ship-hard2-b`.
 
 ## Judging a run
 

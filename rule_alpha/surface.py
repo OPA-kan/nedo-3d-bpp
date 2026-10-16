@@ -100,6 +100,22 @@ def _close_gaps(mask: np.ndarray, g: int) -> np.ndarray:
     return full == w * w
 
 
+def _sat(mask: np.ndarray) -> np.ndarray:
+    """The summed-area table of a mask: ``s[i, j]`` counts the True cells
+    in ``mask[:i, :j]``."""
+    s = np.zeros((mask.shape[0] + 1, mask.shape[1] + 1), dtype=np.int32)
+    s[1:, 1:] = np.cumsum(np.cumsum(mask.astype(np.int32), axis=0), axis=1)
+    return s
+
+
+def _window_sums(s: np.ndarray, r0: int, r1: int, c0: int, c1: int, h: int, w: int) -> np.ndarray:
+    """For every window origin ``(i, j)`` with ``i < h`` and ``j < w``, the
+    count of True cells in rows ``[i + r0, i + r1)`` and columns
+    ``[j + c0, j + c1)`` of the mask ``s`` is the table of."""
+    return (s[r1:r1 + h, c1:c1 + w] - s[r0:r0 + h, c1:c1 + w]
+            - s[r1:r1 + h, c0:c0 + w] + s[r0:r0 + h, c0:c0 + w])
+
+
 class _Load:
     """One container's load on the cell grid: the floor and the shelf
     plates from the model, the packed boxes as columns."""
@@ -196,6 +212,82 @@ class _Load:
             usable |= _covered(ok, a, b)
             usable |= _covered(ok, b, a)
         return usable
+
+
+def top_holds(load: _Load, z: float, seed: np.ndarray, boxes, lateral: float, vertical: float,
+              margin: float) -> bool:
+    """Could any of ``boxes`` (``(l, w, h)`` triples, either way round)
+    stand at height ``z`` resting on the top the ``seed`` cells belong
+    to?  The validator's rule is the centre of mass inside the convex
+    hull of the contacts by ``margin`` (``config.com_margin``), overhang
+    allowed, so a 0.65 x 0.45 box stands on a lone 0.55 x 0.40 top; a
+    footprint-in-patch test would hand such tops to soft cargo.  A box
+    stands at a window when its whole footprint is free (``h`` plus
+    ``vertical`` under the ceiling and the shelf plates, clear by
+    ``lateral`` of every box between the level and that height, past the
+    chamfer, inside the walls), when it touches the seed, and when the
+    level's support (hard tops and shelf plates within ``TOL`` of ``z``)
+    reaches past its centre by ``margin`` on both sides in x and in y --
+    the hull's extent in each axis is its contacts', so this is necessary
+    for the rule, not sufficient: the test errs towards "a hard box fits",
+    which is the safe side for the restricted soft-first pass that asks it
+    (``RuleAlphaAgent._soft_first_restricted``; True means the top is
+    still hard cargo's).  The transport sweep is not modelled, which errs
+    the same way."""
+    support = np.zeros((load.nx, load.ny), dtype=bool)
+    for m, _bottom, top, soft in load.boxes:
+        if not soft and abs(top - z) <= TOL:
+            support |= m
+    for m, top, _bottom in load.shelves:
+        if abs(top - z) <= TOL:
+            support |= m
+    seed = seed & support
+    if not seed.any():
+        return False
+    s_support, s_seed = _sat(support), _sat(seed)
+    ring = max(0, int(round(float(lateral) / load.cell)))
+    m_cells = float(margin) / load.cell
+    past_chamfer = load.xx >= load.x_limit(z) + float(lateral) / 2.0
+    nx, ny = load.nx, load.ny
+    for l, w, h in boxes:
+        need = float(h) + float(vertical)
+        if z + need > load.z_ceiling + 1e-9:
+            continue
+        free = load.local_ceiling(z) >= z + need - 1e-9
+        blocking = np.zeros((nx, ny), dtype=bool)
+        for m, bottom, top, _soft in load.boxes:
+            if top > z + 1e-3 and bottom < z + need - 1e-3:
+                blocking |= m
+        if ring > 0 and blocking.any():
+            blocking = _box_sum(blocking, ring) > 0
+        s_free = _sat(free & ~blocking & past_chamfer)
+        la, wb = int(round(float(l) / load.cell)), int(round(float(w) / load.cell))
+        for a, b in ((la, wb), (wb, la)):
+            if a <= 0 or b <= 0 or a > nx or b > ny:
+                continue
+            hh, ww = nx - a + 1, ny - b + 1
+            full = _window_sums(s_free, 0, a, 0, b, hh, ww) == a * b
+            if not full.any():
+                continue
+            touches = _window_sums(s_seed, 0, a, 0, b, hh, ww) > 0
+            ok = full & touches
+            if not ok.any():
+                continue
+            # the contacts reaching past the centre by the margin: a cell
+            # whose near edge is at least the margin before the centre on
+            # one side, one whose far edge is at least the margin past it
+            # on the other, in each axis
+            na = int(np.floor(a / 2.0 - m_cells)) + 1
+            nb = int(np.floor(b / 2.0 - m_cells)) + 1
+            if na <= 0 or nb <= 0:
+                continue
+            ok &= _window_sums(s_support, 0, na, 0, b, hh, ww) > 0
+            ok &= _window_sums(s_support, a - na, a, 0, b, hh, ww) > 0
+            ok &= _window_sums(s_support, 0, a, 0, nb, hh, ww) > 0
+            ok &= _window_sums(s_support, 0, a, b - nb, b, hh, ww) > 0
+            if ok.any():
+                return True
+    return False
 
 
 class SurfaceScorer:
