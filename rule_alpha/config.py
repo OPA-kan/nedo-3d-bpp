@@ -674,11 +674,18 @@ class RuleAlphaConfig:
     leave room beside themselves for the partner: the same pose flush
     along the side whose pair holds the window (0.55 x 0.80; 1.10 x 0.40
     holds nothing), the settled clearance plus ``pair_reserve_slack``
-    between them, inside the floor and clear of the packed boxes.  The
-    spot is reserved for one call: on the next, the partner still in the
-    pool and the spot still free beside the box as it settled, the
-    partner goes there first (``layer1.validate``, the cover rule, the
-    shadow gate); otherwise the call falls through to the normal flow.
+    between them, inside the floor, clear of the packed boxes and one
+    the ladder's own vetoes let stand (``pair.ladder_refuses``: the spot
+    as a floor candidate through ``apply_vetoes`` with the first box on
+    the board -- without this the partner went into the reserved
+    priority strip in front of the back-right corner box, placement -27
+    on sample-b; with it the pick switches to the box laid 0.40 along
+    the back wall and the pair runs along the wall).  The spot is
+    reserved for one call: on the next, the partner still in the pool
+    and the spot still free beside the box as it settled, the partner
+    goes there first (``layer1.validate``, the ladder's vetoes, the cover
+    rule, the shadow gate); otherwise the call falls through to the
+    normal flow.
     ``pair_key`` was inert because the lone box is laid when nothing of
     its height is near it yet; the pair needs the next box, which Task C
     cannot see and Task B's pool can (findings, "Where the empty volume

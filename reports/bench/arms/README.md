@@ -76,7 +76,9 @@ To measure a change, append `,field=value` to the ship arm's line.
   partner in the pool fits flush beside it, the partner placed there on
   the next call; `reports/wedge/pair-reserve.md`).  Records
   `reports/bench/pair-sample-b`, `pair-core-b`, `pair-hard2-b`, priced
-  against `ship-sample-b` / `ship-core-b` / `ship-hard2-b`.
+  against `ship-sample-b` / `ship-core-b` / `ship-hard2-b`; the
+  `pair0-*` records are the first form, whose spot skipped the ladder's
+  vetoes and went into the priority strip.
 
 ## Judging a run
 
