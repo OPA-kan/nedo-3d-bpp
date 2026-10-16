@@ -59,6 +59,19 @@ To measure a change, append `,field=value` to the ship arm's line.
   against `ship-core` / `ship-core-b`; `softl-col-hard2` and
   `softl-all-hard2` against `ship-hard2`. None shipped.
 
+- `arm_ps03_{c,b}.txt`, `arm_ps04_{c,b}.txt`: the shipped C and B forms with
+  the phase switch at a usable surface of 0.3 / 0.4
+  (`phase_switch_surface`); records `reports/bench/ps03-*`, `ps04-*`
+  (findings, "The usable surface falls in cliffs").
+- `arm_cliff_{c,b}.txt`: the shipped C and B forms plus the cliff veto
+  (`cliff_veto=true`: in the middle band of the phase, usable surface 0.25
+  to 0.6, a rung's pick that closes more than 0.12 of the floor beyond its
+  footprint yields to the first survivor of its rung that closes less than
+  half of it; `reports/wedge/cliff-veto.md`). `arm_cliff08_{c,b}.txt`: the
+  same at `cliff_veto_close=0.08`. Records `reports/bench/cliff-sample-c`,
+  `cliff-sample-b`, `cliff-core`, `cliff-core-b` and `cliff08-*`, priced
+  against `ship-sample-c`, `ship-sample-b`, `ship-core`, `ship-core-b`.
+
 ## Judging a run
 
 `python -m bench.platform_score <base_dir> <new_dir> ...` prices every
