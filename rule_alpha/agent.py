@@ -352,14 +352,16 @@ class RuleAlphaAgent:
         is at least this share of the containers' (box) volume, or always
         when the share is 0."""
         share = float(getattr(self.config, "plan_dry_run_first_dense", 0.0) or 0.0)
-        if share <= 0.0:
+        if share == 0.0:
             return True
         if self.board is None:
             return False
         capacity = sum(float(c.get("length", 0)) * float(c.get("width", 0)) * float(c.get("height", 0))
                        for c in self.board.containers) or 1.0
         volume = sum(float(i["length"]) * float(i["width"]) * float(i["height"]) for i in item_list)
-        return volume / capacity >= share
+        # negative: the manifests under the share (the sample-like ones,
+        # where the dry-run's plan is the one that crosses)
+        return volume / capacity >= share if share > 0.0 else volume / capacity < -share
 
     def _valuable_before_tail(self, order: list, item_list: list) -> list:
         """config.plan_valuable_before_tail: the soft and priority items

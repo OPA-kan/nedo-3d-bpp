@@ -2933,7 +2933,9 @@ class RuleAlphaConfig:
 
     plan_dry_run_first_dense: float = 0.0
     """With ``plan_dry_run_first``: only on manifests whose volume is at
-    least this share of the containers' box volume (0: every manifest)."""
+    least this share of the containers' box volume (0: every manifest;
+    negative: only on manifests under the share's magnitude).  The bench's
+    manifests: core-a 0.48-0.61, dense-a 0.60-1.21, hard-a 0.30-1.88."""
 
     plan_dry_run_reserve: float = 0.0
     """Task A, the planner first: the planner stops this share of the
