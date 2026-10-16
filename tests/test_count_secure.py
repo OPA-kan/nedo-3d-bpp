@@ -278,3 +278,167 @@ class PlanScoreComTest(unittest.TestCase):
                 self.assertGreater(agent.plan_score(low), agent.plan_score(high))
             else:
                 self.assertEqual(agent.plan_score(low), agent.plan_score(high))
+class SoftFrameBlockTest(unittest.TestCase):
+    """``plan_count_secure_blocks`` token ``soft`` (reports/wedge/a-soft-frame.md):
+    the count frame's soft cargo standing two deep against the back wall
+    (``count_secure.pack_soft_block``, ``planner.pack_typed_gallery`` mode
+    ``column``), the frame's hard rows in front of it."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.scene = make_scene(2, "c1x60", "A")
+        cls.agent = make_arm(PLANNER)(cls.scene)
+        cls.containers = cls.scene.rule_alpha_containers()
+        cls.agent.get_init_states({"container_list": cls.containers})
+        cls.items = [dict(i) for i in cls.scene.items]
+        cls.agent._prepare_manifest(cls.items)
+        cls.agent._manifest_total = len(cls.items)
+        cls.agent.plan_source = "planner"
+        cls.frame = count_secure.count_frame(cls.items, 33)
+
+    def _block(self, **fields):
+        import time
+
+        config = dataclasses.replace(self.agent.config, **fields)
+        board = layer1.Board([dict(c, packed_items=[]) for c in self.containers], config)
+        soft = [self.agent.profiles[i] for i in self.frame if self.agent.profiles[i].is_soft]
+        soft = [p for p in soft if not p.is_prioritized] + [p for p in soft if p.is_prioritized]
+        plan, planned = [], []
+        edge = count_secure.pack_soft_block(self.agent, board, 0, soft, config, plan, planned,
+                                            time.perf_counter() + 60)
+        return board, plan, edge
+
+    def test_defaults_leave_the_block_out(self):
+        self.assertEqual(DEFAULT_CONFIG.plan_count_secure_blocks, "plain")
+        self.assertEqual(DEFAULT_CONFIG.plan_count_secure_soft_layers, 2)
+        self.assertFalse(DEFAULT_CONFIG.plan_count_secure_soft_ledge)
+        self.assertGreater(DEFAULT_CONFIG.plan_count_secure_soft_nudge, DEFAULT_CONFIG.plan_replay_nudge)
+
+    def test_block_stands_two_deep_against_the_back_wall(self):
+        board, plan, edge = self._block()
+        model = board.model(0)
+        by_index = {int(i["index"]): i for i in self.items}
+        self.assertGreaterEqual(len(plan), 12)
+        floor = [e for e in plan if e["on_floor"]]
+        upper = [e for e in plan if not e["on_floor"]]
+        self.assertGreaterEqual(len(upper), 3)
+        back = model.floor_rect.y_max - self.agent.config.anchor_slack
+        for e in plan:
+            self.assertTrue(by_index[e["index"]]["is_soft"])
+            # standing: the smallest face down, every entry with the block's replay nudge
+            self.assertAlmostEqual(e["size"][2], max(e["size"]), places=6)
+            self.assertAlmostEqual(e["replay_nudge"], DEFAULT_CONFIG.plan_count_secure_soft_nudge, places=6)
+            self.assertLessEqual(e["center"][1] + e["size"][1] / 2.0, back + 1e-6)
+        # the first row against the back wall, the floor share met before anything is stacked
+        self.assertTrue(any(abs(e["center"][1] + e["size"][1] / 2.0 - back) < 1e-6 for e in floor))
+        for e in upper:
+            # on a floor box's top, under the soft structure cap, the same footprint or a smaller one
+            base = next(f for f in floor if abs(f["bottom"] + f["size"][2] - e["bottom"]) < 1e-6
+                        and abs(f["center"][0] - e["center"][0]) < 0.03 and abs(f["center"][1] - e["center"][1]) < 0.03)
+            self.assertLessEqual(e["bottom"], model.z_floor + 0.7 + 1e-6)
+            self.assertLessEqual(e["size"][0], base["size"][0] + 0.02 + 1e-6)
+            self.assertLessEqual(e["size"][1], base["size"][1] + 0.02 + 1e-6)
+            # nothing normal rests on a priority box
+            if by_index[base["index"]]["is_prioritized"]:
+                self.assertTrue(by_index[e["index"]]["is_prioritized"])
+        # the rows keep the extra gap, so a row that settles towards the opening still clears the next
+        lines = sorted({round(e["center"][1] + e["size"][1] / 2.0, 3) for e in floor}, reverse=True)
+        gap = self.agent.config.settled_clearance + self.agent.config.anchor_slack
+        for upper_line, lower_line in zip(lines, lines[1:]):
+            front = min(e["center"][1] - e["size"][1] / 2.0 for e in floor
+                        if abs(e["center"][1] + e["size"][1] / 2.0 - upper_line) < 1e-3)
+            self.assertGreaterEqual(front - lower_line, gap + DEFAULT_CONFIG.plan_count_secure_soft_gap - 1e-3)
+        self.assertAlmostEqual(edge, min(e["center"][1] - e["size"][1] / 2.0 for e in floor), places=6)
+
+    def test_one_layer_keeps_every_box_on_the_floor(self):
+        _board, plan, _edge = self._block(plan_count_secure_soft_layers=1)
+        self.assertGreater(len(plan), 0)
+        self.assertTrue(all(e["on_floor"] for e in plan))
+
+    def test_ledge_stands_boxes_on_the_small_shelf(self):
+        board, plan, _edge = self._block(plan_count_secure_soft_ledge=True)
+        shelf = board.model(0).small_shelf
+        self.assertIsNotNone(shelf)
+        on_ledge = [e for e in plan if abs(e["bottom"] - float(shelf.maximum[2])) < 1e-6]
+        self.assertGreaterEqual(len(on_ledge), 2)
+        for e in on_ledge:
+            self.assertLessEqual(e["center"][0] + e["size"][0] / 2.0, float(shelf.maximum[0]) + 1e-6)
+            self.assertFalse(e["on_floor"])
+        _board, plain, _e = self._block()
+        self.assertFalse(any(abs(e["bottom"] - float(shelf.maximum[2])) < 1e-6 for e in plain))
+
+    def test_frame_plan_puts_the_hard_rows_in_front_of_the_block(self):
+        import time
+
+        from rule_alpha.planner import _Pose, _placement
+
+        agent = self.agent
+        saved = agent.config
+        # the count-secured overrides secure_count plans every variant with
+        agent.config = dataclasses.replace(saved, plan_standing_rows=True, plan_soft_own_rows=True)
+        try:
+            _order, plan, info = count_secure.plan_frame(agent, self.items, time.perf_counter() + 90, self.frame,
+                                                         "soft")
+        finally:
+            agent.config = saved
+        self.assertEqual(len(info["regions"]), 1)
+        _x0, _x1, edge, _y1 = info["regions"][0]
+        by_index = {int(i["index"]): i for i in self.items}
+        gap = agent.config.settled_clearance + agent.config.anchor_slack
+        in_frame = set(self.frame)
+        steps = sorted(plan, key=lambda e: e["step"])
+        # the frame's hard rows start the block's gap in front of its edge
+        # (the pose search over what the rows left anchors anywhere)
+        hard = [e for e in steps[:info["frame_planned"]] if not by_index[e["index"]]["is_soft"]]
+        self.assertGreater(len(hard), 0)
+        for e in hard:
+            self.assertLessEqual(e["center"][1] + e["size"][1] / 2.0,
+                                 edge - gap - DEFAULT_CONFIG.plan_count_secure_soft_gap + 1e-3)
+        self.assertTrue(all(e["index"] in in_frame for e in steps[:info["frame_planned"]]))
+        self.assertGreater(sum(1 for e in steps if by_index[e["index"]]["is_soft"] and e["index"] in in_frame), 10)
+        board = layer1.Board([dict(c, packed_items=[]) for c in self.containers], agent.config)
+        for entry in steps:
+            model = board.model(entry["container_idx"])
+            box = AABB(tuple(entry["center"]), tuple(entry["size"]), "plan")
+            ok, why = layer1.validate(box, model, board.container(entry["container_idx"]), agent.config)
+            self.assertTrue(ok, why)
+            profile = agent.profiles[entry["index"]]
+            orientation = next(o for o in profile.orientations if o.index == entry["orientation"])
+            board.apply(_placement(_Pose(box, orientation, model.z_floor), 1, profile, entry["container_idx"], model))
+
+    def test_replay_slides_a_block_pose_by_its_own_nudge(self):
+        from rule_alpha.planner import _replay
+
+        agent = self.agent
+        config = dataclasses.replace(agent.config, plan_replay_clearance=0.026, plan_replay_nudge=0.02)
+        saved = agent.config
+        agent.config = config
+        try:
+            soft = [p for p in agent.profiles.values() if p.is_soft and not p.is_prioritized
+                    and abs(p.orientations[0].dx - 0.65) < 1e-9]
+            first, second = soft[0], soft[1]
+            o = next(oo for oo in first.orientations if abs(oo.dz - 0.65) < 1e-9 and abs(oo.dx - 0.23) < 1e-9)
+            board = layer1.Board([dict(c, packed_items=[]) for c in self.containers], config)
+            model = board.model(0)
+            rect = model.floor_rect
+            x = rect.x_min + 0.2
+            y_back = rect.y_max - config.anchor_slack - o.dy / 2.0
+            z = model.z_floor + o.dz / 2.0
+            # the first box settled against the back wall; the second planned
+            # touching its front (a row that settled 2.6 cm towards it)
+            board.container(0)["packed_items"].append(dict(
+                index=first.index, position=[x, y_back, z], dims=[o.dx, o.dy, o.dz], is_soft=True,
+                is_prioritized=False))
+            entry = {"step": 2, "index": second.index, "container_idx": 0, "orientation": int(o.index),
+                     "center": [x, y_back - o.dy, z], "size": [o.dx, o.dy, o.dz], "bottom": model.z_floor,
+                     "on_floor": True}
+            pool = [(0, second)]
+            agent.plan_misses = 0
+            self.assertIsNone(_replay(agent, board, pool, {second.index: dict(entry)}))
+            hit = _replay(agent, board, pool, {second.index: dict(entry, replay_nudge=0.04)})
+            self.assertIsNotNone(hit)
+            placed = hit[1].placement.box
+            self.assertLess(float(placed.center[1]), y_back - o.dy - 0.02)
+            self.assertGreaterEqual(y_back - o.dy / 2.0 - float(placed.maximum[1]), 0.026 - 1e-6)
+        finally:
+            agent.config = saved
