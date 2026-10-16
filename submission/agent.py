@@ -173,7 +173,10 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # the official sample that is still the dry-run (the planner plans 20 of
 # 41, the threshold 21), so the sample check reads as v50's; on the
 # sample-like manifests the bench resamples from it the planner alone
-# priced +6.75 platform points (reports/wedge/a-tail-order.md).
+# priced +6.75 platform points (reports/wedge/a-tail-order.md).  v53
+# scored 55.86 (v50 56.04): soft +1.45, cog +0.74, fill -0.86,
+# placement -2.2, the count unchanged; not kept, the shipped form is
+# v50's again.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -539,8 +542,12 @@ class Agent(RuleAlphaAgent):
                       # alone priced +6.75 [+2.28, +11.32] platform points
                       # there and never worse on the generated suites at
                       # 140 s (reports/wedge/a-tail-order.md,
-                      # a-count-secure.md section 7)
-                      plan_prefer_planner=True)
+                      # a-count-secure.md section 7).  v53 scored 55.86 on
+                      # the platform (v50 56.04): the count unchanged, soft
+                      # and cog up as read, fill and placement down -- the
+                      # planner's plans lose priority credit there in a way
+                      # the bench does not price.  Not kept.
+                      plan_prefer_planner=False)
         # v51 / v52 (not kept): the count-secured re-plan
         # (plan_count_secure and its switches) lost a counted A episode on
         # the platform twice; the shipped form is v50's again

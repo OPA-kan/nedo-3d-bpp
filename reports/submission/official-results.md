@@ -42,6 +42,7 @@
 | diag-C (47590073: v50 surrendering every Task C item from the first call; a diagnostic) | 33.10 | 55.48 | 66.57 | 40.25 | 41.75 | 0.5529 | 130.8 | 6.81 |
 | v51 (6a459ba2: v50 plus Task A's count-secured re-plan under the count threshold; not kept) | 38.32 | 61.21 | 73.99 | 48.45 | 46.6 | 0.6391 | 138.8 | 6.71 |
 | v52 (08586211: v51's re-plan with the race and time fixes, the plain variant alone; not kept) | 38.31 | 61.11 | 73.95 | 49.0 | 45.8 | 0.6385 | 139.2 | 6.72 |
+| v53 (0fb97699: v50 plus the planner's plan preferred in Task A's race, `plan_prefer_planner`; not kept) | 37.76 | 65.56 | 78.25 | 48.2 | 51.55 | 0.6337 | 118.0 | 6.75 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -617,3 +618,20 @@ platform.  Expected: the counted A episodes' placement and soft up where
 the race had taken a dry-run plan (the bench's sample-like manifests:
 the planner alone +6.75 [+2.28, +11.32]), the count unchanged
 (reports/wedge/a-tail-order.md).
+
+v53's total is 55.86 (v50 56.04, -0.18): stability 78.25 against v50's
+78.19, so the same number of counted episodes; soft 51.55 (+1.45) and
+cog 65.56 (+0.74) up as the bench read, fill 37.76 (-0.86) down about
+twice what it read, and placement 48.2 (-2.2) down where the bench had
+read it up on every A suite (sample-a +14.6, core-a +2.7).  At the
+weights: fill -0.25, cog +0.16, stability +0.01, placement -0.31, soft
++0.20.  Placed fraction 0.6337 (-0.011: the planner's plans hold a few
+items fewer), the optimize 118.0 s (v50 118.9), policy 6.75 s.  The
+planner's plans buy soft credit and lose priority credit on the
+platform's A manifests, which the bench's priority credit (the share
+placed, not covered, not misrouted) does not predict; what the
+platform's placement score charges the planner's plans for is the open
+question, and the two diagnostic builds of Task A's offline phase
+(`submit_diag_a_planner.zip`, `submit_diag_a_dryrun.zip`: the planner
+alone, the dry-run alone) would answer it directly.  Not kept; the
+shipped form is v50's.

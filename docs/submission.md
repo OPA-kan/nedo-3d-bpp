@@ -876,7 +876,13 @@ the threshold of 21, so the dry-run's plan is kept), B 29.59 / 26,
 C 26.44 / 25, the optimize 21.6 s; policy max B 4.71 s, C 3.44 s
 (`official-sample-abc-v53.json`).  Expected on the platform: the
 counted A episodes' placement and soft components up where the race
-had taken a dry-run plan, the count unchanged.
+had taken a dry-run plan, the count unchanged.  Official platform:
+55.86 (v50 56.04, -0.18): the count unchanged (stability 78.25 against
+78.19), soft +1.45 and cog +0.74 as read, fill -0.86 (twice the
+reading), placement -2.2 where the bench read it up on every A suite.
+The planner's plans lose priority credit on the platform's manifests in
+a way the bench's placement model does not price; not kept, the
+shipped form stays v50's (`reports/submission/official-results.md`).
 
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
