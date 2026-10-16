@@ -408,3 +408,45 @@ class TypedStandingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class PlatformScoreTests(unittest.TestCase):
+    """bench.platform_score: the platform's pricing of a bench record."""
+
+    def _record(self, placed, total, **m):
+        metrics = dict(placed_count=placed, total_items=total, fill_evaluator_tolerant=40.0, fill_volume=42.0,
+                       com_z_above_floor_ratio=0.35, shake_topples=0, soft_count=4, soft_covered=1,
+                       priority_count=3, priority_covered=0, priority_misrouted=1, policy_time_max=3.0)
+        metrics.update(m)
+        return {"scene": f"c-c1-s{placed:04d}", "scene_spec": {"seed": 1, "layout": "c1", "task": "C"}, "metrics": metrics}
+
+    def test_gate_zeroes_the_four_components(self):
+        from bench import platform_score as ps
+
+        over = ps.score_episode(self._record(22, 41))
+        under = ps.score_episode(self._record(20, 41))
+        self.assertTrue(over["counted"] and not under["counted"])
+        self.assertAlmostEqual(under["score"], ps.WEIGHTS["fill"] * 40.0)
+        for k in ("cog", "stability", "placement", "soft"):
+            self.assertEqual(under[k], 0.0)
+            self.assertGreater(over[k], 0.0)
+        self.assertAlmostEqual(over["cog"], ps.COG_LEVEL - ps.COG_SLOPE * 0.35)
+        self.assertAlmostEqual(over["stability"], ps.STAB_LEVEL)
+        # the shares against the scene's own totals, covered and misrouted boxes charged
+        self.assertEqual(over["soft_ok"], 3)
+        self.assertEqual(over["prio_ok"], 2)
+
+    def test_paired_delta_and_mix(self):
+        from bench import platform_score as ps
+
+        base = {f"s{i}": dict(scene=f"s{i}", score=50.0 + i, counted=True, placed=20, policy_max=1.0,
+                              fill=40.0, cog=70.0, stability=96.0, placement=50.0, soft=50.0) for i in range(6)}
+        new = {k: dict(v, score=v["score"] + 1.0, soft=v["soft"] + 10.0) for k, v in base.items()}
+        d = ps.paired_delta(base, new, boot=200)
+        self.assertEqual(d["n"], 6)
+        self.assertAlmostEqual(d["delta"], 1.0)
+        self.assertAlmostEqual(d["soft"], 10.0)
+        self.assertEqual((d["up"], d["down"]), (6, 0))
+        s = ps.summarize(new.values())
+        self.assertEqual(s["counted"], 6)
+        self.assertAlmostEqual(s["soft"], 60.0)
