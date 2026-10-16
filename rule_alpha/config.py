@@ -3270,6 +3270,17 @@ class RuleAlphaConfig:
     ladder lays the missed box on the floor where the hard rows were
     planned (29 placed of a 33-item plan)."""
 
+    plan_count_secure_soft_end_slack: float = 0.0
+    """The room (m) each row of the soft frame block ends short of the
+    wall.  Along a row the boxes drift and tilt a centimetre; a box before
+    the last slides into the room its unplaced neighbour leaves, but the
+    last box, planned at the wall's clearance, has nowhere to go
+    (`asoft30-dense-a`: a-c1x60-s0004 and a-c1x80-s0009 missed a row's
+    last box, the ladder laid it in the hard rows' strip, and the
+    episodes placed 26 and 25 of plans of 32 and 30).  0: the rows run to
+    the wall (the form measured as `asoft30-*`); 0.03 changes which rows
+    hold five boxes and is measured as `asofte30-*`."""
+
     plan_count_secure_soft_nudge: float = 0.04
     """The shift (m) the replay may slide a pose of the soft frame block
     by, written into its plan entries (``replay_nudge``), over

@@ -1649,7 +1649,8 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
                        planned: list, deadline: float, log=None, mode: str = "stand", max_rows: int = 2,
                        y_top: float | None = None, y_bottom: float | None = None,
                        layers: int = 4, priority_last: bool = False, ledge: bool = False,
-                       row_gap_extra: float = 0.0, replay_nudge: float = 0.0) -> float | None:
+                       row_gap_extra: float = 0.0, replay_nudge: float = 0.0,
+                       row_end_extra: float = 0.0) -> float | None:
     """The typed-standing gallery: ``items`` (consumed as placed) in up to
     ``max_rows`` rows from ``y_top`` (default: the back wall) towards the
     opening, each row left to right.  ``stand``: every box on its smallest
@@ -1673,10 +1674,11 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
     planner never reaches: a box dropped there fits under it).
     ``row_gap_extra`` widens the gap between the rows (a standing soft box
     settles 2-3 cm towards the opening, and the next row's pose is then
-    under the replay's clearance); ``replay_nudge`` is written into every
-    pose's plan entry, the shift the replay may slide it by (over
-    ``plan_replay_nudge``).  Returns the y of the gallery's front edge
-    (None when nothing was placed)."""
+    under the replay's clearance); ``row_end_extra`` ends every row that
+    much short of the wall (the last box of a row has nowhere to slide);
+    ``replay_nudge`` is written into every pose's plan entry, the shift
+    the replay may slide it by (over ``plan_replay_nudge``).  Returns the
+    y of the gallery's front edge (None when nothing was placed)."""
     model = board.model(container_idx)
     rect = model.floor_rect
     gap = config.settled_clearance + config.anchor_slack
@@ -1685,6 +1687,12 @@ def pack_typed_gallery(agent, board: layer1.Board, container_idx: int, items: li
     slack = config.anchor_slack
     wall = config.inclusion_clearance + slack
     x_right = rect.x_max - slack
+    if row_end_extra > 0.0:
+        # the row ends this much short of the wall: a standing box drifts
+        # and tilts a centimetre, a box before the last slides right into
+        # the room its unplaced neighbour leaves, and the last box of a
+        # row, planned at the wall's clearance, has nowhere to slide
+        x_right -= float(row_end_extra)
     y_front = rect.y_min + slack if y_bottom is None else max(rect.y_min + slack, float(y_bottom))
     y_back = rect.y_max - slack if y_top is None else min(rect.y_max - slack, float(y_top))
     x_left = max(model.x_limit_at_height(model.z_floor) + wall, rect.x_min)

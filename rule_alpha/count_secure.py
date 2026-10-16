@@ -297,7 +297,8 @@ def pack_soft_block(agent, board: layer1.Board, container_idx: int, items: list,
                               y_bottom=y_bottom, layers=int(getattr(config, "plan_count_secure_soft_layers", 2)),
                               priority_last=True, ledge=bool(getattr(config, "plan_count_secure_soft_ledge", False)),
                               row_gap_extra=float(getattr(config, "plan_count_secure_soft_gap", 0.03)),
-                              replay_nudge=float(getattr(config, "plan_count_secure_soft_nudge", 0.04)))
+                              replay_nudge=float(getattr(config, "plan_count_secure_soft_nudge", 0.04)),
+                              row_end_extra=float(getattr(config, "plan_count_secure_soft_end_slack", 0.0)))
 
 
 def plan_frame(agent, item_list: list[dict], deadline: float, frame: list[int], side: str,
