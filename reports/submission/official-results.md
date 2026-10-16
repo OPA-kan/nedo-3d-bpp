@@ -607,3 +607,13 @@ tie-break alone) was not scored on the platform, so the step from v39
 carries both.  Policy time 7.27 s against the 8 s limit (v39 7.33):
 the low phase gives the count pass its extra seconds; no new margin
 was spent.
+
+v53 (the planner's plan preferred in Task A's race, `plan_prefer_planner`;
+Tasks B and C as v50) is built and checked on the official sample (A
+32.11 / 25, B 29.59 / 26, C 26.44 / 25, the optimize 21.6 s, policy max
+B 4.71 s, C 3.44 s: v50's reading, since on the sample the planner's
+plan is under the threshold and the dry-run's is kept), awaiting the
+platform.  Expected: the counted A episodes' placement and soft up where
+the race had taken a dry-run plan (the bench's sample-like manifests:
+the planner alone +6.75 [+2.28, +11.32]), the count unchanged
+(reports/wedge/a-tail-order.md).

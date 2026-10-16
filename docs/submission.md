@@ -856,6 +856,28 @@ v51, the optimize time 139.2 s at the budget.  The re-plan itself loses
 a counted A episode on the platform; not kept, the shipped form stays
 v50's (`reports/submission/official-results.md`).
 
+Fifty-third build (v53): v50 with the planner's plan preferred in
+Task A's race (`plan_prefer_planner=True` in the task_a overrides): the
+row planner's plan unless it is under the count threshold while the
+ladder's dry-run plan is not; Tasks B and C untouched.  The bench's
+`sample` layout (the official sample's scene; seeds above 0 resample
+its manifest) reproduces the sample check's counts exactly (shipped 25,
+dry-run alone 25, planner alone 21), and on its 12 sample-like Task A
+manifests the race picked the dry-run's plan on 6, a plan that holds
+no soft and no priority box: the planner alone priced +6.75 [+2.28,
++11.32] platform points there (placement +26, soft +17, cog +9, fill
+-6) and never worse on the generated suites at 140 s (core-a +0.93
+[+0.12, +2.09], dense-a +1.26 n.s., hard-a +0.15 n.s.), -2.48 n.s. on
+hard-a at a 20 s offline budget where the dry-run rescues sub-threshold
+planner plans; the preference keeps that rescue
+(`reports/wedge/a-tail-order.md`, `a-count-secure.md` section 7).
+Official sample: A 32.11 / 25 (the planner plans 20 of 41 there, under
+the threshold of 21, so the dry-run's plan is kept), B 29.59 / 26,
+C 26.44 / 25, the optimize 21.6 s; policy max B 4.71 s, C 3.44 s
+(`official-sample-abc-v53.json`).  Expected on the platform: the
+counted A episodes' placement and soft components up where the race
+had taken a dry-run plan, the count unchanged.
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the

@@ -167,6 +167,13 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # any run (reports/wedge/a-count-secure.md, section 6).  v52 scored
 # 53.43, the same as v51, so the re-plan itself loses the episode on the
 # platform's A manifests; withdrawn, the shipped form is v50's.
+# v53: the planner's plan preferred in Task A's race (plan_prefer_planner
+# in the task_a overrides below); the dry-run's plan only when the
+# planner's is under the count threshold and the dry-run's is not.  On
+# the official sample that is still the dry-run (the planner plans 20 of
+# 41, the threshold 21), so the sample check reads as v50's; on the
+# sample-like manifests the bench resamples from it the planner alone
+# priced +6.75 platform points (reports/wedge/a-tail-order.md).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -521,7 +528,19 @@ class Agent(RuleAlphaAgent):
                       band_lift=0.0,
                       # v50: the soft columns' floor-share gate is kept on
                       # A, whose rows were not measured without it
-                      soft_structure_floor_share=0.35)
+                      soft_structure_floor_share=0.35,
+                      # v53: the planner's plan preferred in the race with
+                      # the ladder's dry-run; the dry-run's plan only when
+                      # the planner's is under the count threshold and the
+                      # dry-run's is not.  The race's own score (fill 1,
+                      # soft 0.5, priority 0.5, count 3) picked the dry-run
+                      # plan on 6 of 12 sample-like manifests, and that
+                      # plan holds no soft and no priority box: the planner
+                      # alone priced +6.75 [+2.28, +11.32] platform points
+                      # there and never worse on the generated suites at
+                      # 140 s (reports/wedge/a-tail-order.md,
+                      # a-count-secure.md section 7)
+                      plan_prefer_planner=True)
         # v51 / v52 (not kept): the count-secured re-plan
         # (plan_count_secure and its switches) lost a counted A episode on
         # the platform twice; the shipped form is v50's again
