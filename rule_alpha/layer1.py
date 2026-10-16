@@ -1223,9 +1223,12 @@ def generate_candidates(board: Board, profile: cls.ItemProfile, container_idx: i
         batch = (getattr(config, "batch_validate", True) and getattr(config, "fast_validate", False)
                  and float(getattr(config, "lift_to_tops", 0.0) or 0.0) <= 0.0)
         grid = []
+        rz = round(z, 4)
+        rys = [(y, round(y, 4)) for y in surface_ys]
         for x in surface_xs:
-            for y in surface_ys:
-                key = (round(x, 4), round(y, 4), round(z, 4))
+            rx = round(x, 4)
+            for y, ry in rys:
+                key = (rx, ry, rz)
                 if key in seen:
                     continue
                 seen.add(key)

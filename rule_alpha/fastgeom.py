@@ -566,12 +566,47 @@ def validate_points(points, z: float, size, model, container: dict, config, stab
     else:
         stable = [stability_fn(AABB((float(cx[i]), float(cy[i]), cz), (sx, sy, sz), "candidate"), container, config)[0]
                   for i in survivors]
+    swept = []
     for i, ok_i in zip(survivors, stable):
         if not ok_i:
             out[i] = False
+        else:
+            swept.append(i)
+    if not swept or omin.shape[0] == 0:
+        return out
+    # the transport sweep of every stable survivor at once: each sweep's
+    # samples (``_samples``, the same centres) stacked, every obstacle's
+    # clearance to every sample in one pass, an obstacle counted for a
+    # sample only when its gap in z alone is under the clearance (the
+    # ``near`` rule of ``_sweep_verdict``, so the same comparisons)
+    tz = transport_z[swept]
+    z_gap = np.maximum(0.0, np.maximum(omin[None, :, 2] - (tz + hz)[:, None], (tz - hz)[:, None] - omax[None, :, 2]))
+    near = z_gap < sweep - EPS
+    xs_all, ys_all, owner = [], [], []
+    for j, i in enumerate(swept):
+        if not near[j].any():
             continue
-        x, y = float(cx[i]), float(cy[i])
-        out[i] = _sweep_verdict(x, y, hx, hy, hz, float(transport_z[i]), float(start_x[i]), entry_y, obs, sweep)[0]
+        xs, ys = _samples(float(cx[i]), float(cy[i]), float(start_x[i]), entry_y)
+        xs_all.append(xs)
+        ys_all.append(ys)
+        owner.append(np.full(xs.shape[0], j, dtype=np.int64))
+    if not xs_all:
+        return out
+    xs = np.concatenate(xs_all)
+    ys = np.concatenate(ys_all)
+    owner = np.concatenate(owner)
+    m = xs.shape[0]
+    smin = np.empty((m, 3), dtype=np.float64)
+    smax = np.empty((m, 3), dtype=np.float64)
+    smin[:, 0] = xs - hx
+    smin[:, 1] = ys - hy
+    smin[:, 2] = tz[owner] - hz
+    smax[:, 0] = xs + hx
+    smax[:, 1] = ys + hy
+    smax[:, 2] = tz[owner] + hz
+    hits = _within_clearance(smin, smax, omin, omax, sweep) & near[owner]
+    for j in np.unique(owner[hits.any(axis=1)]).tolist():
+        out[swept[j]] = False
     return out
 
 
