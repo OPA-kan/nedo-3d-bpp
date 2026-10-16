@@ -90,8 +90,11 @@ To measure a change, append `,field=value` to the ship arm's line.
   is refused, the ladder over item surfaces with the soft-on-soft column,
   then the stack option).  Records `reports/bench/sfr-sample-b`,
   `sfr-core-b`, `sfr-hard2-b`, `sfr50-sample-b`, `sfr50-core-b`,
-  `sfrt-sample-b`, `sfrt-core-b`, priced against `ship-sample-b` /
-  `ship-core-b` / `ship-hard2-b`.
+  `sfrt-sample-b`, `sfrt-core-b`, `sfrt-hard2-b`, priced against
+  `ship-sample-b` and against `shipr-core-b` / `shipr-hard2-b`: fresh
+  replicates of the shipped B arm run in the same CI window, since the
+  `ship-*` records had drifted (+1.2 / +2.0 against them); use the
+  `shipr-*` records as the B bases from here.
 
 ## Judging a run
 
