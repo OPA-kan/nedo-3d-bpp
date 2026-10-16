@@ -131,6 +131,37 @@ class PairReserveAgentTest(unittest.TestCase):
             float(first.box.minimum[axis]), float(second.box.minimum[axis]))
         self.assertGreaterEqual(extent, 0.55 + pair.CLEAR)
 
+    def test_the_spot_obeys_the_ladders_vetoes(self):
+        # the ladder's pick lays the box 0.55 along the back wall at the
+        # back-right corner; its pair would stand in front of it, in the
+        # priority strip (the first form put it there: placement -27 on
+        # sample-b).  The spot is refused, and the reservation switches to
+        # the survivor laid 0.40 along the wall, whose pair runs along it.
+        agent, container = self._agent(ON)
+        pool = [_item(0), _item(1)]
+        action = agent.policy({"container_list": [container], "pool_list": pool})
+        self.assertIsNotNone(action)
+        first = agent.last_decision.placement
+        model = agent.board.model(0)
+        reservation = agent._pair_reservation
+        self.assertIsNotNone(reservation)
+        self.assertEqual(agent.phase_stats.get("pair_switched"), 1)
+        self.assertEqual(reservation["direction"][0], 0, "the pair runs along the back wall (x)")
+        gap = ON.settled_clearance + ON.pair_reserve_slack
+        spot = pair.spot_box(first.box, *reservation["direction"], gap, model.z_floor)
+        from rule_alpha.geometry import box_rect
+        self.assertAlmostEqual(box_rect(spot).overlap_area(model.priority_zone), 0.0, places=9)
+        # the first form's spot, in front of the corner box, is what the ladder refuses
+        corner = AABB((model.floor_rect.x_max - 0.275 - 0.006, model.floor_rect.y_max - 0.20 - 0.006, model.z_floor + 0.12),
+                      (0.55, 0.40, 0.24), "corner")
+        in_front = pair.spot_box(corner, 1, -1, gap, model.z_floor)
+        self.assertGreater(box_rect(in_front).overlap_area(model.priority_zone) / box_rect(in_front).area,
+                           ON.zone_guard_fraction)
+        profile = first.profile
+        orientation = next(o for o in profile.orientations if abs(o.dx - 0.55) < 1e-6 and abs(o.dz - 0.24) < 1e-6)
+        self.assertTrue(pair.ladder_refuses(in_front, profile, orientation, agent.board, 0, ON))
+        self.assertFalse(pair.ladder_refuses(spot, profile, first.orientation, agent.board, 0, ON))
+
     def test_the_reservation_is_lost_when_the_partner_has_gone(self):
         agent, container = self._agent(ON)
         pool = [_item(0), _item(1)]

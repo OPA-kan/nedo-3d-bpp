@@ -22,11 +22,17 @@ dimensions flush along the side whose pair holds the window
 (``pair_holds_window``; the short side of the 0.55 x 0.40 box, since
 1.10 x 0.40 holds nothing), the settled clearance plus
 ``pair_reserve_slack`` between them, inside the floor and clear of the
-packed boxes (``layer1.validate``).  The spot is reserved for one call.
-On the next, the partner still in the pool and the spot still free
-beside the box as it settled, the partner goes there first, through the
-validator, the cover rule and the shadow gate like any pose; otherwise
-the call falls through to the normal flow and the reservation is lost.
+packed boxes (``layer1.validate``), and one the ladder's own vetoes
+would let stand (``ladder_refuses``: the spot as a floor candidate
+through ``apply_vetoes`` on the board with the first box on it -- the
+first form skipped this and put the partner in the reserved priority
+strip in front of the back-right corner on 10 of 12 sample episodes,
+placement -27 points).  The spot is reserved for one call.  On the
+next, the partner still in the pool and the spot still free beside the
+box as it settled, the partner goes there first, through the validator,
+the ladder's vetoes, the cover rule and the shadow gate like any pose;
+otherwise the call falls through to the normal flow and the reservation
+is lost.
 """
 
 from __future__ import annotations
@@ -103,9 +109,10 @@ def directions(first: AABB, gap: float, config, preferred=None) -> list[tuple[in
 
 
 def find_spot(first: AABB, model, container: dict, config, gap: float, preferred=None,
-              validate=None, covers=None):
-    """The first direction whose spot the validator (and the cover rule,
-    when given) accepts: ``(axis, sign, box)`` or None."""
+              validate=None, refuse=None):
+    """The first direction whose spot the validator accepts and ``refuse``
+    (the ladder's own rules on the spot, when given) does not refuse:
+    ``(axis, sign, box)`` or None."""
     if validate is None:
         from . import layer1
 
@@ -115,10 +122,34 @@ def find_spot(first: AABB, model, container: dict, config, gap: float, preferred
         ok, _reason = validate(box)
         if not ok:
             continue
-        if covers is not None and covers(box):
+        if refuse is not None and refuse(box):
             continue
         return axis, sign, box
     return None
+
+
+def ladder_refuses(box: AABB, profile, orientation, board, container_idx: int, config) -> bool:
+    """The ladder's own rules on the spot: a floor candidate of the partner
+    at ``box`` through ``compute_features`` and ``apply_vetoes``, refused
+    when any veto is recorded against it (the fallbacks that keep a lone
+    candidate do not count: a spot in the reserved typed strip or across
+    the held corridor is one the ladder would never have taken) and, with
+    ``no_cover_other_attribute``, when it covers cargo of another
+    attribute."""
+    from . import classify as cls
+    from . import layer1
+
+    if getattr(config, "no_cover_other_attribute", False):
+        model = board.model(container_idx)
+        shelves = model.shelves if getattr(config, "cover_veto_ignores_shelf", False) else None
+        if layer1._covers_other_attribute(box, board.container(container_idx), profile.is_soft,
+                                          profile.is_prioritized, shelves=shelves):
+            return True
+    cand = layer1.Candidate(box=box, profile=profile, orientation=orientation, container_idx=container_idx,
+                            surface="floor", surface_name="floor", role=cls.ROLE_NONE)
+    layer1.compute_features(cand, board, config, with_grid=True)
+    survivors, _counts = layer1.apply_vetoes([cand], board, container_idx, config)
+    return not survivors or bool(cand.vetoes)
 
 
 def packed_box(container: dict, index: int) -> AABB | None:

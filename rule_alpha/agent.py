@@ -1380,7 +1380,7 @@ class RuleAlphaAgent:
                     if not pair.is_flat(cdims) or not pair.narrow_top(cdims[0], cdims[1], self.config):
                         continue
                     pl = layer1.build_placement(cand, placement.archetype, self.board, ci, profile, self.config)
-                spot = pair.find_spot(pl.box, model, container, self.config, gap)
+                spot = self._pair_spot(pl, partner_item=pool[partner[0]], gap=gap)
                 if spot is None:
                     continue
                 found = (cand, pl, spot)
@@ -1399,9 +1399,32 @@ class RuleAlphaAgent:
             decision = dataclasses.replace(decision, placement=pl, chosen=cand)
         self._pair_pending = {
             "container": ci, "first": int(profile.index), "partner": int(partner[1]),
+            "partner_item": dict(pool[partner[0]]),
             "dims": tuple(float(v) for v in pl.box.size), "direction": (int(axis), int(sign)),
         }
         return decision
+
+    def _pair_spot(self, placement, partner_item: dict, gap: float, preferred=None):
+        """The partner's spot beside a placement not yet on the board: the
+        placement is applied to the board for the test (the ladder's rules
+        read the board with the first box on it) and withdrawn after."""
+        from . import pair
+
+        ci = int(placement.container_idx)
+        profile = cls.classify_item(int(partner_item["index"]), partner_item, self.config)
+        dims = tuple(float(v) for v in placement.box.size)
+        orientation = next((o for o in profile.orientations
+                            if all(abs(float(a) - float(b)) <= 1e-3 for a, b in zip((o.dx, o.dy, o.dz), dims))), None)
+        if orientation is None:
+            return None
+        self.board.apply(placement)
+        try:
+            model, container = self.board.model(ci), self.board.container(ci)
+            refuse = lambda box: pair.ladder_refuses(box, profile, orientation, self.board, ci, self.config)  # noqa: E731
+            return pair.find_spot(placement.box, model, container, self.config, gap,
+                                  preferred=preferred, refuse=refuse)
+        finally:
+            self.board.undo_last(ci)
 
     def _pair_commit(self) -> None:
         """The reservation, from the pose that was actually emitted (the
@@ -1423,8 +1446,8 @@ class RuleAlphaAgent:
             return
         gap = float(self.config.settled_clearance) + float(getattr(self.config, "pair_reserve_slack", 0.01))
         try:
-            spot = pair.find_spot(placement.box, self.board.model(ci), self.board.container(ci), self.config, gap,
-                                  preferred=pending["direction"])
+            spot = self._pair_spot(placement, partner_item=pending["partner_item"], gap=gap,
+                                   preferred=pending["direction"])
         except Exception as exc:
             print(f"[pair] commit failed: {exc!r}", flush=True)
             spot = None
@@ -1473,18 +1496,16 @@ class RuleAlphaAgent:
         if orientation is None:
             return lost("orientation")
         gap = float(self.config.settled_clearance) + float(getattr(self.config, "pair_reserve_slack", 0.01))
-        covers = None
-        if getattr(self.config, "no_cover_other_attribute", False):
-            shelves = model.shelves if getattr(self.config, "cover_veto_ignores_shelf", False) else None
-            covers = lambda box: layer1._covers_other_attribute(  # noqa: E731
-                box, container, profile.is_soft, profile.is_prioritized, shelves=shelves)
+        # the ladder's own rules on the spot (the reserved strips, the
+        # corridor, the seal), the cover rule among them
+        refuse = lambda box: pair.ladder_refuses(box, profile, orientation, self.board, ci, self.config)  # noqa: E731
         t0 = time.perf_counter()
         try:
             # the partner's own box, the first's as it settled: the same
             # dimensions, so the first box's as the spot's template
             template = AABB(first.center, dims, "first")
             spot = pair.find_spot(template, model, container, self.config, gap,
-                                  preferred=reservation["direction"], covers=covers)
+                                  preferred=reservation["direction"], refuse=refuse)
         except Exception as exc:
             print(f"[pair] honour failed: {exc!r}", flush=True)
             spot = None
