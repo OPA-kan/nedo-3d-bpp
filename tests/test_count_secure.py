@@ -138,6 +138,29 @@ class EarlyReplanTest(unittest.TestCase):
         self.assertEqual(early_order, late_order)
 
 
+class TypedReplanTest(unittest.TestCase):
+    def test_typed_token_is_a_replan_of_its_own(self):
+        scene = make_scene(2, "c1x60", "A")
+        agent, _c, order = _plan(scene, PLANNER + ",plan_count_secure=true,plan_count_secure_margin=0,"
+                                 "plan_count_secure_blocks=plain;typed:back-stand-2")
+        sides = [v.get("side") for v in agent.count_secure_log["variants"]]
+        self.assertEqual(sides, ["plain", "typed:back-stand-2"])
+        self.assertTrue(all("planned" in v for v in agent.count_secure_log["variants"]))
+        self.assertEqual(sorted(order), sorted(int(i["index"]) for i in scene.items))
+
+    def test_typed_gate_keeps_plans_over_the_trigger(self):
+        # a-c1-s0001: the ordinary plan holds the threshold; the typed
+        # plans forced would play, gated to the re-plan's trigger (the
+        # threshold) they do not run at all
+        scene = make_scene(1, "c1", "A")
+        base, _c, base_order = _plan(scene, PLANNER)
+        gated, _c2, order = _plan(scene, PLANNER + ",plan_count_secure=true,plan_count_secure_margin=0,"
+                                  "plan_typed_standing=true,plan_typed_standing_force=true,"
+                                  "plan_count_secure_typed_gate=true")
+        self.assertFalse(gated.count_secure_log["replanned"])
+        self.assertEqual(order, base_order)
+
+
 class RaceTest(unittest.TestCase):
     """plan_count_secure_race_chosen: the count rule decides the planner /
     dry-run race only after a chosen re-plan, and never hands a plan that

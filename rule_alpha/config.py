@@ -3000,6 +3000,18 @@ class RuleAlphaConfig:
     """A re-plan starts only when this many times the longest plan so far
     fits in what is left of the offline budget."""
 
+    plan_count_secure_typed_gate: bool = False
+    """With ``plan_typed_standing``: the typed-standing plans are planned
+    only where the count-secured re-plan ran (the planner's plan under
+    ``plan_count_secure_margin``'s trigger), not on every plan under the
+    threshold plus ``plan_value_margin``: core-a's plans between the
+    threshold and the gate replay to crossings, and the typed plans there
+    moved their soft and priority counts and added topples (`acs-core-a`:
+    soft 381 -> 404, priority 255 -> 253, topples 4 -> 6).  The
+    ``plan_count_secure_blocks`` token ``typed:<at>-<mode>-<rows>`` plans a
+    typed-standing plan inside the re-plan instead (its rank, its trigger,
+    its overrides)."""
+
     plan_count_secure_extra: int = 0
     """Items added to the count frame beyond the threshold plus
     ``plan_value_margin``."""

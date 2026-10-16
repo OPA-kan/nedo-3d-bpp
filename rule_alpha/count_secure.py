@@ -485,7 +485,30 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
         if mine:
             agent.config = dataclasses.replace(config, **mine)
         try:
-            if side == "plain":
+            if side.startswith("typed:"):
+                # the typed-standing gallery (planner._plan_typed_once) as a
+                # re-plan of its own, "typed:<at>-<mode>-<rows>[-soft|-prio]":
+                # ranked with the other re-plans, under this module's trigger
+                # and start rule, with the count-secured overrides; its
+                # count frame takes plan_count_secure_extra too
+                if getattr(config, "plan_typed_standing_no_priority_container", False) and any(
+                        m.is_prioritized for m in agent.board.models):
+                    record["variants"].append({"side": token, "skipped": True, "priority_container": True})
+                    continue
+                from .planner import _plan_typed_once
+
+                parts = side[len("typed:"):].split("-")
+                at = parts[0] if parts and parts[0] in ("back", "front", "top") else "back"
+                mode = parts[1] if len(parts) > 1 and parts[1] in ("stand", "tower") else "stand"
+                rows = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 2
+                tokens = set(parts[3:])
+                with_priority = True if "prio" in tokens else (False if "soft" in tokens else None)
+                variant = (re.split(r"[,+|]", str(getattr(config, "plan_variants", "after-hard"))) or ["after-hard"])[0]
+                order, plan = _plan_typed_once(agent, item_list, deadline, variant,
+                                               gate + int(getattr(config, "plan_count_secure_extra", 0)),
+                                               at, mode, rows, log, with_priority=with_priority)
+                info = {"frame_planned": sum(1 for e in plan if int(e["index"]) in set(frame))}
+            elif side == "plain":
                 # the row planner itself under the count-secured overrides,
                 # no frame: its first priority order
                 from .planner import _plan_once

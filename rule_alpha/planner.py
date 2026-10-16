@@ -1015,7 +1015,11 @@ def plan_packing(agent, item_list: list[dict], deadline: float, log=None) -> tup
         from .count_secure import secure_count
 
         chosen = secure_count(agent, item_list, deadline, chosen, longest, log)
-    if getattr(config, "plan_typed_standing", False) and chosen is not None:
+    if (getattr(config, "plan_typed_standing", False) and chosen is not None
+            and not (getattr(config, "plan_count_secure_typed_gate", False)
+                     and not (getattr(agent, "count_secure_log", None) or {}).get("replanned"))):
+        # (plan_count_secure_typed_gate: only where the count-secured
+        # re-plan ran, the planner's plan under its trigger)
         # under the count gate: the typed-standing plans (the count
         # frame's soft and priority cargo standing on the floor first)
         chosen = plan_typed_standing(agent, item_list, deadline, chosen, orders[0] if orders else "mixed", log)
