@@ -4847,3 +4847,28 @@ The bench's mean optimize time is 2.5-3 times shorter than the platform's, so 40
 ## **v52: the count-secured re-plan with its race and time fixes**
 
 v52 ships v51's Task A re-plan with the race rule acting only after a chosen re-plan and never off a plan holding the threshold, the re-plan run right after the first base plan, and the `top` variant dropped (`reports/wedge/a-count-secure.md`, section 6: dense-a 20 of 48 and core-a 48 of 48 at offline budgets of 40, 60 and 140 s, no race switch). The short-budget bench did not reproduce v51's lost platform episode, so v52 is also the test of the two remaining readings (the `top` pick dropping priority cargo; the re-plan's time on the slower machine): one more counted episode than v50 says the A lever works on the platform's manifests; v51's result again says the re-plan itself fails there.
+
+## **v52 on the platform: 53.43, the same as v51; the re-plan is withdrawn**
+
+v52 (the re-plan with the race rule acting only after a chosen re-plan, the plain variant alone, run right after the first base plan) scored 53.43: stability 73.95 (18 steps, as v51), placement +0.55 and soft -0.8 against v51, the optimize time 139.2 s at the 140 s budget. None of the fixes changed the outcome, so the re-plan itself loses a counted Task A episode on the platform, and the bench's dense-a gain (10 -> 20 of 48 at offline budgets of 40, 60 and 140 s) does not transfer. The reading: v50's base planning already takes about 119 s on the platform's A manifests, the re-plan's 20 s take the rest of the budget from what runs after it (the ladder's dry-run of the manifest, which the planner-vs-dry-run race may pick), and the platform's five counted A episodes are crossed by that part. The bench never starves the dry-run (its optimize time is 38-49 s against a 140 s budget), which is why the short-budget runs at 40 and 60 s showed nothing. The re-plan is withdrawn; the shipped form is v50's. Next: two diagnostic builds, the planner alone and the dry-run alone on Task A, to read from the lattice which plan crosses the platform's A episodes.
+
+## **The bench's objective: the platform's score, read off every record**
+
+`bench/platform_score.py` prices each bench episode as the platform does: the five official weights, the count gate (no more than half the items placed: zero on everything but the fill), the official evaluator's tolerant fill, cog = 125 - 137 x the centre-of-mass height ratio (the refit's price of the centre of mass for the slope, the diagnostics' per-episode cog of the three tasks for the level), stability = 97 - 3.8 x the shake topples (the lattice's constant and its topple slope), placement and soft as the credited shares of the scene's priority and soft cargo (covered and misrouted boxes charged, soft on soft not). The suite score is the episode mean, differences are paired by scene with a bootstrap interval, and `--mix` weights suites by the platform's task shares (A 9, B 11, C 3 of 23). From here every lever is judged by this number, not by crossings or items.
+
+What it says about the records so far (the shipped form as the base):
+
+| suite | base score (counted) | arm | delta [95 % CI] | what moved |
+|---|---|---|---|---|
+| core-a | 65.75 (48/48) | count-secured re-plan (v51's form) | -0.01 [-0.03, +0.00] | nothing on the sample suite |
+| core-a | | typed-standing gallery | +0.25 [-0.32, +1.10] | soft +4.0, placement -1.1, fill -0.9 |
+| core-a | | both | +0.28 [-0.29, +1.11] | soft +4.3, placement -1.1 |
+| core-a | | soft floor | -0.37 [-0.86, -0.04] | every component down a little |
+| dense-a | 22.27 (10/48) | count-secured re-plan | +12.06 [+6.3, +18.6] | 10 more counted episodes |
+| dense-a | | both | +15.90 [+9.4, +23.2] | 13 more counted, soft +14 |
+| dense-a | | soft floor | +0.99 [0.0, +3.0] | one more counted |
+| core C | 62.31 (48/48) | the gate0 bench arm | +0.07 [-0.61, +0.69] | |
+| core C | | the rescue reserve (A+B) | +0.09 [-0.52, +0.80] | |
+| core B | 61.58 (47/48) | the sealing pass back on B | +0.93 [-0.72, +3.81] | one more counted, stability +2.2 |
+
+The platform mix of the shipped form reads 63.3 against the platform's 56.0: the gap is the four or five Task A episodes the platform does not count (about 2.7 each) and the calibration's level; the differences are what the bench can measure. The dense-a gains of the A re-plan are real on the bench and did not transfer (v51, v52), which is the time regime, not the pricing: the next A measurements run at offline budgets that starve the dry-run as the platform does.

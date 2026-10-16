@@ -41,6 +41,7 @@
 | diag-B (47590073: v50 surrendering every Task B item from the first call; a diagnostic, not a scored version) | 20.24 | 28.19 | 32.31 | 27.2 | 25.75 | 0.3470 | 136.1 | 5.07 |
 | diag-C (47590073: v50 surrendering every Task C item from the first call; a diagnostic) | 33.10 | 55.48 | 66.57 | 40.25 | 41.75 | 0.5529 | 130.8 | 6.81 |
 | v51 (6a459ba2: v50 plus Task A's count-secured re-plan under the count threshold; not kept) | 38.32 | 61.21 | 73.99 | 48.45 | 46.6 | 0.6391 | 138.8 | 6.71 |
+| v52 (08586211: v51's re-plan with the race and time fixes, the plain variant alone; not kept) | 38.31 | 61.11 | 73.95 | 49.0 | 45.8 | 0.6385 | 139.2 | 6.72 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -427,6 +428,23 @@ Both of our runs end with the status "Stopped in the middle. Did not
 satisfy {is_valid, is_placed_safe, is_included}": that is the surrender
 action (a placement far above the container) the wrapper answers with
 instead of declining, and it is not scored any lower than a decline.
+
+v52's total is 53.43, the same as v51's 53.50: stability 73.95 (18
+steps, as v51), cog 61.11, placement 49.0, soft 45.8, fill 38.31, the
+fraction 0.6385, the optimize time 139.2 s at the 140 s budget.  The
+race rule, the dropped `top` variant and the re-plan's order changed
+nothing, so **the count-secured re-plan itself loses a counted Task A
+episode on the platform**, and the bench's dense-a (10 -> 20 of 48 at
+every offline budget it was tried at) does not transfer.  The reading
+left: the platform's A manifests are large enough that the base
+planning already takes about 119 s of the 140 (v50), so the re-plan's
+20 s starve what follows it (the ladder's dry-run of the manifest, the
+plan that the planner-vs-dry-run race may pick), and the five counted
+A episodes are crossed by that part, not by the planner's plan.  The
+re-plan is withdrawn from the shipped form (v50's); which of the two
+offline plans crosses on the platform is to be read by two diagnostic
+builds (the planner alone, the dry-run alone) before any further A
+work.
 
 v51's total is 53.50 (v50 56.04, -2.54): stability 78.19 -> 73.99,
 which is 18 x 4.1775 - 1.2 against v50's 19 x 4.1775 - 1.2, so **one

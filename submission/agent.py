@@ -111,6 +111,11 @@ TASK_A_SOFT_GALLERY = False
 # from the observation: "A" when it carries the offline flag, "B" when
 # more than one item is visible, "C" otherwise.
 DIAGNOSTIC_SURRENDER_TASKS: tuple = ()
+# Diagnostic builds for Task A's offline phase: config overrides applied
+# on top of the task_a ones in Agent.optimize (the planner alone:
+# offline_dry_run=False; the ladder's dry-run alone: offline_planner="").
+# Empty in every scored build.
+DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # v41 (not kept, see OVERRIDES): the row-tiling term along both axes
 # with the near-neighbour slivers on Tasks B and C; official 50.32
 # against v39's 52.71, one episode under the count threshold.
@@ -159,7 +164,9 @@ DIAGNOSTIC_SURRENDER_TASKS: tuple = ()
 # the plain variant alone (the "top" variant doubled the re-plan's time
 # and twice placed no priority box).  Bench: dense-a 20 of 48, core-a
 # 48 of 48 at offline budgets of 40, 60 and 140 s, no race switch in
-# any run (reports/wedge/a-count-secure.md, section 6).
+# any run (reports/wedge/a-count-secure.md, section 6).  v52 scored
+# 53.43, the same as v51, so the re-plan itself loses the episode on the
+# platform's A manifests; withdrawn, the shipped form is v50's.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -514,17 +521,10 @@ class Agent(RuleAlphaAgent):
                       band_lift=0.0,
                       # v50: the soft columns' floor-share gate is kept on
                       # A, whose rows were not measured without it
-                      soft_structure_floor_share=0.35,
-                      # v51: the count-secured re-plan under the count
-                      # threshold (see the v51 note above)
-                      plan_count_secure=True, plan_count_secure_choice=True,
-                      plan_count_secure_margin=0,
-                      # v52: the re-plan's race rule only after a chosen
-                      # re-plan and never off a plan holding the threshold,
-                      # the re-plan right after the first base plan, the
-                      # plain variant alone (see the v52 note above)
-                      plan_count_secure_race_chosen=True, plan_count_secure_early=True,
-                      plan_count_secure_blocks="plain")
+                      soft_structure_floor_share=0.35)
+        # v51 / v52 (not kept): the count-secured re-plan
+        # (plan_count_secure and its switches) lost a counted A episode on
+        # the platform twice; the shipped form is v50's again
         if TASK_A_SOFT_GALLERY:
             task_a.update(soft_structure_max_top=-1.0, soft_structure_floor_share=0.0,
                           stack_soft_is_structure=False, plan_soft_structure_variants="off;on",
@@ -533,6 +533,8 @@ class Agent(RuleAlphaAgent):
 
             _stability.SOFT_STRUCTURE_MAX_TOP = None
             _stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
+        if DIAGNOSTIC_TASK_A_OVERRIDES:
+            task_a.update(DIAGNOSTIC_TASK_A_OVERRIDES)
         self.config = dataclasses.replace(self.config, **task_a)
         if self.stack_option is not None:
             self.stack_option.config = dataclasses.replace(self.stack_option.config, **task_a)

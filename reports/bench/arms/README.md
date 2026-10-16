@@ -38,3 +38,16 @@ To measure a change, append `,field=value` to the ship arm's line.
 - `arm_acs_a.txt`: the v51 A form (`arm_acount0_a`) plus the typed-standing
   gallery (`plan_typed_standing`, braced variants, no priority container),
   the combination measured as `reports/bench/acs-*`.
+- `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
+  dry-run alone (`offline_planner=` empty) / the row planner alone
+  (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
+
+## Judging a run
+
+`python -m bench.platform_score <base_dir> <new_dir> ...` prices every
+episode the way the platform does (the five weights, the count gate, the
+calibrated cog and stability, the credited soft and priority shares) and
+prints the suite means and the paired difference with a bootstrap interval;
+`--mix core-a=9,core-b=11,core=3` weights suites by the platform's task
+shares.  This is the objective for every lever from here: a crossing count
+or a placed count is a diagnostic, the platform score is the verdict.
