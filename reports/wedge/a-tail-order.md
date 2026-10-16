@@ -125,3 +125,31 @@ Measured on sample-a, core-a, dense-a, hard-a at 140 s and on sample-a and
 hard-a at 30 s, with the planner alone and the shipped form at 30 s on
 sample-a beside it (records `aprefer*-*`, `aplan30-sample-a`,
 `ship30-sample-a`; section 4 below when they land).
+
+## 4. The prefer-planner race, priced: v53
+
+`bench.platform_score` against the shipped form at the same offline
+budget (physics, policy budget 4.5 s; records `aprefer*-*`,
+`aplan*-*`, `ship30-sample-a`):
+
+| suite, budget | prefer-planner race (`aprefer`) | counted | planner alone (`aplan`) |
+|---|---|---:|---|
+| sample-a, 140 s | **+4.12 [+0.56, +8.41]** (4 up / 0 down) | 12 / 12 | +6.75 [+2.28, +11.32] |
+| sample-a, 30 s | +4.12 [+0.56, +8.41] (the records identical) | 12 / 12 | +6.75 |
+| core-a, 140 s | **+0.80 [+0.06, +1.90]** (5 / 1) | 48 / 48 | +0.93 [+0.12, +2.09] |
+| dense-a, 140 s | +0.98 [-0.18, +3.14] (1 / 1) | 11 / 48 (+1) | +1.26 [-0.12, +3.63] |
+| hard-a, 140 s | +1.72 [-0.09, +4.95] (12 / 8) | 27 / 48 (+1) | +0.15 [-3.20, +3.61] |
+| hard-a, 30 s | +0.24 [-3.11, +3.68] (11 / 7) | 26 / 48 | -0.30 [-3.73, +3.30] |
+
+The preference is positive on every suite and significant on the two
+that resemble the platform's counted A episodes (sample-a, core-a); on
+hard-a it beats the planner alone by keeping the dry-run's rescue of the
+sub-threshold planner plans (27 counted against 26), and it holds at the
+30 s budget that stands for the platform's time regime.  What moves is
+the placement and soft credit of the counted episodes (sample-a +14.6 /
++11.8, core-a +2.7 / +2.3) and the centre of mass (cog +1.5 to +5.3),
+against a point or three of fill.  Shipped as v53 (`plan_prefer_planner`
+in `submission/agent.py`'s Task A overrides); the sample check reads as
+v50's, since on the sample itself the planner's plan is under the
+threshold.  At the platform's task shares (A 9 of 23) the bench's
+reading is worth about +0.3 (core-a's) to +1.6 (sample-a's) total points.

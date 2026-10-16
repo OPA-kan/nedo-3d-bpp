@@ -39,7 +39,7 @@
   "pool": 1
  },
  "arm": {
-  "arm": "stack:reports/wedge/ppo-stack-c1-s0-tower@offline_dry_run=true,last_resort_relax=true,no_cover_other_attribute=true,priority_cargo_first=true,offline_planner=rows,plan_variants=first;after-hard,plan_layouts=1,priority_is_structure=true,reserve_headroom_for_soft=true,soft_headroom_volume_share=0.75,soft_headroom_slack=0.05,plan_min_support=0.0,plan_standing=true,plan_replay_clearance=0.026,plan_replay_nudge=0.02,conservative_transport=false,count_first=true,plan_score_weights=1;0.5;0.5;3,plan_normal_in_priority_container=true,plan_priority_deep_first=true,cover_veto_ignores_shelf=true,soft_headroom_per_container=true,shadow_check=true,physics_resort=true,policy_budget_seconds=4.5,pocket_guard=true,count_mode=true,count_mode_strict=true,count_mode_min_support=0.25,resort_soft_structure=true,soft_is_structure=true,soft_structure_max_top=0.7,plan_prefer_planner=true",
+  "arm": "stack:reports/wedge/ppo-stack-c1-s0-tower@offline_dry_run=true,last_resort_relax=true,no_cover_other_attribute=true,priority_cargo_first=true,offline_planner=rows,plan_variants=first;after-hard,plan_layouts=1,priority_is_structure=true,reserve_headroom_for_soft=true,soft_headroom_volume_share=0.75,soft_headroom_slack=0.05,plan_min_support=0.0,plan_standing=true,plan_replay_clearance=0.026,plan_replay_nudge=0.02,conservative_transport=false,count_first=true,plan_score_weights=1;0.5;0.5;3,plan_normal_in_priority_container=true,plan_priority_deep_first=true,cover_veto_ignores_shelf=true,soft_headroom_per_container=true,shadow_check=true,physics_resort=true,policy_budget_seconds=4.5,pocket_guard=true,count_mode=true,count_mode_strict=true,count_mode_min_support=0.25,resort_soft_structure=true,soft_is_structure=true,soft_structure_max_top=0.7,plan_replay_drop=0.03,phase_switch_resort_first=false,phase_switch_cover=true,grid_rescue_seconds=1.0,grid_rescue_pool_seconds=1.5,stack_deadline=true,rescue_order_gate=low+single,soft_headroom_volume_share=0.9,soft_structure_floor_share=0.35,shade_veto_area=0.15,resort_shade_step=0.1,scratch_manifest_total=false,band_lift_top=false,offline_budget_seconds=140.0,plan_prefer_planner=true",
   "family": "stack",
   "model": "reports/wedge/ppo-stack-c1-s0-tower",
   "model_sha": "bac906e27212",
@@ -112,10 +112,10 @@
    "phase_switch": false,
    "phase_switch_surface": 0.2,
    "phase_switch_window": "0.40x0.55x0.24",
-   "phase_switch_resort_first": true,
+   "phase_switch_resort_first": false,
    "phase_switch_seconds": 1.5,
    "count_cover_priority": true,
-   "phase_switch_cover": false,
+   "phase_switch_cover": true,
    "grow_ground_arbiter": "",
    "grow_ground_margin": 0.25,
    "grow_ground_shadow": 0.01,
@@ -136,14 +136,29 @@
    "shelf_takes_hard": true,
    "lift_to_tops": 0.0,
    "grid_rescue": 0.0,
+   "checkmate_guard": false,
+   "checkmate_guard_k": 6,
+   "checkmate_guard_seconds": 0.5,
+   "checkmate_guard_cell": 0.04,
    "grid_rescue_tries": 12,
-   "grid_rescue_seconds": 0.0,
+   "grid_rescue_seconds": 1.0,
    "grid_rescue_cap": 2.0,
-   "stack_deadline": false,
+   "grid_rescue_min_support": -1.0,
+   "low_phase_rescue_seconds": 0.0,
+   "low_phase_rescue_single": false,
+   "grid_rescue_pool_seconds": 1.5,
+   "stack_deadline": true,
    "rescue_deep_first": false,
    "rescue_depth_band": 0.25,
    "rescue_seal_area": 0.0,
+   "rescue_order_gate": "low+single",
+   "rescue_order_margin": 1,
    "hard_shelf_first": false,
+   "soft_headroom_volume_cap": 0.0,
+   "plan_alt_gate": "",
+   "plan_reserve_variants": "",
+   "plan_variants_semicolon": false,
+   "plan_priority_on_top": false,
    "shelf_own_anchors": true,
    "shelf_residual_key": true,
    "shelf_depth_bucket": 0.05,
@@ -196,6 +211,12 @@
    "compact_sideways_always": true,
    "layer2_bridge_level_tolerance": 0.06,
    "plateau_merge_min_gain": 0.02,
+   "bridge_slide": 0.0,
+   "bridge_slide_max": 24,
+   "bridge_slide_orientations": 6,
+   "bridge_slide_late": false,
+   "bridge_slide_rescue": false,
+   "bridge_plateau_exempt": false,
    "corridor_release_fill": 0.62,
    "corridor_yields_to_floor": false,
    "back_first_slack": 0.1,
@@ -275,7 +296,7 @@
    "reserve_headroom_for_soft": true,
    "soft_headroom_slack": 0.05,
    "soft_headroom_volume_factor": 0.0,
-   "soft_headroom_volume_share": 0.75,
+   "soft_headroom_volume_share": 0.9,
    "offline_planner": "rows",
    "plan_band": 0.22,
    "priority_is_structure": true,
@@ -286,7 +307,11 @@
    "plan_standing_max_bottom": 10.0,
    "soft_is_structure": true,
    "soft_structure_max_top": 0.7,
-   "soft_structure_floor_share": 0.0,
+   "soft_structure_floor_share": 0.35,
+   "soft_tops_for_soft": false,
+   "priority_tops_for_priority": false,
+   "soft_tops_rung": "first",
+   "typed_column_min_support": 0.7,
    "stack_soft_is_structure": true,
    "stack_max_bottom": 10.0,
    "stack_soft_standing": true,
@@ -303,8 +328,14 @@
    "pocket_guard_min_probability": 0.5,
    "pocket_guard_hard": false,
    "pocket_guard_min_footprint": 0.2,
+   "pocket_guard_deadline_share": 0.0,
+   "pocket_guard_all_rooms": false,
+   "pocket_guard_tie_soft_top": false,
+   "pocket_guard_phase_prior": false,
+   "pocket_guard_phase_items": 10.0,
    "count_mode": true,
    "count_mode_items_per_container": 41.0,
+   "count_mode_stream_volume": 0.0,
    "count_mode_margin": 0,
    "count_mode_min_support": 0.25,
    "count_mode_strict": true,
@@ -313,9 +344,9 @@
    "count_mode_min_value": 2.0,
    "count_mode_extra_seconds": 1.0,
    "count_mode_extra_seconds_pool": 3.0,
-   "shade_veto_area": 0.0,
+   "shade_veto_area": 0.15,
    "shade_veto_with_pool": false,
-   "resort_shade_step": 0.0,
+   "resort_shade_step": 0.1,
    "allow_cover_other_attribute": false,
    "room_selector": false,
    "room_selector_k": 6,
@@ -358,6 +389,22 @@
    "rollout_selector_margin": 0.5,
    "rollout_selector_seconds": 1.2,
    "rollout_selector_seed": 7,
+   "future_selector": false,
+   "future_selector_k": 3,
+   "future_selector_futures": 2,
+   "future_selector_length": 24,
+   "future_selector_margin": 0.5,
+   "future_selector_seconds": 0.0,
+   "future_selector_seed": 7,
+   "future_selector_mix": "seen",
+   "soft_standing_floor": false,
+   "max_freestanding_ratio_soft": -1.0,
+   "attribute_stack_min_footprint": false,
+   "attribute_stack_selector": false,
+   "count_cover_margin": -1,
+   "band_lift_rescue": 0.0,
+   "future_selector_diverse": false,
+   "future_selector_floor_only": false,
    "online_tower_rule": false,
    "soft_first_mode": "free",
    "soft_first_skip_priority_container": false,
@@ -375,11 +422,30 @@
    "online_planner": "",
    "plan_standing_rows": false,
    "plan_standing_rows_max_height": 10.0,
+   "plan_typed_standing": false,
+   "plan_typed_standing_variants": "back-stand-2;back-stand-1",
+   "plan_typed_standing_no_priority_container": false,
+   "plan_typed_standing_force": false,
+   "plan_typed_standing_max_top": 0.7,
+   "plan_typed_standing_priority": true,
    "plan_soft_own_rows": false,
    "plan_soft_structure_variants": "",
    "plan_soft_structure_max_containers": 0,
    "plan_soft_after_hard_rows": false,
-   "plan_replay_drop": 0.0,
+   "plan_replay_drop": 0.03,
+   "plan_soft_floor_under_count": false,
+   "plan_soft_floor_max_height": 0.3,
+   "plan_soft_floor_level_tolerance": 0.005,
+   "plan_soft_floor_hard_max_top": 0.0,
+   "plan_soft_floor_depth_share": 1.0,
+   "plan_soft_floor_replay_drop": 0.06,
+   "plan_soft_floor_sink": 0.03,
+   "plan_soft_floor_contact_tolerance": 0.03,
+   "plan_soft_floor_online": true,
+   "plan_soft_floor_needs_gate": true,
+   "plan_soft_floor_keep_reserve": false,
+   "plan_soft_floor_overrides": "",
+   "plan_soft_floor_active": false,
    "plan_layout_variants": "",
    "plan_layout_layers": false,
    "cover_veto_ignores_shelf": true,
@@ -396,7 +462,7 @@
    "cover_contact_tolerance": -1.0,
    "resort_cover_tolerance": -1.0,
    "resort_soft_structure": true,
-   "scratch_manifest_total": true,
+   "scratch_manifest_total": false,
    "plan_search": false,
    "plan_search_orders": "soft-at-25;soft-at-50",
    "plan_value_weights": "28.7;14.1;14.3",
@@ -404,7 +470,26 @@
    "plan_layouts": 1,
    "plan_dry_run_first_with_shelf": false,
    "plan_min_seconds": 15.0,
+   "plan_dry_run_first": false,
+   "plan_dry_run_first_dense": 0.0,
+   "plan_dry_run_reserve": 0.0,
+   "plan_tail_order": "",
+   "plan_count_secure": false,
+   "plan_count_secure_blocks": "plain",
+   "plan_count_secure_block_layers": 2,
+   "plan_count_secure_block_share": 0.6,
+   "plan_count_secure_standing_rows": true,
+   "plan_count_secure_overrides": "",
+   "plan_count_secure_margin": -1,
+   "plan_count_secure_race_replanned": false,
+   "plan_count_secure_race_chosen": false,
+   "plan_count_secure_early": false,
+   "plan_count_secure_start_factor": 1.2,
+   "plan_count_secure_extra": 0,
+   "plan_count_secure_choice": false,
    "conservative_transport": false,
+   "band_lift": 0.0,
+   "band_lift_top": false,
    "plan_replay_clearance": 0.026,
    "plan_replay_nudge": 0.02,
    "plan_replay": true,
@@ -419,6 +504,9 @@
    "shadow_check": true,
    "shadow_max_drift_xy": 0.02,
    "shadow_max_angle_deg": 5.0,
+   "shadow_soft_on_soft_drift_xy": -1.0,
+   "shadow_soft_on_soft_angle_deg": -1.0,
+   "shadow_presettle_steps": 0,
    "shadow_hard_drift_xy": 0.1,
    "shadow_hard_angle_deg": 15.0,
    "shadow_alternatives": 4,
@@ -433,10 +521,10 @@
    "physics_resort_generation_deadline": true,
    "shadow_budget_share": 1.0,
    "policy_budget_seconds": 4.5,
-   "offline_budget_seconds": 150.0
+   "offline_budget_seconds": 140.0
   }
  },
- "runtime_seconds": 295.02,
+ "runtime_seconds": 288.41,
  "order": [
   48,
   49,
@@ -476,14 +564,6 @@
   83,
   84,
   85,
-  86,
-  87,
-  88,
-  89,
-  90,
-  91,
-  92,
-  93,
   0,
   1,
   2,
@@ -493,24 +573,31 @@
   96,
   97,
   98,
-  94,
-  95,
+  86,
+  87,
+  88,
   99,
   100,
   101,
+  89,
+  90,
+  91,
   102,
   103,
   104,
+  92,
+  93,
+  94,
+  95,
   105,
-  106,
-  107,
-  108,
   24,
   25,
   26,
   6,
   7,
-  8,
+  106,
+  107,
+  108,
   109,
   110,
   111,
@@ -521,23 +608,26 @@
   116,
   117,
   118,
+  27,
+  28,
+  8,
+  9,
   119,
   120,
   121,
-  122,
-  123,
-  124,
-  27,
-  28,
-  9,
-  10,
-  125,
   29,
   30,
   31,
   32,
   33,
   34,
+  35,
+  36,
+  10,
+  122,
+  123,
+  124,
+  125,
   126,
   127,
   128,
@@ -575,8 +665,6 @@
   167,
   168,
   169,
-  35,
-  36,
   37,
   38,
   39,
@@ -612,19 +700,19 @@
  "plan_source": "planner",
  "plan_search": null,
  "metrics": {
-  "placed_count": 78,
+  "placed_count": 83,
   "total_items": 170,
-  "placed_fraction": 0.4588235294117647,
-  "placed_volume_m3": 4.304625000000001,
-  "fill_volume": 35.21659972884538,
-  "fill_evaluator_shipped": 21.8660549816236,
-  "fill_evaluator_tolerant": 34.36044683245519,
-  "com_z": 0.6976744566930304,
-  "com_z_above_floor_ratio": 0.34076396719846136,
+  "placed_fraction": 0.48823529411764705,
+  "placed_volume_m3": 4.677575000000001,
+  "fill_volume": 38.26774375855132,
+  "fill_evaluator_shipped": 25.249761029850912,
+  "fill_evaluator_tolerant": 37.41159086216113,
+  "com_z": 0.7017674643684606,
+  "com_z_above_floor_ratio": 0.3428846965639692,
   "per_container_count": {
    "0": 37,
-   "1": 24,
-   "2": 17
+   "1": 28,
+   "2": 18
   },
   "priority_count": 0,
   "priority_covered": 0,
@@ -633,34 +721,44 @@
   "soft_covered": 0,
   "contact_covered": 0,
   "contact_covered_pairs": [],
-  "shake_mean_shift": 0.059954730846691395,
-  "shake_max_shift": 0.3150612974473972,
-  "shake_topples": 0,
-  "shake_toppled_items": [],
-  "shake_peak_kinetic_energy": 44.30918181135817,
-  "policy_time_max": 4.6821,
-  "policy_time_mean": 1.0921316455696206,
+  "shake_mean_shift": 0.06646616144261033,
+  "shake_max_shift": 0.47357437489891596,
+  "shake_topples": 1,
+  "shake_toppled_items": [
+   115
+  ],
+  "shake_peak_kinetic_energy": 46.035464436923796,
+  "policy_time_max": 4.8916,
+  "policy_time_mean": 1.0834190476190475,
   "over_budget_steps": 2,
-  "optimize_seconds": 149.702,
+  "optimize_seconds": 138.139,
   "end_reason": "declined",
-  "attempted": 78,
+  "attempted": 83,
   "shadow": {
-   "checks": 90,
-   "vetoes": 9,
+   "checks": 85,
+   "vetoes": 0,
    "replaced": 0,
-   "kept": 76,
+   "kept": 73,
    "skipped": 0,
-   "seconds": 28.326,
-   "continued": 8,
-   "kept_soft": 1,
-   "resort": 1,
-   "count_mode_tried": 4
+   "seconds": 22.427,
+   "resort": 10,
+   "count_mode_tried": 2
   },
-  "gap_count": 179,
-  "gap_mean_cm": 10.88,
-  "gap_median_cm": 5.04,
-  "gap_tight_share": 0.363,
-  "gap_strip_share": 0.419,
+  "optimize": {
+   "dry_first": false,
+   "planner_seconds": 23.92,
+   "dry_seconds": 114.21,
+   "planner_planned": 98,
+   "dry_planned": 72,
+   "dry_cut": true,
+   "source": "planner",
+   "seconds": 138.14
+  },
+  "gap_count": 201,
+  "gap_mean_cm": 10.16,
+  "gap_median_cm": 4.21,
+  "gap_tight_share": 0.393,
+  "gap_strip_share": 0.358,
   "vertical_gap_mean_cm": -0.0
  },
  "steps": [
@@ -679,7 +777,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.0186,
+   "policy_seconds": 0.0139,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -725,7 +823,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.0117,
+   "policy_seconds": 0.0112,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -771,7 +869,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.0152,
+   "policy_seconds": 0.0153,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -817,7 +915,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.2096,
+   "policy_seconds": 0.2316,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -863,7 +961,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.0257,
+   "policy_seconds": 0.026,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -873,7 +971,7 @@
      "drift_xy": 0.0010901492505354159,
      "angle_deg": 0.012555264904253717,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.038
     },
     "outcome": "kept"
    },
@@ -909,7 +1007,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.028,
+   "policy_seconds": 0.0278,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -919,7 +1017,7 @@
      "drift_xy": 0.001958271750826747,
      "angle_deg": 0.0030287249168129,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.016
     },
     "outcome": "kept"
    },
@@ -955,7 +1053,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.0314,
+   "policy_seconds": 0.0318,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -965,7 +1063,7 @@
      "drift_xy": 0.0013125078228595438,
      "angle_deg": 0.0025301483694096477,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.016
     },
     "outcome": "kept"
    },
@@ -1001,7 +1099,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4014,
+   "policy_seconds": 0.3965,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1047,7 +1145,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4473,
+   "policy_seconds": 0.4673,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1057,7 +1155,7 @@
      "drift_xy": 0.00015854036232028888,
      "angle_deg": 0.0017096207036464519,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.016
     },
     "outcome": "kept"
    },
@@ -1139,7 +1237,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.0336,
+   "policy_seconds": 0.0331,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1185,7 +1283,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5324,
+   "policy_seconds": 0.5104,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1195,7 +1293,7 @@
      "drift_xy": 0.00024761697724494126,
      "angle_deg": 0.00918524099491149,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.014
     },
     "outcome": "kept"
    },
@@ -1231,7 +1329,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5035,
+   "policy_seconds": 0.5022,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1241,7 +1339,7 @@
      "drift_xy": 0.00014101160810332087,
      "angle_deg": 0.0014691338392307765,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.038
     },
     "outcome": "kept"
    },
@@ -1277,7 +1375,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5106,
+   "policy_seconds": 0.5145,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1323,7 +1421,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5624,
+   "policy_seconds": 0.5581,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1369,7 +1467,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5208,
+   "policy_seconds": 0.5083,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1415,7 +1513,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5733,
+   "policy_seconds": 0.5713,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1461,7 +1559,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5523,
+   "policy_seconds": 0.5472,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1507,7 +1605,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4705,
+   "policy_seconds": 0.4652,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1553,7 +1651,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4602,
+   "policy_seconds": 0.4585,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1571,7 +1669,7 @@
    "role": "terrace",
    "surface": "item",
    "layer": 4,
-   "considered": 56,
+   "considered": 54,
    "survivors": 1,
    "pos_local": [
     0.809,
@@ -1590,24 +1688,24 @@
    "item_index": 68,
    "pool_index": 0,
    "container_idx": 0,
-   "orientation": 3,
+   "orientation": 0,
    "place_pos": [
-    0.809,
-    0.349,
-    1.43
+    0.0207,
+    0.424,
+    0.88
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4909,
+   "policy_seconds": 0.4806,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.0007144014207833358,
-     "drift_xy": 0.0006961503766491776,
-     "angle_deg": 0.024453444049753296,
+     "drift": 0.00024746357129977904,
+     "drift_xy": 0.0002459074660190842,
+     "angle_deg": 0.004958004926604366,
      "ok": true,
      "shade": 0.0
     },
@@ -1616,17 +1714,17 @@
    "archetype": "terrace-extension",
    "role": "terrace",
    "surface": "item",
-   "layer": 5,
-   "considered": 49,
+   "layer": 4,
+   "considered": 45,
    "survivors": 1,
    "pos_local": [
-    0.809,
-    0.349,
-    1.43
+    0.0207,
+    0.424,
+    0.88
    ],
    "size": [
-    0.4,
     0.55,
+    0.4,
     0.24
    ]
   },
@@ -1638,22 +1736,22 @@
    "container_idx": 0,
    "orientation": 0,
    "place_pos": [
-    0.0207,
+    0.0205,
     0.424,
-    0.88
+    1.1199
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4853,
+   "policy_seconds": 0.4849,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.0002495805241597087,
-     "drift_xy": 0.00024794203712930253,
-     "angle_deg": 0.00509603979690649,
+     "drift": 0.0002823722417274106,
+     "drift_xy": 0.0002679793630702086,
+     "angle_deg": 0.006700637719561551,
      "ok": true,
      "shade": 0.0
     },
@@ -1662,13 +1760,13 @@
    "archetype": "terrace-extension",
    "role": "terrace",
    "surface": "item",
-   "layer": 4,
-   "considered": 46,
+   "layer": 5,
+   "considered": 142,
    "survivors": 1,
    "pos_local": [
-    0.0207,
+    0.0205,
     0.424,
-    0.88
+    1.1199
    ],
    "size": [
     0.55,
@@ -1691,7 +1789,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.0755,
+   "policy_seconds": 0.0734,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1701,7 +1799,7 @@
      "drift_xy": 0.00010619384235814541,
      "angle_deg": 0.002876750488058277,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.192
     },
     "outcome": "kept"
    },
@@ -1728,43 +1826,43 @@
    "item_index": 71,
    "pool_index": 0,
    "container_idx": 0,
-   "orientation": 0,
+   "orientation": 3,
    "place_pos": [
-    0.0206,
-    0.424,
-    1.1199
+    0.3722,
+    -0.2281,
+    0.88
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5103,
+   "policy_seconds": 0.4588,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.00032336447767889273,
-     "drift_xy": 0.0003109306720870168,
-     "angle_deg": 0.013247609595740806,
+     "drift": 0.00014983073534291646,
+     "drift_xy": 0.00013348712913005572,
+     "angle_deg": 0.006868421300930469,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.192
     },
     "outcome": "kept"
    },
    "archetype": "terrace-extension",
    "role": "terrace",
    "surface": "item",
-   "layer": 5,
-   "considered": 106,
+   "layer": 4,
+   "considered": 23,
    "survivors": 1,
    "pos_local": [
-    0.0206,
-    0.424,
-    1.1199
+    0.3722,
+    -0.2281,
+    0.88
    ],
    "size": [
-    0.55,
     0.4,
+    0.55,
     0.24
    ]
   },
@@ -1776,37 +1874,37 @@
    "container_idx": 0,
    "orientation": 3,
    "place_pos": [
-    0.3721,
-    -0.2281,
-    0.88
+    0.3724,
+    -0.2283,
+    1.1199
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4721,
+   "policy_seconds": 0.485,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.0001263368702854151,
-     "drift_xy": 0.00010882083321827066,
-     "angle_deg": 0.004958832584159225,
+     "drift": 0.0003298582579283944,
+     "drift_xy": 0.0003089442992487451,
+     "angle_deg": 0.011921509700545035,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.192
     },
     "outcome": "kept"
    },
    "archetype": "terrace-extension",
    "role": "terrace",
    "surface": "item",
-   "layer": 4,
-   "considered": 33,
+   "layer": 5,
+   "considered": 25,
    "survivors": 1,
    "pos_local": [
-    0.3721,
-    -0.2281,
-    0.88
+    0.3724,
+    -0.2283,
+    1.1199
    ],
    "size": [
     0.4,
@@ -1820,39 +1918,85 @@
    "item_index": 73,
    "pool_index": 0,
    "container_idx": 0,
-   "orientation": 3,
+   "orientation": 2,
    "place_pos": [
-    0.3723,
-    -0.2285,
-    1.1199
+    -0.132,
+    -0.173,
+    0.555
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.4966,
+   "policy_seconds": 0.4402,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.0004841587949060093,
-     "drift_xy": 0.0004775762990706657,
-     "angle_deg": 0.020104294926188364,
+     "drift": 0.00025163804065883735,
+     "drift_xy": 0.0002487734940420006,
+     "angle_deg": 0.0025936687849033428,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.048
+    },
+    "outcome": "kept"
+   },
+   "archetype": "minimum-hole",
+   "role": "hole-fill",
+   "surface": "item",
+   "layer": 2,
+   "considered": 7,
+   "survivors": 4,
+   "pos_local": [
+    -0.132,
+    -0.173,
+    0.555
+   ],
+   "size": [
+    0.24,
+    0.4,
+    0.55
+   ]
+  },
+  {
+   "step": 26,
+   "event": "step",
+   "item_index": 74,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    -0.2116,
+    -0.0981,
+    0.95
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.4878,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0005323297854896816,
+     "drift_xy": 0.0005274652587672698,
+     "angle_deg": 0.0036856489656572925,
+     "ok": true,
+     "shade": 0.08
     },
     "outcome": "kept"
    },
    "archetype": "terrace-extension",
    "role": "terrace",
    "surface": "item",
-   "layer": 5,
-   "considered": 34,
+   "layer": 3,
+   "considered": 11,
    "survivors": 1,
    "pos_local": [
-    0.3723,
-    -0.2285,
-    1.1199
+    -0.2116,
+    -0.0981,
+    0.95
    ],
    "size": [
     0.4,
@@ -1861,9 +2005,55 @@
    ]
   },
   {
-   "step": 26,
+   "step": 27,
    "event": "step",
-   "item_index": 74,
+   "item_index": 75,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 3,
+   "place_pos": [
+    -0.2114,
+    -0.0981,
+    1.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.6056,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0005083936044601746,
+     "drift_xy": 0.0004804646020840309,
+     "angle_deg": 0.016025517754057028,
+     "ok": true,
+     "shade": 0.176
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 4,
+   "considered": 15,
+   "survivors": 1,
+   "pos_local": [
+    -0.2114,
+    -0.0981,
+    1.19
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 28,
+   "event": "step",
+   "item_index": 76,
    "pool_index": 0,
    "container_idx": 0,
    "orientation": 5,
@@ -1875,7 +2065,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.5493,
+   "policy_seconds": 0.4996,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -1893,7 +2083,7 @@
    "role": "last-resort",
    "surface": "floor",
    "layer": 1,
-   "considered": 31,
+   "considered": 3,
    "survivors": 3,
    "pos_local": [
     0.8882,
@@ -1907,285 +2097,9 @@
    ]
   },
   {
-   "step": 27,
-   "event": "step",
-   "item_index": 75,
-   "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 2,
-   "place_pos": [
-    -0.119,
-    -0.186,
-    0.555
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.487,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.000311070232860413,
-     "drift_xy": 0.00030737937757542366,
-     "angle_deg": 0.008335316159583486,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "minimum-hole",
-   "role": "last-resort",
-   "surface": "item",
-   "layer": 2,
-   "considered": 28,
-   "survivors": 6,
-   "pos_local": [
-    -0.119,
-    -0.186,
-    0.555
-   ],
-   "size": [
-    0.24,
-    0.4,
-    0.55
-   ]
-  },
-  {
-   "step": 28,
-   "event": "step",
-   "item_index": 76,
-   "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 3,
-   "place_pos": [
-    -0.1986,
-    -0.1112,
-    0.95
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.5585,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.000581146300470335,
-     "drift_xy": 0.0005458656254254009,
-     "angle_deg": 0.029663116015921375,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 3,
-   "considered": 28,
-   "survivors": 1,
-   "pos_local": [
-    -0.1986,
-    -0.1112,
-    0.95
-   ],
-   "size": [
-    0.4,
-    0.55,
-    0.24
-   ]
-  },
-  {
    "step": 29,
    "event": "step",
    "item_index": 77,
-   "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 1,
-   "place_pos": [
-    -0.2733,
-    0.0441,
-    1.27
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.5322,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.000799309812695249,
-     "drift_xy": 0.0007157427367900464,
-     "angle_deg": 0.07224249024487896,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 4,
-   "considered": 38,
-   "survivors": 1,
-   "pos_local": [
-    -0.2733,
-    0.0441,
-    1.27
-   ],
-   "size": [
-    0.55,
-    0.24,
-    0.4
-   ]
-  },
-  {
-   "step": 30,
-   "event": "step",
-   "item_index": 78,
-   "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 5,
-   "place_pos": [
-    0.8885,
-    -0.2383,
-    0.64
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.2728,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.00021480759232502607,
-     "drift_xy": 0.00021311398439370266,
-     "angle_deg": 0.004876508136774463,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "stack-rl",
-   "role": "none",
-   "surface": "item",
-   "layer": 2,
-   "considered": 11,
-   "survivors": 1,
-   "pos_local": [
-    0.8885,
-    -0.2383,
-    0.64
-   ],
-   "size": [
-    0.24,
-    0.55,
-    0.4
-   ]
-  },
-  {
-   "step": 31,
-   "event": "step",
-   "item_index": 79,
-   "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 5,
-   "place_pos": [
-    0.8885,
-    -0.2412,
-    1.04
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.335,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.0002515430108681509,
-     "drift_xy": 0.00024005034760196927,
-     "angle_deg": 0.007408120083979579,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "stack-rl",
-   "role": "none",
-   "surface": "item",
-   "layer": 2,
-   "considered": 8,
-   "survivors": 1,
-   "pos_local": [
-    0.8885,
-    -0.2412,
-    1.04
-   ],
-   "size": [
-    0.24,
-    0.55,
-    0.4
-   ]
-  },
-  {
-   "step": 32,
-   "event": "step",
-   "item_index": 80,
-   "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 3,
-   "place_pos": [
-    0.8085,
-    -0.2412,
-    1.36
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.3662,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.0007540268068992318,
-     "drift_xy": 0.0007377926128373331,
-     "angle_deg": 0.04192753502839837,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "stack-rl",
-   "role": "none",
-   "surface": "item",
-   "layer": 2,
-   "considered": 4,
-   "survivors": 1,
-   "pos_local": [
-    0.8085,
-    -0.2412,
-    1.36
-   ],
-   "size": [
-    0.4,
-    0.55,
-    0.24
-   ]
-  },
-  {
-   "step": 33,
-   "event": "step",
-   "item_index": 81,
    "pool_index": 0,
    "container_idx": 1,
    "orientation": 0,
@@ -2197,7 +2111,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.2795,
+   "policy_seconds": 0.5059,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -2211,12 +2125,12 @@
     },
     "outcome": "kept"
    },
-   "archetype": "stack-rl",
+   "archetype": "minimum-hole",
    "role": "none",
    "surface": "floor",
    "layer": 1,
-   "considered": 24,
-   "survivors": 1,
+   "considered": 62,
+   "survivors": 32,
    "pos_local": [
     -0.2981,
     0.4335,
@@ -2229,6 +2143,190 @@
    ]
   },
   {
+   "step": 30,
+   "event": "step",
+   "item_index": 78,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.3003,
+    0.4335,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.5111,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 8.375363430677976e-05,
+     "drift_xy": 7.777961322850583e-05,
+     "angle_deg": 0.0014937798997099257,
+     "ok": true,
+     "shade": 0.0
+    },
+    "outcome": "kept"
+   },
+   "archetype": "wedge-step",
+   "role": "wedge-step",
+   "surface": "item",
+   "layer": 0,
+   "considered": 125,
+   "survivors": 38,
+   "pos_local": [
+    -0.3003,
+    0.4335,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 31,
+   "event": "step",
+   "item_index": 79,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.7453,
+    0.4335,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.6188,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020021819949302085,
+     "drift_xy": 0.0003247557817534152,
+     "angle_deg": 0.0033882213415294396,
+     "ok": true,
+     "shade": 0.0
+    },
+    "outcome": "kept"
+   },
+   "archetype": "minimum-hole",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 143,
+   "survivors": 30,
+   "pos_local": [
+    0.7453,
+    0.4335,
+    0.17
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 32,
+   "event": "step",
+   "item_index": 80,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.749,
+    0.434,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.5805,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 8.728980102216121e-05,
+     "drift_xy": 8.461327010798293e-05,
+     "angle_deg": 0.0005030690507250564,
+     "ok": true,
+     "shade": 0.0
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 150,
+   "survivors": 32,
+   "pos_local": [
+    0.749,
+    0.434,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 33,
+   "event": "step",
+   "item_index": 81,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 2,
+   "place_pos": [
+    0.1242,
+    0.4335,
+    0.345
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.6785,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020145316343671355,
+     "drift_xy": 0.002294752063635091,
+     "angle_deg": 0.02570999908393229,
+     "ok": true,
+     "shade": 0.0
+    },
+    "outcome": "kept"
+   },
+   "archetype": "minimum-hole",
+   "role": "tall-perimeter",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 167,
+   "survivors": 21,
+   "pos_local": [
+    0.1242,
+    0.4335,
+    0.325
+   ],
+   "size": [
+    0.24,
+    0.4,
+    0.55
+   ]
+  },
+  {
    "step": 34,
    "event": "step",
    "item_index": 82,
@@ -2236,37 +2334,37 @@
    "container_idx": 1,
    "orientation": 0,
    "place_pos": [
-    -0.2975,
-    0.4335,
-    0.41
+    -0.2981,
+    0.0075,
+    0.19
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.2565,
+   "policy_seconds": 0.7538,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 8.596030052469191e-05,
-     "drift_xy": 7.773283791691388e-05,
-     "angle_deg": 0.001888956393259268,
+     "drift": 0.020123879530790294,
+     "drift_xy": 0.0020467117915583177,
+     "angle_deg": 0.05000292380226739,
      "ok": true,
      "shade": 0.0
     },
     "outcome": "kept"
    },
-   "archetype": "stack-rl",
+   "archetype": "minimum-hole",
    "role": "none",
-   "surface": "item",
-   "layer": 2,
-   "considered": 55,
-   "survivors": 1,
+   "surface": "floor",
+   "layer": 1,
+   "considered": 217,
+   "survivors": 20,
    "pos_local": [
-    -0.2975,
-    0.4335,
-    0.41
+    -0.2981,
+    0.0075,
+    0.17
    ],
    "size": [
     0.55,
@@ -2279,44 +2377,44 @@
    "event": "step",
    "item_index": 83,
    "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 3,
+   "container_idx": 1,
+   "orientation": 0,
    "place_pos": [
-    0.2443,
-    -0.0862,
-    1.36
+    -0.3003,
+    0.0075,
+    0.41
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.3378,
+   "policy_seconds": 0.7815,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.0007013308528508488,
-     "drift_xy": 0.0004166192331881312,
-     "angle_deg": 0.045468416790517725,
+     "drift": 0.00017202895038228352,
+     "drift_xy": 0.00017001025946703229,
+     "angle_deg": 0.0010707982645326687,
      "ok": true,
      "shade": 0.0
     },
     "outcome": "kept"
    },
-   "archetype": "stack-rl",
-   "role": "none",
+   "archetype": "wedge-step",
+   "role": "wedge-step",
    "surface": "item",
-   "layer": 2,
-   "considered": 48,
-   "survivors": 1,
+   "layer": 0,
+   "considered": 259,
+   "survivors": 29,
    "pos_local": [
-    0.2443,
-    -0.0862,
-    1.36
+    -0.3003,
+    0.0075,
+    0.41
    ],
    "size": [
-    0.4,
     0.55,
+    0.4,
     0.24
    ]
   },
@@ -2328,36 +2426,36 @@
    "container_idx": 1,
    "orientation": 0,
    "place_pos": [
-    0.293,
-    0.4335,
+    0.7453,
+    0.0075,
     0.19
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.2783,
+   "policy_seconds": 0.8792,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.020027492224363983,
-     "drift_xy": 0.0006179938429818674,
-     "angle_deg": 0.010968856783189252,
+     "drift": 0.02012752284989865,
+     "drift_xy": 0.002082838086629334,
+     "angle_deg": 0.05058578922887969,
      "ok": true,
      "shade": 0.0
     },
     "outcome": "kept"
    },
-   "archetype": "stack-rl",
+   "archetype": "minimum-hole",
    "role": "none",
    "surface": "floor",
    "layer": 1,
-   "considered": 66,
-   "survivors": 1,
+   "considered": 227,
+   "survivors": 14,
    "pos_local": [
-    0.293,
-    0.4335,
+    0.7453,
+    0.0075,
     0.17
    ],
    "size": [
@@ -2374,36 +2472,36 @@
    "container_idx": 1,
    "orientation": 0,
    "place_pos": [
-    0.2929,
-    0.4335,
+    0.749,
+    0.0072,
     0.41
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.2551,
+   "policy_seconds": 0.7525,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 8.941095537553778e-05,
-     "drift_xy": 8.218732462657668e-05,
-     "angle_deg": 0.0002780000266981126,
+     "drift": 9.007879209679045e-05,
+     "drift_xy": 8.784808746953466e-05,
+     "angle_deg": 0.0010333765284749252,
      "ok": true,
      "shade": 0.0
     },
     "outcome": "kept"
    },
-   "archetype": "stack-rl",
-   "role": "none",
+   "archetype": "terrace-extension",
+   "role": "terrace",
    "surface": "item",
    "layer": 2,
-   "considered": 55,
-   "survivors": 1,
+   "considered": 126,
+   "survivors": 17,
    "pos_local": [
-    0.2929,
-    0.4335,
+    0.749,
+    0.0072,
     0.41
    ],
    "size": [
@@ -2415,442 +2513,73 @@
   {
    "step": 38,
    "event": "step",
-   "item_index": 86,
-   "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 1,
-   "place_pos": [
-    -0.2649,
-    -0.2673,
-    1.2701
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.9879,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.08586169387890003,
-     "drift_xy": 0.08466170925424847,
-     "angle_deg": 11.260554988799614,
-     "ok": false,
-     "shade": 0.0
-    },
-    "outcome": "kept-after-veto",
-    "tried": []
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 4,
-   "considered": 1,
-   "survivors": 1,
-   "pos_local": [
-    -0.2649,
-    -0.2673,
-    1.2701
-   ],
-   "size": [
-    0.55,
-    0.24,
-    0.4
-   ]
-  },
-  {
-   "step": 39,
-   "event": "step",
-   "item_index": 87,
-   "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 2,
-   "place_pos": [
-    0.9025,
-    0.4335,
-    0.345
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.7479,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.02033597159455105,
-     "drift_xy": 0.003610775270872992,
-     "angle_deg": 0.005510479201314292,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "minimum-hole",
-   "role": "tall-perimeter",
-   "surface": "floor",
-   "layer": 1,
-   "considered": 339,
-   "survivors": 26,
-   "pos_local": [
-    0.9025,
-    0.4335,
-    0.325
-   ],
-   "size": [
-    0.24,
-    0.4,
-    0.55
-   ]
-  },
-  {
-   "step": 40,
-   "event": "step",
-   "item_index": 88,
-   "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
-   "place_pos": [
-    -0.2981,
-    0.007,
-    0.19
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.8179,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.020124031735917345,
-     "drift_xy": 0.002048000298672835,
-     "angle_deg": 0.05000970814143632,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "minimum-hole",
-   "role": "none",
-   "surface": "floor",
-   "layer": 1,
-   "considered": 372,
-   "survivors": 20,
-   "pos_local": [
-    -0.2981,
-    0.007,
-    0.17
-   ],
-   "size": [
-    0.55,
-    0.4,
-    0.24
-   ]
-  },
-  {
-   "step": 41,
-   "event": "step",
-   "item_index": 89,
-   "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
-   "place_pos": [
-    -0.2981,
-    0.007,
-    0.41
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.851,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.00017150578080350805,
-     "drift_xy": 0.00016907909598241737,
-     "angle_deg": 0.0011962535733919515,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "wedge-step",
-   "role": "wedge-step",
-   "surface": "item",
-   "layer": 0,
-   "considered": 555,
-   "survivors": 37,
-   "pos_local": [
-    -0.2981,
-    0.007,
-    0.41
-   ],
-   "size": [
-    0.55,
-    0.4,
-    0.24
-   ]
-  },
-  {
-   "step": 42,
-   "event": "step",
-   "item_index": 90,
-   "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
-   "place_pos": [
-    0.7454,
-    0.007,
-    0.19
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.9965,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.020127518159659644,
-     "drift_xy": 0.002082711862521551,
-     "angle_deg": 0.0505696738039395,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "minimum-hole",
-   "role": "none",
-   "surface": "floor",
-   "layer": 1,
-   "considered": 619,
-   "survivors": 20,
-   "pos_local": [
-    0.7454,
-    0.007,
-    0.17
-   ],
-   "size": [
-    0.55,
-    0.4,
-    0.24
-   ]
-  },
-  {
-   "step": 43,
-   "event": "step",
-   "item_index": 91,
-   "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
-   "place_pos": [
-    0.749,
-    0.0067,
-    0.41
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 0.8696,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 8.718070663540747e-05,
-     "drift_xy": 8.433665287763584e-05,
-     "angle_deg": 0.0005014493985333723,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 2,
-   "considered": 540,
-   "survivors": 22,
-   "pos_local": [
-    0.749,
-    0.0067,
-    0.41
-   ],
-   "size": [
-    0.55,
-    0.4,
-    0.24
-   ]
-  },
-  {
-   "step": 44,
-   "event": "step",
-   "item_index": 92,
-   "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 1,
-   "place_pos": [
-    -0.2982,
-    0.5135,
-    1.126
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.0578,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.05101952858800973,
-     "drift_xy": 0.0,
-     "angle_deg": 0.0,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "shelf-space-saving",
-   "role": "none",
-   "surface": "shelf",
-   "layer": 1,
-   "considered": 545,
-   "survivors": 12,
-   "pos_local": [
-    -0.2982,
-    0.5135,
-    1.075
-   ],
-   "size": [
-    0.55,
-    0.24,
-    0.4
-   ]
-  },
-  {
-   "step": 45,
-   "event": "step",
-   "item_index": 93,
-   "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 1,
-   "place_pos": [
-    0.2783,
-    0.5135,
-    1.126
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.1075,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.051019517826928866,
-     "drift_xy": 4.3008607119089715e-06,
-     "angle_deg": 0.0012340653501232588,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "shelf-space-saving",
-   "role": "none",
-   "surface": "shelf",
-   "layer": 1,
-   "considered": 540,
-   "survivors": 12,
-   "pos_local": [
-    0.2783,
-    0.5135,
-    1.075
-   ],
-   "size": [
-    0.55,
-    0.24,
-    0.4
-   ]
-  },
-  {
-   "step": 46,
-   "event": "step",
    "item_index": 0,
    "pool_index": 0,
    "container_idx": 0,
-   "orientation": 3,
+   "orientation": 2,
    "place_pos": [
-    0.833,
-    -0.269,
-    1.58
+    -0.539,
+    0.416,
+    0.985
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.2241,
+   "policy_seconds": 0.8457,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.006254377340071257,
-     "drift_xy": 0.0003239740280683899,
-     "angle_deg": 0.04457535228359459,
+     "drift": 0.0060684253412790785,
+     "drift_xy": 0.0003442257976062269,
+     "angle_deg": 0.022697575746590856,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.016
     },
     "outcome": "kept"
    },
    "archetype": "soft-edge",
    "role": "last-resort",
    "surface": "item",
-   "layer": 5,
-   "considered": 6,
-   "survivors": 6,
+   "layer": 1,
+   "considered": 2,
+   "survivors": 2,
    "pos_local": [
-    0.833,
-    -0.269,
-    1.58
+    -0.539,
+    0.416,
+    0.985
    ],
    "size": [
+    0.2,
     0.3,
-    0.45,
-    0.2
+    0.45
    ]
   },
   {
-   "step": 47,
+   "step": 39,
    "event": "step",
    "item_index": 1,
    "pool_index": 0,
    "container_idx": 1,
-   "orientation": 5,
+   "orientation": 1,
    "place_pos": [
-    0.6798,
-    0.4085,
+    -0.3504,
+    0.5335,
     1.076
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.1533,
+   "policy_seconds": 0.7728,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.05690755583813573,
-     "drift_xy": 2.3738307605709363e-07,
-     "angle_deg": 9.093390762745875e-05,
+     "drift": 0.05483173302967251,
+     "drift_xy": 0.0009761962858809695,
+     "angle_deg": 0.37374811189531515,
      "ok": true,
      "shade": 0.0
     },
@@ -2860,43 +2589,43 @@
    "role": "none",
    "surface": "shelf",
    "layer": 1,
-   "considered": 477,
+   "considered": 607,
    "survivors": 12,
    "pos_local": [
-    0.6798,
-    0.4085,
+    -0.3504,
+    0.5335,
     1.025
    ],
    "size": [
-    0.2,
     0.45,
+    0.2,
     0.3
    ]
   },
   {
-   "step": 48,
+   "step": 40,
    "event": "step",
    "item_index": 2,
    "pool_index": 0,
    "container_idx": 1,
-   "orientation": 5,
+   "orientation": 1,
    "place_pos": [
-    0.9063,
-    0.4085,
+    0.2292,
+    0.5335,
     1.076
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.1708,
+   "policy_seconds": 0.9748,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.05690751799085425,
-     "drift_xy": 4.5124894330163e-11,
-     "angle_deg": 0.0,
+     "drift": 0.05690846049062964,
+     "drift_xy": 1.607446663915911e-06,
+     "angle_deg": 0.0006145889459119534,
      "ok": true,
      "shade": 0.0
     },
@@ -2906,43 +2635,43 @@
    "role": "none",
    "surface": "shelf",
    "layer": 1,
-   "considered": 440,
+   "considered": 603,
    "survivors": 12,
    "pos_local": [
-    0.9063,
-    0.4085,
+    0.2292,
+    0.5335,
     1.025
    ],
    "size": [
-    0.2,
     0.45,
+    0.2,
     0.3
    ]
   },
   {
-   "step": 49,
+   "step": 41,
    "event": "step",
    "item_index": 3,
    "pool_index": 0,
    "container_idx": 1,
    "orientation": 1,
    "place_pos": [
-    -0.3483,
-    0.267,
+    0.7057,
+    0.5335,
     1.076
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.9635,
+   "policy_seconds": 0.9738,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.05483618251772512,
-     "drift_xy": 0.001002079187167079,
-     "angle_deg": 0.38360091908922933,
+     "drift": 0.05690846049062964,
+     "drift_xy": 1.607446663915911e-06,
+     "angle_deg": 0.0006145889459119534,
      "ok": true,
      "shade": 0.0
     },
@@ -2952,11 +2681,11 @@
    "role": "none",
    "surface": "shelf",
    "layer": 1,
-   "considered": 421,
-   "survivors": 8,
+   "considered": 515,
+   "survivors": 12,
    "pos_local": [
-    -0.3483,
-    0.267,
+    0.7057,
+    0.5335,
     1.025
    ],
    "size": [
@@ -2966,29 +2695,29 @@
    ]
   },
   {
-   "step": 50,
+   "step": 42,
    "event": "step",
    "item_index": 4,
    "pool_index": 0,
    "container_idx": 1,
    "orientation": 1,
    "place_pos": [
-    0.2292,
-    0.267,
+    -0.3505,
+    0.307,
     1.076
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.1239,
+   "policy_seconds": 0.837,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.05690751799085425,
-     "drift_xy": 4.5130055087702053e-11,
-     "angle_deg": 0.0,
+     "drift": 0.054831520220408644,
+     "drift_xy": 0.0009760926888784645,
+     "angle_deg": 0.3737084865777974,
      "ok": true,
      "shade": 0.0
     },
@@ -2998,11 +2727,11 @@
    "role": "none",
    "surface": "shelf",
    "layer": 1,
-   "considered": 158,
+   "considered": 483,
    "survivors": 8,
    "pos_local": [
-    0.2292,
-    0.267,
+    -0.3505,
+    0.307,
     1.025
    ],
    "size": [
@@ -3012,31 +2741,31 @@
    ]
   },
   {
-   "step": 51,
+   "step": 43,
    "event": "step",
    "item_index": 5,
    "pool_index": 0,
    "container_idx": 1,
-   "orientation": 5,
+   "orientation": 1,
    "place_pos": [
-    -0.9235,
-    -0.0845,
+    0.7956,
+    0.307,
     1.076
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.8751,
+   "policy_seconds": 0.971,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.05462070161547502,
-     "drift_xy": 0.0008501544816432702,
-     "angle_deg": 0.32629553525478305,
+     "drift": 0.05690846049062964,
+     "drift_xy": 1.6074466640814784e-06,
+     "angle_deg": 0.0006145889459119534,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.016
     },
     "outcome": "kept"
    },
@@ -3044,21 +2773,21 @@
    "role": "none",
    "surface": "shelf",
    "layer": 1,
-   "considered": 82,
-   "survivors": 4,
+   "considered": 299,
+   "survivors": 8,
    "pos_local": [
-    -0.9235,
-    -0.0845,
+    0.7956,
+    0.307,
     1.025
    ],
    "size": [
-    0.2,
     0.45,
+    0.2,
     0.3
    ]
   },
   {
-   "step": 52,
+   "step": 44,
    "event": "step",
    "item_index": 96,
    "pool_index": 0,
@@ -3072,7 +2801,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.0438,
+   "policy_seconds": 0.9468,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -3090,8 +2819,8 @@
    "role": "none",
    "surface": "floor",
    "layer": 1,
-   "considered": 24,
-   "survivors": 7,
+   "considered": 16,
+   "survivors": 3,
    "pos_local": [
     0.5435,
     0.3435,
@@ -3104,7 +2833,7 @@
    ]
   },
   {
-   "step": 53,
+   "step": 45,
    "event": "step",
    "item_index": 97,
    "pool_index": 0,
@@ -3118,7 +2847,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.9652,
+   "policy_seconds": 0.8679,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -3136,8 +2865,8 @@
    "role": "terrace",
    "surface": "item",
    "layer": 2,
-   "considered": 33,
-   "survivors": 15,
+   "considered": 23,
+   "survivors": 11,
    "pos_local": [
     0.544,
     0.344,
@@ -3150,7 +2879,7 @@
    ]
   },
   {
-   "step": 54,
+   "step": 46,
    "event": "step",
    "item_index": 98,
    "pool_index": 0,
@@ -3164,7 +2893,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.0087,
+   "policy_seconds": 0.9358,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -3182,8 +2911,8 @@
    "role": "terrace",
    "surface": "item",
    "layer": 3,
-   "considered": 26,
-   "survivors": 7,
+   "considered": 14,
+   "survivors": 3,
    "pos_local": [
     0.544,
     0.344,
@@ -3196,9 +2925,9 @@
    ]
   },
   {
-   "step": 55,
+   "step": 47,
    "event": "step",
-   "item_index": 94,
+   "item_index": 86,
    "pool_index": 0,
    "container_idx": 1,
    "orientation": 4,
@@ -3210,7 +2939,7 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.9757,
+   "policy_seconds": 0.9028,
    "shadow": {
     "chosen": {
      "transport_ok": true,
@@ -3220,7 +2949,7 @@
      "drift_xy": 5.7982998903338736e-06,
      "angle_deg": 0.0012019034704442864,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.032
     },
     "outcome": "kept"
    },
@@ -3228,7 +2957,7 @@
    "role": "hole-fill",
    "surface": "floor",
    "layer": 1,
-   "considered": 40,
+   "considered": 33,
    "survivors": 2,
    "pos_local": [
     0.2061,
@@ -3242,55 +2971,147 @@
    ]
   },
   {
-   "step": 56,
+   "step": 48,
    "event": "step",
-   "item_index": 95,
+   "item_index": 87,
    "pool_index": 0,
    "container_idx": 1,
-   "orientation": 5,
+   "orientation": 0,
    "place_pos": [
-    -0.6769,
-    -0.1345,
-    1.126
+    0.745,
+    -0.4252,
+    0.19
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.0964,
+   "policy_seconds": 1.002,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.051019532113119506,
-     "drift_xy": 1.0862001231314992e-09,
-     "angle_deg": 0.0,
+     "drift": 0.020019399166660328,
+     "drift_xy": 3.45956650426323e-05,
+     "angle_deg": 0.002300023735807748,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.021
     },
     "outcome": "kept"
    },
-   "archetype": "shelf-space-saving",
-   "role": "none",
-   "surface": "shelf",
+   "archetype": "minimum-hole",
+   "role": "last-resort",
+   "surface": "floor",
    "layer": 1,
-   "considered": 34,
-   "survivors": 4,
+   "considered": 35,
+   "survivors": 2,
    "pos_local": [
-    -0.6769,
-    -0.1345,
-    1.075
+    0.745,
+    -0.4252,
+    0.17
    ],
    "size": [
-    0.24,
     0.55,
-    0.4
+    0.4,
+    0.24
    ]
   },
   {
-   "step": 57,
+   "step": 49,
+   "event": "step",
+   "item_index": 88,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    0.749,
+    -0.4252,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.8513,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 8.764880468883866e-05,
+     "drift_xy": 8.444087874593532e-05,
+     "angle_deg": 0.0004891012812316653,
+     "ok": true,
+     "shade": 0.021
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 27,
+   "survivors": 1,
+   "pos_local": [
+    0.749,
+    -0.4252,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 50,
    "event": "step",
    "item_index": 99,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 1,
+   "place_pos": [
+    0.699,
+    -0.3502,
+    0.755
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.8857,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.00029100820913044456,
+     "drift_xy": 0.0002693632962427611,
+     "angle_deg": 0.006470383610978474,
+     "ok": true,
+     "shade": 0.346
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 3,
+   "considered": 26,
+   "survivors": 1,
+   "pos_local": [
+    0.699,
+    -0.3502,
+    0.755
+   ],
+   "size": [
+    0.65,
+    0.25,
+    0.45
+   ]
+  },
+  {
+   "step": 51,
+   "event": "step",
+   "item_index": 100,
    "pool_index": 0,
    "container_idx": 2,
    "orientation": 0,
@@ -3302,15 +3123,15 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 0.9985,
+   "policy_seconds": 0.9383,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.0003124969223974833,
-     "drift_xy": 0.0003000777430254507,
-     "angle_deg": 0.003581101222203453,
+     "drift": 0.0003109922965328932,
+     "drift_xy": 0.00029837151345766063,
+     "angle_deg": 0.003291636130044666,
      "ok": true,
      "shade": 0.0
     },
@@ -3320,8 +3141,8 @@
    "role": "terrace",
    "surface": "item",
    "layer": 4,
-   "considered": 26,
-   "survivors": 7,
+   "considered": 12,
+   "survivors": 1,
    "pos_local": [
     0.544,
     0.344,
@@ -3334,320 +3155,228 @@
    ]
   },
   {
-   "step": 58,
-   "event": "step",
-   "item_index": 100,
-   "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 0,
-   "place_pos": [
-    0.544,
-    0.344,
-    1.1649
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.0768,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.000546147020508234,
-     "drift_xy": 0.0005221820476804059,
-     "angle_deg": 0.003678429433940001,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 5,
-   "considered": 24,
-   "survivors": 5,
-   "pos_local": [
-    0.544,
-    0.344,
-    1.1649
-   ],
-   "size": [
-    0.65,
-    0.45,
-    0.25
-   ]
-  },
-  {
-   "step": 59,
+   "step": 52,
    "event": "step",
    "item_index": 101,
    "pool_index": 0,
    "container_idx": 2,
-   "orientation": 5,
+   "orientation": 3,
    "place_pos": [
-    -0.7435,
+    -0.1962,
     0.2435,
-    1.151
+    0.185
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.1915,
+   "policy_seconds": 0.9965,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.051019809963833804,
-     "drift_xy": 1.0379834940694459e-05,
-     "angle_deg": 0.002663584407017331,
+     "drift": 0.02025356095285547,
+     "drift_xy": 0.003094789404381767,
+     "angle_deg": 0.03862741908321423,
      "ok": true,
      "shade": 0.0
     },
     "outcome": "kept"
    },
-   "archetype": "shelf-space-saving",
+   "archetype": "max-footprint",
    "role": "none",
-   "surface": "shelf",
+   "surface": "floor",
    "layer": 1,
-   "considered": 22,
-   "survivors": 4,
+   "considered": 8,
+   "survivors": 2,
    "pos_local": [
-    -0.7435,
+    -0.1962,
     0.2435,
-    1.1
+    0.165
    ],
    "size": [
-    0.25,
+    0.45,
     0.65,
-    0.45
+    0.25
    ]
   },
   {
-   "step": 60,
+   "step": 53,
+   "event": "step",
+   "item_index": 89,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.2958,
+    -0.4232,
+    0.19
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.9356,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020210122940203384,
+     "drift_xy": 0.0027676548733020397,
+     "angle_deg": 0.061069073492949606,
+     "ok": true,
+     "shade": 0.021
+    },
+    "outcome": "kept"
+   },
+   "archetype": "minimum-hole",
+   "role": "last-resort",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 22,
+   "survivors": 1,
+   "pos_local": [
+    -0.2958,
+    -0.4232,
+    0.17
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 54,
+   "event": "step",
+   "item_index": 90,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 0,
+   "place_pos": [
+    -0.3003,
+    -0.4193,
+    0.41
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.8677,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 8.383054908145144e-05,
+     "drift_xy": 8.034978594986355e-05,
+     "angle_deg": 0.0019802182340612285,
+     "ok": true,
+     "shade": 0.022
+    },
+    "outcome": "kept"
+   },
+   "archetype": "wedge-step",
+   "role": "wedge-step",
+   "surface": "item",
+   "layer": 0,
+   "considered": 41,
+   "survivors": 13,
+   "pos_local": [
+    -0.3003,
+    -0.4193,
+    0.41
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 55,
+   "event": "step",
+   "item_index": 91,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 5,
+   "place_pos": [
+    0.1264,
+    -0.3375,
+    0.27
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.9675,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.020217542561081076,
+     "drift_xy": 0.0028642669817026387,
+     "angle_deg": 0.00340010528338228,
+     "ok": true,
+     "shade": 0.01
+    },
+    "outcome": "kept"
+   },
+   "archetype": "minimum-hole",
+   "role": "hole-fill",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 25,
+   "survivors": 1,
+   "pos_local": [
+    0.1264,
+    -0.3375,
+    0.25
+   ],
+   "size": [
+    0.24,
+    0.55,
+    0.4
+   ]
+  },
+  {
+   "step": 56,
    "event": "step",
    "item_index": 102,
    "pool_index": 0,
-   "container_idx": 2,
+   "container_idx": 1,
    "orientation": 3,
    "place_pos": [
-    0.6408,
-    -0.2332,
-    0.185
+    -0.3166,
+    -0.2942,
+    0.655
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.1295,
+   "policy_seconds": 0.8542,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.02014819110380826,
-     "drift_xy": 0.002273131023730969,
-     "angle_deg": 0.0036437218802768414,
+     "drift": 0.00018229939729516733,
+     "drift_xy": 0.00017964080304179523,
+     "angle_deg": 0.0023579404265091676,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.112
     },
     "outcome": "kept"
    },
-   "archetype": "max-footprint",
-   "role": "last-resort",
-   "surface": "floor",
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
    "layer": 1,
-   "considered": 24,
-   "survivors": 3,
-   "pos_local": [
-    0.6408,
-    -0.2332,
-    0.165
-   ],
-   "size": [
-    0.45,
-    0.65,
-    0.25
-   ]
-  },
-  {
-   "step": 61,
-   "event": "step",
-   "item_index": 103,
-   "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 1,
-   "place_pos": [
-    0.544,
-    -0.0332,
-    0.515
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.0758,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.00027872930169403886,
-     "drift_xy": 0.0002777440475188492,
-     "angle_deg": 0.0017531413914131158,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 2,
-   "considered": 34,
-   "survivors": 5,
-   "pos_local": [
-    0.544,
-    -0.0332,
-    0.515
-   ],
-   "size": [
-    0.65,
-    0.25,
-    0.45
-   ]
-  },
-  {
-   "step": 62,
-   "event": "step",
-   "item_index": 104,
-   "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 1,
-   "place_pos": [
-    0.544,
-    -0.4058,
-    0.515
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.0747,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.00015179447151455574,
-     "drift_xy": 0.00015090549069896893,
-     "angle_deg": 0.00202522163561307,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 2,
-   "considered": 42,
-   "survivors": 1,
-   "pos_local": [
-    0.544,
-    -0.4058,
-    0.515
-   ],
-   "size": [
-    0.65,
-    0.25,
-    0.45
-   ]
-  },
-  {
-   "step": 63,
-   "event": "step",
-   "item_index": 105,
-   "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 1,
-   "place_pos": [
-    0.544,
-    -0.4058,
-    0.965
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 2.1248,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.0004022668427195855,
-     "drift_xy": 0.0003946749372197833,
-     "angle_deg": 0.006931144588684408,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "terrace-extension",
-   "role": "terrace",
-   "surface": "item",
-   "layer": 3,
-   "considered": 52,
-   "survivors": 1,
-   "pos_local": [
-    0.544,
-    -0.4058,
-    0.965
-   ],
-   "size": [
-    0.65,
-    0.25,
-    0.45
-   ]
-  },
-  {
-   "step": 64,
-   "event": "step",
-   "item_index": 106,
-   "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 3,
-   "place_pos": [
-    -0.1958,
-    0.2438,
-    0.185
-   ],
-   "is_included": true,
-   "is_valid": true,
-   "is_placed_safe": true,
-   "policy_seconds": 1.241,
-   "shadow": {
-    "chosen": {
-     "transport_ok": true,
-     "settle_ok": true,
-     "shake_ok": true,
-     "drift": 0.020252601616484945,
-     "drift_xy": 0.0030887070099385188,
-     "angle_deg": 0.03871922418809814,
-     "ok": true,
-     "shade": 0.0
-    },
-    "outcome": "kept"
-   },
-   "archetype": "max-footprint",
-   "role": "last-resort",
-   "surface": "floor",
-   "layer": 1,
-   "considered": 28,
+   "considered": 17,
    "survivors": 2,
    "pos_local": [
-    -0.1958,
-    0.2438,
-    0.165
+    -0.3166,
+    -0.2942,
+    0.655
    ],
    "size": [
     0.45,
@@ -3656,9 +3385,9 @@
    ]
   },
   {
-   "step": 65,
+   "step": 57,
    "event": "step",
-   "item_index": 107,
+   "item_index": 103,
    "pool_index": 0,
    "container_idx": 2,
    "orientation": 3,
@@ -3670,15 +3399,15 @@
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.0874,
+   "policy_seconds": 0.9292,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.00014971925220399015,
-     "drift_xy": 0.0001482928709231084,
-     "angle_deg": 0.0008535687159838828,
+     "drift": 0.00015017615157305244,
+     "drift_xy": 0.00014873259040989868,
+     "angle_deg": 0.0008629045936221697,
      "ok": true,
      "shade": 0.0
     },
@@ -3688,7 +3417,7 @@
    "role": "wedge-step",
    "surface": "item",
    "layer": 0,
-   "considered": 57,
+   "considered": 13,
    "survivors": 13,
    "pos_local": [
     -0.1981,
@@ -3702,215 +3431,583 @@
    ]
   },
   {
-   "step": 66,
+   "step": 58,
    "event": "step",
-   "item_index": 108,
+   "item_index": 104,
    "pool_index": 0,
    "container_idx": 2,
-   "orientation": 2,
+   "orientation": 3,
    "place_pos": [
-    -0.2964,
-    -0.3361,
-    0.385
+    0.6412,
+    -0.2334,
+    0.185
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.3271,
+   "policy_seconds": 1.1182,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.02014689733382609,
-     "drift_xy": 0.002326111285527546,
-     "angle_deg": 0.005877861450850453,
+     "drift": 0.02014835413490775,
+     "drift_xy": 0.0022744940902025427,
+     "angle_deg": 0.0036460465291065216,
+     "ok": true,
+     "shade": 0.019
+    },
+    "outcome": "kept"
+   },
+   "archetype": "max-footprint",
+   "role": "none",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 167,
+   "survivors": 2,
+   "pos_local": [
+    0.6412,
+    -0.2334,
+    0.165
+   ],
+   "size": [
+    0.45,
+    0.65,
+    0.25
+   ]
+  },
+  {
+   "step": 59,
+   "event": "step",
+   "item_index": 92,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 3,
+   "place_pos": [
+    -0.334,
+    -0.3278,
+    0.8999
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 0.8906,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 9.056026734606828e-05,
+     "drift_xy": 8.90974606428245e-05,
+     "angle_deg": 0.0034097081482039352,
+     "ok": true,
+     "shade": 0.112
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 1,
+   "considered": 26,
+   "survivors": 2,
+   "pos_local": [
+    -0.334,
+    -0.3278,
+    0.8999
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 60,
+   "event": "step",
+   "item_index": 93,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 3,
+   "place_pos": [
+    -0.1731,
+    0.294,
+    0.66
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.1089,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0003776160580001924,
+     "drift_xy": 0.00037645795842658605,
+     "angle_deg": 0.00286810309637037,
      "ok": true,
      "shade": 0.0
     },
     "outcome": "kept"
    },
-   "archetype": "max-footprint",
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 1,
+   "considered": 12,
+   "survivors": 8,
+   "pos_local": [
+    -0.1731,
+    0.294,
+    0.66
+   ],
+   "size": [
+    0.4,
+    0.55,
+    0.24
+   ]
+  },
+  {
+   "step": 61,
+   "event": "step",
+   "item_index": 94,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 0,
+   "place_pos": [
+    -0.0981,
+    0.369,
+    0.9
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.1518,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0004490062706573146,
+     "drift_xy": 0.0004484768178101611,
+     "angle_deg": 0.0028364843097681072,
+     "ok": true,
+     "shade": 0.0
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 1,
+   "considered": 15,
+   "survivors": 12,
+   "pos_local": [
+    -0.0981,
+    0.369,
+    0.9
+   ],
+   "size": [
+    0.55,
+    0.4,
+    0.24
+   ]
+  },
+  {
+   "step": 62,
+   "event": "step",
+   "item_index": 95,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 1,
+   "place_pos": [
+    0.594,
+    -0.0284,
+    0.49
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.155,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.00016482198631399654,
+     "drift_xy": 0.00016338258215319393,
+     "angle_deg": 0.0009065837986499846,
+     "ok": true,
+     "shade": 0.022
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 10,
+   "survivors": 8,
+   "pos_local": [
+    0.594,
+    -0.0284,
+    0.49
+   ],
+   "size": [
+    0.55,
+    0.24,
+    0.4
+   ]
+  },
+  {
+   "step": 63,
+   "event": "step",
+   "item_index": 105,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 1,
+   "place_pos": [
+    0.544,
+    -0.406,
+    0.515
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.0764,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.00027103774938458007,
+     "drift_xy": 0.0002677653543923081,
+     "angle_deg": 0.0014071992446359355,
+     "ok": true,
+     "shade": 0.256
+    },
+    "outcome": "kept"
+   },
+   "archetype": "terrace-extension",
+   "role": "terrace",
+   "surface": "item",
+   "layer": 2,
+   "considered": 2,
+   "survivors": 1,
+   "pos_local": [
+    0.544,
+    -0.406,
+    0.515
+   ],
+   "size": [
+    0.65,
+    0.25,
+    0.45
+   ]
+  },
+  {
+   "step": 64,
+   "event": "step",
+   "item_index": 24,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 5,
+   "place_pos": [
+    -0.7535,
+    -0.1823,
+    1.101
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.4934,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.06252852254449251,
+     "drift_xy": 2.3905346718010648e-05,
+     "angle_deg": 0.007816625013766105,
+     "ok": true,
+     "shade": 0.0
+    },
+    "outcome": "kept"
+   },
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
+   "layer": 1,
+   "considered": 38,
+   "survivors": 12,
+   "pos_local": [
+    -0.7535,
+    -0.1823,
+    1.05
+   ],
+   "size": [
+    0.23,
+    0.65,
+    0.35
+   ]
+  },
+  {
+   "step": 65,
+   "event": "step",
+   "item_index": 25,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 2,
+   "place_pos": [
+    -0.3064,
+    -0.2827,
+    0.385
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.5997,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.03470238912399545,
+     "drift_xy": 0.00816904741029205,
+     "angle_deg": 1.4417420253792437,
+     "ok": true,
+     "shade": 0.046
+    },
+    "outcome": "kept"
+   },
+   "archetype": "soft-edge",
    "role": "last-resort",
    "surface": "floor",
    "layer": 1,
-   "considered": 17,
-   "survivors": 2,
+   "considered": 8,
+   "survivors": 1,
    "pos_local": [
-    -0.2964,
-    -0.3361,
+    -0.3064,
+    -0.2827,
     0.365
    ],
    "size": [
-    0.25,
-    0.45,
+    0.23,
+    0.35,
+    0.65
+   ]
+  },
+  {
+   "step": 66,
+   "event": "step",
+   "item_index": 26,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 4,
+   "place_pos": [
+    0.0109,
+    -0.2264,
+    0.385
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 1.6304,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.03542625823116951,
+     "drift_xy": 1.2026096566873352e-05,
+     "angle_deg": 0.002119699717829772,
+     "ok": true,
+     "shade": 0.085
+    },
+    "outcome": "kept"
+   },
+   "archetype": "soft-edge",
+   "role": "hole-fill",
+   "surface": "floor",
+   "layer": 1,
+   "considered": 13,
+   "survivors": 2,
+   "pos_local": [
+    0.0109,
+    -0.2264,
+    0.365
+   ],
+   "size": [
+    0.35,
+    0.23,
     0.65
    ]
   },
   {
    "step": 67,
    "event": "step",
-   "item_index": 24,
+   "item_index": 6,
    "pool_index": 0,
    "container_idx": 1,
-   "orientation": 0,
+   "orientation": 1,
    "place_pos": [
-    0.6954,
-    -0.3972,
-    0.185
+    0.2035,
+    0.282,
+    1.076
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.7512,
+   "policy_seconds": 1.0733,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.03152338159445797,
-     "drift_xy": 0.00013417075157972686,
-     "angle_deg": 0.06920140902596376,
+     "drift": 0.0565312329421555,
+     "drift_xy": 1.031808789510743e-06,
+     "angle_deg": 0.00037587378715952846,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.032
     },
     "outcome": "kept"
    },
-   "archetype": "soft-edge",
-   "role": "front-wedge",
-   "surface": "floor",
+   "archetype": "shelf-space-saving",
+   "role": "none",
+   "surface": "shelf",
    "layer": 1,
-   "considered": 2,
-   "survivors": 2,
+   "considered": 63,
+   "survivors": 8,
    "pos_local": [
-    0.6954,
-    -0.3972,
-    0.165
+    0.2035,
+    0.282,
+    1.025
    ],
    "size": [
-    0.65,
-    0.35,
-    0.23
+    0.6,
+    0.25,
+    0.3
    ]
   },
   {
    "step": 68,
    "event": "step",
-   "item_index": 25,
+   "item_index": 7,
    "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
+   "container_idx": 0,
+   "orientation": 1,
    "place_pos": [
-    -0.2474,
-    -0.3972,
-    0.185
+    -0.191,
+    0.104,
+    1.46
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.831,
+   "policy_seconds": 3.4008,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.03382508071144478,
-     "drift_xy": 0.0006544529066202268,
-     "angle_deg": 0.3278437826527851,
+     "drift": 0.007072051019149355,
+     "drift_xy": 0.0030428557092869904,
+     "angle_deg": 0.7219012448544293,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.24
     },
     "outcome": "kept"
    },
-   "archetype": "soft-edge",
-   "role": "front-wedge",
-   "surface": "floor",
-   "layer": 1,
-   "considered": 2,
-   "survivors": 2,
+   "archetype": "stack-rl",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 73,
+   "survivors": 1,
    "pos_local": [
-    -0.2474,
-    -0.3972,
-    0.165
+    -0.191,
+    0.104,
+    1.46
    ],
    "size": [
-    0.65,
-    0.35,
-    0.23
+    0.6,
+    0.25,
+    0.3
    ]
   },
   {
    "step": 69,
    "event": "step",
-   "item_index": 26,
+   "item_index": 106,
    "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
+   "container_idx": 2,
+   "orientation": 1,
    "place_pos": [
-    -0.4719,
-    0.4585,
-    1.39
+    0.544,
+    -0.0335,
+    0.915
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 3.9055,
+   "policy_seconds": 1.0912,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.01788648593252306,
-     "drift_xy": 0.005493000241489789,
-     "angle_deg": 2.9897859861348928,
+     "drift": 0.00016227051764319171,
+     "drift_xy": 0.0001488999273521285,
+     "angle_deg": 0.007660408477488105,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.307
     },
     "outcome": "kept"
    },
-   "archetype": "stack-rl",
-   "role": "none",
+   "archetype": "terrace-extension",
+   "role": "terrace",
    "surface": "item",
-   "layer": 2,
-   "considered": 96,
+   "layer": 3,
+   "considered": 1,
    "survivors": 1,
    "pos_local": [
-    -0.4719,
-    0.4585,
-    1.39
+    0.544,
+    -0.0335,
+    0.915
    ],
    "size": [
     0.65,
-    0.35,
-    0.23
+    0.25,
+    0.45
    ]
   },
   {
    "step": 70,
    "event": "step",
-   "item_index": 6,
+   "item_index": 107,
    "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
+   "container_idx": 0,
+   "orientation": 5,
    "place_pos": [
-    0.4658,
-    0.4835,
-    1.4
+    0.8835,
+    -0.2983,
+    0.665
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 4.0378,
+   "policy_seconds": 1.2353,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.008823626520947517,
-     "drift_xy": 0.0026290078268386093,
-     "angle_deg": 1.2404239231915974,
+     "drift": 0.00022358620412564318,
+     "drift_xy": 0.0002196189961509387,
+     "angle_deg": 0.010853834949394821,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.011
     },
     "outcome": "kept"
    },
@@ -3918,45 +4015,45 @@
    "role": "none",
    "surface": "item",
    "layer": 2,
-   "considered": 96,
+   "considered": 3,
    "survivors": 1,
    "pos_local": [
-    0.4658,
-    0.4835,
-    1.4
+    0.8835,
+    -0.2983,
+    0.665
    ],
    "size": [
-    0.6,
-    0.3,
-    0.25
+    0.25,
+    0.65,
+    0.45
    ]
   },
   {
    "step": 71,
    "event": "step",
-   "item_index": 7,
+   "item_index": 108,
    "pool_index": 0,
-   "container_idx": 1,
-   "orientation": 0,
+   "container_idx": 0,
+   "orientation": 5,
    "place_pos": [
-    -0.7235,
-    0.0831,
-    1.4
+    0.8833,
+    -0.2945,
+    1.115
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 3.9091,
+   "policy_seconds": 1.2375,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.007785712597445796,
-     "drift_xy": 0.0029240565635085957,
-     "angle_deg": 1.381468201237398,
+     "drift": 0.00030158333197180336,
+     "drift_xy": 0.0002658087930025473,
+     "angle_deg": 0.01635840199944038,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.168
     },
     "outcome": "kept"
    },
@@ -3964,45 +4061,45 @@
    "role": "none",
    "surface": "item",
    "layer": 2,
-   "considered": 96,
+   "considered": 3,
    "survivors": 1,
    "pos_local": [
-    -0.7235,
-    0.0831,
-    1.4
+    0.8833,
+    -0.2945,
+    1.115
    ],
    "size": [
-    0.6,
-    0.3,
-    0.25
+    0.25,
+    0.65,
+    0.45
    ]
   },
   {
    "step": 72,
    "event": "step",
-   "item_index": 8,
+   "item_index": 109,
    "pool_index": 0,
    "container_idx": 1,
-   "orientation": 0,
+   "orientation": 2,
    "place_pos": [
-    -0.7235,
-    -0.2575,
-    1.4
+    0.2017,
+    -0.2996,
+    0.775
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 4.0328,
+   "policy_seconds": 1.3723,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.006292946570304041,
-     "drift_xy": 0.001365244603847539,
-     "angle_deg": 0.6820010623951764,
+     "drift": 0.0002913727673585309,
+     "drift_xy": 0.0002892022784584429,
+     "angle_deg": 0.0044076151934981985,
      "ok": true,
-     "shade": 0.0
+     "shade": 0.058
     },
     "outcome": "kept"
    },
@@ -4010,227 +4107,227 @@
    "role": "none",
    "surface": "item",
    "layer": 2,
-   "considered": 66,
+   "considered": 15,
    "survivors": 1,
    "pos_local": [
-    -0.7235,
-    -0.2575,
-    1.4
+    0.2017,
+    -0.2996,
+    0.775
    ],
    "size": [
-    0.6,
-    0.3,
-    0.25
+    0.25,
+    0.45,
+    0.65
    ]
   },
   {
    "step": 73,
    "event": "step",
-   "item_index": 109,
+   "item_index": 110,
    "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 2,
+   "container_idx": 0,
+   "orientation": 5,
    "place_pos": [
-    -0.0076,
-    0.3434,
-    0.865
+    0.8827,
+    -0.2752,
+    1.565
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.6483,
+   "policy_seconds": 2.8225,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.0003883409049911088,
-     "drift_xy": 0.00038172660536104323,
-     "angle_deg": 0.01112817282903483,
-     "ok": true,
-     "shade": 0.0
+     "drift": 0.0008403070838190804,
+     "drift_xy": 0.0008033064044908895,
+     "angle_deg": 0.027722534943075344,
+     "ok": true
     },
-    "outcome": "kept"
+    "outcome": "physics-resort",
+    "tried": 1
    },
-   "archetype": "stack-rl",
+   "archetype": "physics-resort",
    "role": "none",
    "surface": "item",
    "layer": 2,
-   "considered": 21,
-   "survivors": 1,
+   "considered": 297,
+   "survivors": 0,
    "pos_local": [
-    -0.0076,
-    0.3434,
-    0.865
+    0.8827,
+    -0.2752,
+    1.565
    ],
    "size": [
     0.25,
-    0.45,
-    0.65
+    0.65,
+    0.45
    ]
   },
   {
    "step": 74,
    "event": "step",
-   "item_index": 110,
+   "item_index": 111,
    "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 2,
+   "container_idx": 0,
+   "orientation": 5,
    "place_pos": [
-    -0.022,
-    -0.337,
-    0.385
+    0.3005,
+    -0.108,
+    1.465
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.2532,
+   "policy_seconds": 3.4002,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.020071611200131168,
-     "drift_xy": 0.0014909998559011588,
-     "angle_deg": 0.0020454777367410067,
-     "ok": true,
-     "shade": 0.0
+     "drift": 0.001155892059015812,
+     "drift_xy": 0.0009964519614689626,
+     "angle_deg": 0.05466637835405126,
+     "ok": true
     },
-    "outcome": "kept"
+    "outcome": "physics-resort",
+    "tried": 1
    },
-   "archetype": "front-wedge",
-   "role": "front-wedge",
-   "surface": "floor",
-   "layer": 1,
-   "considered": 12,
-   "survivors": 2,
+   "archetype": "physics-resort",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 297,
+   "survivors": 0,
    "pos_local": [
-    -0.022,
-    -0.337,
-    0.365
+    0.3005,
+    -0.108,
+    1.465
    ],
    "size": [
     0.25,
-    0.45,
-    0.65
+    0.65,
+    0.45
    ]
   },
   {
    "step": 75,
    "event": "step",
-   "item_index": 111,
+   "item_index": 112,
    "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 3,
+   "container_idx": 0,
+   "orientation": 1,
    "place_pos": [
-    -0.1638,
-    -0.2382,
-    0.815
+    -0.3239,
+    -0.1634,
+    1.535
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.1345,
+   "policy_seconds": 2.6895,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 8.760159679244939e-05,
-     "drift_xy": 8.446958612933544e-05,
-     "angle_deg": 0.007180416661389485,
-     "ok": true,
-     "shade": 0.0
+     "drift": 0.0017270760105974857,
+     "drift_xy": 0.0015325947138168316,
+     "angle_deg": 0.1249187389928152,
+     "ok": true
     },
-    "outcome": "kept"
+    "outcome": "physics-resort",
+    "tried": 1
    },
-   "archetype": "terrace-extension",
-   "role": "terrace",
+   "archetype": "physics-resort",
+   "role": "none",
    "surface": "item",
    "layer": 2,
-   "considered": 11,
-   "survivors": 1,
+   "considered": 132,
+   "survivors": 0,
    "pos_local": [
-    -0.1638,
-    -0.2382,
-    0.815
+    -0.3239,
+    -0.1634,
+    1.535
    ],
    "size": [
-    0.45,
     0.65,
-    0.25
+    0.25,
+    0.45
    ]
   },
   {
    "step": 76,
    "event": "step",
-   "item_index": 112,
+   "item_index": 113,
    "pool_index": 0,
-   "container_idx": 2,
-   "orientation": 3,
+   "container_idx": 1,
+   "orientation": 1,
    "place_pos": [
-    -0.1638,
-    -0.2382,
-    1.065
+    0.687,
+    -0.28,
+    1.205
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 1.0668,
+   "policy_seconds": 4.6765,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.00018205032784795905,
-     "drift_xy": 0.00018041973423668357,
-     "angle_deg": 0.0006989147720271978,
-     "ok": true,
-     "shade": 0.0
+     "drift": 0.0013742584481144344,
+     "drift_xy": 0.0013505311492554148,
+     "angle_deg": 0.039557663980908334,
+     "ok": true
     },
-    "outcome": "kept"
+    "outcome": "physics-resort",
+    "tried": 1
    },
-   "archetype": "terrace-extension",
-   "role": "terrace",
+   "archetype": "physics-resort",
+   "role": "none",
    "surface": "item",
-   "layer": 1,
-   "considered": 2,
-   "survivors": 2,
+   "layer": 2,
+   "considered": 283,
+   "survivors": 0,
    "pos_local": [
-    -0.1638,
-    -0.2382,
-    1.065
+    0.687,
+    -0.28,
+    1.205
    ],
    "size": [
-    0.45,
     0.65,
-    0.25
+    0.25,
+    0.45
    ]
   },
   {
    "step": 77,
    "event": "step",
-   "item_index": 113,
+   "item_index": 114,
    "pool_index": 0,
-   "container_idx": 0,
-   "orientation": 3,
+   "container_idx": 1,
+   "orientation": 5,
    "place_pos": [
-    0.23,
-    0.129,
-    1.605
+    -0.4109,
+    -0.203,
+    1.245
    ],
    "is_included": true,
    "is_valid": true,
    "is_placed_safe": true,
-   "policy_seconds": 4.6821,
+   "policy_seconds": 3.0406,
    "shadow": {
     "chosen": {
      "transport_ok": true,
      "settle_ok": true,
      "shake_ok": true,
-     "drift": 0.004745866708507308,
-     "drift_xy": 0.004291209247906629,
-     "angle_deg": 0.3226947951454642,
+     "drift": 0.00025247391184625125,
+     "drift_xy": 0.00016282453005663552,
+     "angle_deg": 0.016788617151971864,
      "ok": true
     },
     "outcome": "physics-resort",
@@ -4243,20 +4340,250 @@
    "considered": 300,
    "survivors": 0,
    "pos_local": [
-    0.23,
-    0.129,
-    1.605
+    -0.4109,
+    -0.203,
+    1.245
    ],
    "size": [
-    0.45,
+    0.25,
     0.65,
-    0.25
+    0.45
    ]
   },
   {
    "step": 78,
+   "event": "step",
+   "item_index": 115,
+   "pool_index": 0,
+   "container_idx": 1,
+   "orientation": 5,
+   "place_pos": [
+    0.2,
+    -0.1994,
+    1.325
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 2.9268,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.00027328428816299915,
+     "drift_xy": 0.00026301708287265085,
+     "angle_deg": 0.006418145586544222,
+     "ok": true
+    },
+    "outcome": "physics-resort",
+    "tried": 1
+   },
+   "archetype": "physics-resort",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 240,
+   "survivors": 0,
+   "pos_local": [
+    0.2,
+    -0.1994,
+    1.325
+   ],
+   "size": [
+    0.25,
+    0.65,
+    0.45
+   ]
+  },
+  {
+   "step": 79,
+   "event": "step",
+   "item_index": 116,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 4,
+   "place_pos": [
+    0.444,
+    -0.371,
+    1.065
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 2.8277,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0005484594014253812,
+     "drift_xy": 0.0005109976975234761,
+     "angle_deg": 0.020736344322158866,
+     "ok": true
+    },
+    "outcome": "physics-resort",
+    "tried": 1
+   },
+   "archetype": "physics-resort",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 297,
+   "survivors": 0,
+   "pos_local": [
+    0.444,
+    -0.371,
+    1.065
+   ],
+   "size": [
+    0.45,
+    0.25,
+    0.65
+   ]
+  },
+  {
+   "step": 80,
+   "event": "step",
+   "item_index": 117,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 5,
+   "place_pos": [
+    -0.246,
+    0.2435,
+    1.245
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 2.7561,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0002805954915422996,
+     "drift_xy": 0.00017237853033915833,
+     "angle_deg": 0.0319464181577172,
+     "ok": true
+    },
+    "outcome": "physics-resort",
+    "tried": 1
+   },
+   "archetype": "physics-resort",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 269,
+   "survivors": 0,
+   "pos_local": [
+    -0.246,
+    0.2435,
+    1.245
+   ],
+   "size": [
+    0.25,
+    0.65,
+    0.45
+   ]
+  },
+  {
+   "step": 81,
+   "event": "step",
+   "item_index": 118,
+   "pool_index": 0,
+   "container_idx": 2,
+   "orientation": 5,
+   "place_pos": [
+    0.0202,
+    0.2435,
+    1.245
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 2.5141,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.0006704334695674804,
+     "drift_xy": 0.0005838967557538312,
+     "angle_deg": 0.04180979804715163,
+     "ok": true
+    },
+    "outcome": "physics-resort",
+    "tried": 1
+   },
+   "archetype": "physics-resort",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 46,
+   "survivors": 0,
+   "pos_local": [
+    0.0202,
+    0.2435,
+    1.245
+   ],
+   "size": [
+    0.25,
+    0.65,
+    0.45
+   ]
+  },
+  {
+   "step": 82,
+   "event": "step",
+   "item_index": 27,
+   "pool_index": 0,
+   "container_idx": 0,
+   "orientation": 2,
+   "place_pos": [
+    -0.538,
+    -0.3946,
+    0.845
+   ],
+   "is_included": true,
+   "is_valid": true,
+   "is_placed_safe": true,
+   "policy_seconds": 3.5649,
+   "shadow": {
+    "chosen": {
+     "transport_ok": true,
+     "settle_ok": true,
+     "shake_ok": true,
+     "drift": 0.012674629056045399,
+     "drift_xy": 0.003925338885902143,
+     "angle_deg": 0.7717331537281507,
+     "ok": true
+    },
+    "outcome": "physics-resort",
+    "tried": 1
+   },
+   "archetype": "physics-resort",
+   "role": "none",
+   "surface": "item",
+   "layer": 2,
+   "considered": 29,
+   "survivors": 0,
+   "pos_local": [
+    -0.538,
+    -0.3946,
+    0.845
+   ],
+   "size": [
+    0.23,
+    0.35,
+    0.65
+   ]
+  },
+  {
+   "step": 83,
    "event": "declined",
-   "policy_seconds": 4.6774
+   "policy_seconds": 4.8916
   }
  ],
  "final_items": [
@@ -4264,15 +4591,15 @@
    "index": 48,
    "container": 0,
    "pos": [
-    -0.4813,
-    0.3475,
+    -0.4829,
+    0.3512,
     0.16
    ],
    "orn": [
-    2e-05,
-    -0.00011,
-    0.71943,
-    0.69457
+    -0.0001,
+    -0.0,
+    0.71263,
+    0.70154
    ]
   },
   {
@@ -4280,313 +4607,313 @@
    "container": 0,
    "pos": [
     -0.0559,
-    0.3547,
+    0.3544,
     0.16
    ],
    "orn": [
-    -0.00014,
-    -3e-05,
-    0.70704,
-    0.70718
+    -0.00011,
+    -1e-05,
+    0.70684,
+    0.70737
    ]
   },
   {
    "index": 50,
    "container": 0,
    "pos": [
-    0.3728,
-    0.3508,
+    0.3729,
+    0.3512,
     0.16
    ],
    "orn": [
-    -0.0001,
-    -1e-05,
-    0.70678,
-    0.70743
+    -8e-05,
+    -0.0,
+    0.7057,
+    0.70851
    ]
   },
   {
    "index": 51,
    "container": 0,
    "pos": [
-    -0.4876,
-    0.3505,
+    -0.4869,
+    0.3576,
     0.3999
    ],
    "orn": [
-    0.00011,
-    -0.00018,
-    0.72575,
-    0.68795
+    -6e-05,
+    -4e-05,
+    0.70756,
+    0.70666
    ]
   },
   {
    "index": 52,
    "container": 0,
    "pos": [
-    -0.4805,
-    -0.2253,
-    0.1599
+    -0.4815,
+    -0.2247,
+    0.16
    ],
    "orn": [
-    0.0001,
-    0.00011,
-    0.70742,
-    0.70679
+    -0.0001,
+    -9e-05,
+    0.70992,
+    0.70428
    ]
   },
   {
    "index": 53,
    "container": 0,
    "pos": [
-    -0.05,
-    -0.2277,
+    -0.0584,
+    -0.2309,
     0.1599
    ],
    "orn": [
-    -5e-05,
-    0.0002,
-    0.72336,
-    0.69047
+    -0.00048,
+    -0.0,
+    0.70757,
+    0.70664
    ]
   },
   {
    "index": 54,
    "container": 0,
    "pos": [
-    0.3837,
-    -0.2262,
-    0.1598
+    0.3842,
+    -0.2293,
+    0.1599
    ],
    "orn": [
-    -4e-05,
-    0.00024,
-    0.70915,
-    0.70506
+    -0.00019,
+    0.00013,
+    0.71168,
+    0.7025
    ]
   },
   {
    "index": 55,
    "container": 0,
    "pos": [
-    -0.6386,
-    0.4193,
+    -0.6329,
+    0.4348,
     0.6399
    ],
    "orn": [
-    6e-05,
-    -0.00012,
-    0.01864,
-    0.99983
+    -1e-05,
+    -7e-05,
+    0.00283,
+    1.0
    ]
   },
   {
    "index": 56,
    "container": 0,
    "pos": [
-    -0.4801,
-    -0.2247,
+    -0.4828,
+    -0.2265,
     0.3999
    ],
    "orn": [
-    -1e-05,
-    0.00011,
-    0.70242,
-    0.71176
+    -6e-05,
+    -0.00011,
+    0.70937,
+    0.70483
    ]
   },
   {
    "index": 57,
    "container": 0,
    "pos": [
-    -0.057,
-    0.355,
+    -0.0564,
+    0.3578,
     0.3999
    ],
    "orn": [
-    -0.00014,
-    1e-05,
-    0.71357,
-    0.70059
+    -0.00011,
+    5e-05,
+    0.71555,
+    0.69856
    ]
   },
   {
    "index": 58,
    "container": 0,
    "pos": [
-    0.3683,
-    0.354,
+    0.371,
+    0.3511,
     0.4
    ],
    "orn": [
-    -0.00011,
-    2e-05,
-    0.7076,
-    0.70661
+    -0.0001,
+    -1e-05,
+    0.70692,
+    0.7073
    ]
   },
   {
    "index": 59,
    "container": 0,
    "pos": [
-    -0.6173,
-    0.0046,
+    -0.6262,
+    -0.0015,
     0.6399
    ],
    "orn": [
-    0.00021,
-    0.00038,
-    0.00066,
-    1.0
+    2e-05,
+    -6e-05,
+    0.00346,
+    0.99999
    ]
   },
   {
    "index": 60,
    "container": 0,
    "pos": [
-    0.3473,
-    -0.2242,
-    0.3997
+    0.3499,
+    -0.2322,
+    0.3998
    ],
    "orn": [
-    -0.00027,
-    0.00034,
-    0.70284,
-    0.71134
+    -0.00038,
+    0.00027,
+    0.70753,
+    0.70668
    ]
   },
   {
    "index": 61,
    "container": 0,
    "pos": [
-    0.015,
-    0.4338,
+    0.0185,
+    0.4305,
     0.6399
    ],
    "orn": [
-    -9e-05,
     -6e-05,
-    -0.00324,
-    0.99999
+    -7e-05,
+    -0.00144,
+    1.0
    ]
   },
   {
    "index": 62,
    "container": 0,
    "pos": [
-    0.8984,
-    0.4356,
+    0.9026,
+    0.4297,
     0.315
    ],
    "orn": [
-    -0.00911,
-    0.70705,
-    0.00919,
-    0.70704
+    -0.00427,
+    0.70709,
+    0.00437,
+    0.70709
    ]
   },
   {
    "index": 63,
    "container": 0,
    "pos": [
-    0.8157,
-    0.355,
+    0.8222,
+    0.3443,
     0.7099
    ],
    "orn": [
+    -2e-05,
     -7e-05,
-    -8e-05,
-    0.71041,
-    0.70378
+    0.70394,
+    0.71026
    ]
   },
   {
    "index": 64,
    "container": 0,
    "pos": [
-    -0.9025,
-    0.345,
+    -0.8883,
+    0.3482,
     1.205
    ],
    "orn": [
-    0.50031,
-    0.49965,
-    0.49967,
-    0.50036
+    0.50064,
+    0.49935,
+    0.49936,
+    0.50064
    ]
   },
   {
    "index": 65,
    "container": 0,
    "pos": [
-    -0.9047,
-    -0.2279,
+    -0.8883,
+    -0.229,
     1.205
    ],
    "orn": [
-    0.49981,
-    0.50019,
-    0.50019,
-    0.49981
+    0.50064,
+    0.49936,
+    0.49937,
+    0.50063
    ]
   },
   {
    "index": 66,
    "container": 0,
    "pos": [
-    0.8136,
-    0.3547,
+    0.8245,
+    0.3478,
     0.9499
    ],
    "orn": [
-    -9e-05,
-    -9e-05,
-    0.70951,
-    0.70469
+    -4e-05,
+    -4e-05,
+    0.70672,
+    0.70749
    ]
   },
   {
    "index": 67,
    "container": 0,
    "pos": [
-    0.8091,
-    0.3478,
+    0.8245,
+    0.356,
     1.1899
    ],
    "orn": [
-    -0.00012,
-    -0.00014,
-    0.71189,
-    0.70229
+    -5e-05,
+    -6e-05,
+    0.70682,
+    0.70739
    ]
   },
   {
    "index": 68,
    "container": 0,
    "pos": [
-    0.8093,
-    0.3477,
-    1.4299
+    0.0162,
+    0.4339,
+    0.8799
    ],
    "orn": [
-    -9e-05,
     -0.0001,
-    0.71202,
-    0.70216
+    -6e-05,
+    0.00325,
+    0.99999
    ]
   },
   {
    "index": 69,
    "container": 0,
    "pos": [
-    0.0126,
-    0.4336,
-    0.8799
+    0.0166,
+    0.4341,
+    1.1199
    ],
    "orn": [
-    -8e-05,
-    -7e-05,
-    -0.00197,
+    -6e-05,
+    -6e-05,
+    0.00286,
     1.0
    ]
   },
@@ -4594,254 +4921,329 @@
    "index": 70,
    "container": 0,
    "pos": [
-    0.3703,
-    -0.2209,
+    0.3765,
+    -0.23,
     0.6396
    ],
    "orn": [
-    -0.00055,
-    0.00048,
-    0.70374,
-    0.71046
+    -0.00054,
+    0.00042,
+    0.70793,
+    0.70629
    ]
   },
   {
    "index": 71,
    "container": 0,
    "pos": [
-    0.0136,
-    0.4336,
-    1.1199
+    0.3762,
+    -0.229,
+    0.8796
    ],
    "orn": [
-    -8e-05,
-    -7e-05,
-    -0.0041,
-    0.99999
+    -0.00071,
+    0.00045,
+    0.70881,
+    0.7054
    ]
   },
   {
    "index": 72,
    "container": 0,
    "pos": [
-    0.3723,
-    -0.218,
-    0.8794
+    0.3765,
+    -0.2282,
+    1.1195
    ],
    "orn": [
-    -0.00082,
-    0.0007,
-    0.70216,
-    0.71201
+    -0.00079,
+    0.00048,
+    0.70797,
+    0.70624
    ]
   },
   {
    "index": 73,
    "container": 0,
    "pos": [
-    0.3714,
-    -0.2163,
-    1.1193
+    -0.12,
+    -0.1843,
+    0.5548
    ],
    "orn": [
-    -0.00099,
-    0.00063,
-    0.69621,
-    0.71784
+    -0.00234,
+    0.7067,
+    0.00169,
+    0.70751
    ]
   },
   {
    "index": 74,
    "container": 0,
    "pos": [
-    0.8995,
-    -0.0745,
-    0.2399
+    -0.2025,
+    -0.1092,
+    0.9497
    ],
    "orn": [
-    0.50238,
-    0.49766,
-    0.49772,
-    0.50222
+    -0.00139,
+    -0.00075,
+    0.71063,
+    0.70356
    ]
   },
   {
    "index": 75,
    "container": 0,
    "pos": [
-    -0.0698,
-    -0.1815,
-    0.5548
+    -0.2032,
+    -0.1081,
+    1.1896
    ],
    "orn": [
-    0.00222,
-    0.70717,
-    -0.00246,
-    0.70703
+    -0.00147,
+    -0.00082,
+    0.70853,
+    0.70568
    ]
   },
   {
    "index": 76,
    "container": 0,
    "pos": [
-    -0.2317,
-    -0.0985,
-    0.9429
+    0.8925,
+    -0.0752,
+    0.24
    ],
    "orn": [
-    -0.12757,
-    -0.12787,
-    0.69508,
-    0.69587
-   ]
-  },
-  {
-   "index": 77,
-   "container": 0,
-   "pos": [
-    -0.4549,
-    0.051,
-    1.2004
-   ],
-   "orn": [
-    0.69568,
-    -0.12836,
-    0.12707,
-    0.69528
-   ]
-  },
-  {
-   "index": 78,
-   "container": 0,
-   "pos": [
-    0.9016,
-    -0.2384,
-    0.6399
-   ],
-   "orn": [
-    0.50314,
-    0.49683,
-    0.49698,
-    0.50301
-   ]
-  },
-  {
-   "index": 79,
-   "container": 0,
-   "pos": [
-    0.9027,
-    -0.2413,
-    1.0399
-   ],
-   "orn": [
-    0.4997,
-    0.50026,
-    0.5004,
-    0.49964
-   ]
-  },
-  {
-   "index": 80,
-   "container": 0,
-   "pos": [
-    0.8174,
-    -0.2435,
-    1.3598
-   ],
-   "orn": [
-    4e-05,
-    -0.00011,
-    0.70118,
-    0.71298
-   ]
-  },
-  {
-   "index": 83,
-   "container": 0,
-   "pos": [
-    0.2483,
-    -0.0687,
-    1.3588
-   ],
-   "orn": [
-    -0.00104,
-    0.00072,
-    0.69743,
-    0.71665
-   ]
-  },
-  {
-   "index": 86,
-   "container": 0,
-   "pos": [
-    -0.4551,
-    -0.2602,
-    1.2003
-   ],
-   "orn": [
-    0.69561,
-    -0.12774,
-    0.12777,
-    0.69533
+    0.49757,
+    0.50201,
+    0.50282,
+    0.49758
    ]
   },
   {
    "index": 0,
    "container": 0,
    "pos": [
-    0.836,
-    -0.271,
-    1.5737
+    -0.5401,
+    0.4237,
+    0.9787
    ],
    "orn": [
-    2e-05,
-    0.00127,
-    0.70227,
-    0.71191
+    0.00043,
+    0.70918,
+    0.0015,
+    0.70503
    ]
   },
   {
-   "index": 113,
+   "index": 7,
    "container": 0,
    "pos": [
-    0.2306,
-    0.1317,
-    1.6033
+    -0.1856,
+    0.1065,
+    1.4533
    ],
    "orn": [
-    -0.00102,
-    0.00073,
-    0.70665,
-    0.70757
+    0.70055,
+    -0.00376,
+    -0.00565,
+    0.71357
+   ]
+  },
+  {
+   "index": 107,
+   "container": 0,
+   "pos": [
+    0.8825,
+    -0.2952,
+    0.6648
+   ],
+   "orn": [
+    0.50057,
+    0.49903,
+    0.49982,
+    0.50058
+   ]
+  },
+  {
+   "index": 108,
+   "container": 0,
+   "pos": [
+    0.8821,
+    -0.2917,
+    1.1148
+   ],
+   "orn": [
+    0.50054,
+    0.49903,
+    0.49984,
+    0.50059
+   ]
+  },
+  {
+   "index": 110,
+   "container": 0,
+   "pos": [
+    0.8817,
+    -0.2727,
+    1.5648
+   ],
+   "orn": [
+    0.50071,
+    0.49886,
+    0.49967,
+    0.50076
+   ]
+  },
+  {
+   "index": 111,
+   "container": 0,
+   "pos": [
+    0.301,
+    -0.1041,
+    1.4642
+   ],
+   "orn": [
+    0.49961,
+    0.50019,
+    0.49952,
+    0.50068
+   ]
+  },
+  {
+   "index": 112,
+   "container": 0,
+   "pos": [
+    -0.3246,
+    -0.1603,
+    1.5342
+   ],
+   "orn": [
+    0.70677,
+    -0.00514,
+    -0.00291,
+    0.70742
+   ]
+  },
+  {
+   "index": 27,
+   "container": 0,
+   "pos": [
+    -0.5374,
+    -0.3985,
+    0.8331
+   ],
+   "orn": [
+    0.00422,
+    0.70776,
+    0.00424,
+    0.70643
+   ]
+  },
+  {
+   "index": 77,
+   "container": 1,
+   "pos": [
+    2.383,
+    0.4365,
+    0.17
+   ],
+   "orn": [
+    -2e-05,
+    0.0,
+    -0.00026,
+    1.0
+   ]
+  },
+  {
+   "index": 78,
+   "container": 1,
+   "pos": [
+    2.3801,
+    0.4334,
+    0.41
+   ],
+   "orn": [
+    -1e-05,
+    -1e-05,
+    -0.00056,
+    1.0
+   ]
+  },
+  {
+   "index": 79,
+   "container": 1,
+   "pos": [
+    3.4271,
+    0.4338,
+    0.17
+   ],
+   "orn": [
+    2e-05,
+    0.0,
+    -0.00069,
+    1.0
+   ]
+  },
+  {
+   "index": 80,
+   "container": 1,
+   "pos": [
+    3.4287,
+    0.4344,
+    0.41
+   ],
+   "orn": [
+    2e-05,
+    -2e-05,
+    4e-05,
+    1.0
    ]
   },
   {
    "index": 81,
    "container": 1,
    "pos": [
-    2.3825,
-    0.4363,
-    0.17
+    2.8039,
+    0.4358,
+    0.325
    ],
    "orn": [
-    0.0,
-    -1e-05,
-    -0.00013,
-    1.0
+    0.00015,
+    0.70712,
+    -0.00016,
+    0.7071
    ]
   },
   {
    "index": 82,
    "container": 1,
    "pos": [
-    2.3824,
-    0.4334,
-    0.41
+    2.3814,
+    0.0065,
+    0.17
    ],
    "orn": [
-    0.0,
+    9e-05,
+    -3e-05,
+    -0.00115,
+    1.0
+   ]
+  },
+  {
+   "index": 83,
+   "container": 1,
+   "pos": [
+    2.3755,
+    0.0078,
+    0.4099
+   ],
+   "orn": [
     1e-05,
-    0.00012,
+    -8e-05,
+    -0.0007,
     1.0
    ]
   },
@@ -4849,14 +5251,14 @@
    "index": 84,
    "container": 1,
    "pos": [
-    2.9731,
-    0.4361,
+    3.4258,
+    0.0073,
     0.17
    ],
    "orn": [
-    1e-05,
+    -1e-05,
     -0.0,
-    0.00042,
+    -7e-05,
     1.0
    ]
   },
@@ -4864,203 +5266,98 @@
    "index": 85,
    "container": 1,
    "pos": [
-    2.9729,
-    0.4335,
+    3.4293,
+    0.0071,
     0.41
-   ],
-   "orn": [
-    1e-05,
-    -1e-05,
-    7e-05,
-    1.0
-   ]
-  },
-  {
-   "index": 87,
-   "container": 1,
-   "pos": [
-    3.5851,
-    0.436,
-    0.325
-   ],
-   "orn": [
-    3e-05,
-    0.70711,
-    -2e-05,
-    0.7071
-   ]
-  },
-  {
-   "index": 88,
-   "container": 1,
-   "pos": [
-    2.3817,
-    0.0064,
-    0.17
    ],
    "orn": [
     0.0,
-    -1e-05,
-    0.00023,
-    1.0
-   ]
-  },
-  {
-   "index": 89,
-   "container": 1,
-   "pos": [
-    2.3811,
-    0.0068,
-    0.41
-   ],
-   "orn": [
-    -3e-05,
-    -1e-05,
-    0.00062,
-    1.0
-   ]
-  },
-  {
-   "index": 90,
-   "container": 1,
-   "pos": [
-    3.4271,
-    0.0068,
-    0.17
-   ],
-   "orn": [
-    2e-05,
     -0.0,
-    -2e-05,
+    -6e-05,
     1.0
-   ]
-  },
-  {
-   "index": 91,
-   "container": 1,
-   "pos": [
-    3.4292,
-    0.0066,
-    0.41
-   ],
-   "orn": [
-    -2e-05,
-    -0.0,
-    -5e-05,
-    1.0
-   ]
-  },
-  {
-   "index": 92,
-   "container": 1,
-   "pos": [
-    2.3826,
-    0.5143,
-    1.075
-   ],
-   "orn": [
-    0.70714,
-    0.00025,
-    0.00028,
-    0.70708
-   ]
-  },
-  {
-   "index": 93,
-   "container": 1,
-   "pos": [
-    2.9583,
-    0.5132,
-    1.075
-   ],
-   "orn": [
-    0.7071,
-    0.00028,
-    0.00028,
-    0.70711
    ]
   },
   {
    "index": 1,
    "container": 1,
    "pos": [
-    3.3598,
-    0.4085,
-    1.0189
+    2.3308,
+    0.5335,
+    1.021
    ],
    "orn": [
-    0.5,
-    0.5,
-    0.5,
-    0.5
+    0.70703,
+    0.00293,
+    -0.00293,
+    0.70717
    ]
   },
   {
    "index": 2,
    "container": 1,
    "pos": [
-    3.5863,
-    0.4085,
+    2.9092,
+    0.5336,
     1.0189
    ],
    "orn": [
-    0.5,
-    0.5,
-    0.5,
-    0.5
+    0.70691,
+    -2e-05,
+    -0.0,
+    0.7073
    ]
   },
   {
    "index": 3,
    "container": 1,
    "pos": [
-    2.3329,
-    0.267,
-    1.021
+    3.3857,
+    0.5336,
+    1.0189
    ],
    "orn": [
-    0.70709,
-    0.00293,
-    -0.00292,
-    0.70711
+    0.70692,
+    -2e-05,
+    -0.0,
+    0.70729
    ]
   },
   {
    "index": 4,
    "container": 1,
    "pos": [
-    2.9092,
-    0.267,
-    1.0189
+    2.3307,
+    0.307,
+    1.021
    ],
    "orn": [
-    0.70711,
-    -0.0,
-    -0.0,
-    0.70711
+    0.70708,
+    0.00292,
+    -0.00292,
+    0.70712
    ]
   },
   {
    "index": 5,
    "container": 1,
    "pos": [
-    1.7565,
-    -0.0856,
-    1.0213
+    3.4756,
+    0.3071,
+    1.0189
    ],
    "orn": [
-    0.50193,
-    0.4982,
-    0.50179,
-    0.49806
+    0.70693,
+    -2e-05,
+    -0.0,
+    0.70728
    ]
   },
   {
-   "index": 94,
+   "index": 86,
    "container": 1,
    "pos": [
     2.8866,
-    0.086,
+    0.0859,
     0.325
    ],
    "orn": [
@@ -5071,122 +5368,212 @@
    ]
   },
   {
-   "index": 95,
+   "index": 87,
    "container": 1,
    "pos": [
-    2.0035,
-    -0.1345,
-    1.075
+    3.4194,
+    -0.4241,
+    0.1699
    ],
    "orn": [
-    0.49994,
-    0.50005,
-    0.50006,
-    0.49995
-   ]
-  },
-  {
-   "index": 24,
-   "container": 1,
-   "pos": [
-    3.3753,
-    -0.3974,
-    0.1532
-   ],
-   "orn": [
-    0.00091,
-    -9e-05,
-    7e-05,
+    -3e-05,
+    -0.00012,
+    -0.00126,
     1.0
    ]
   },
   {
-   "index": 25,
+   "index": 88,
    "container": 1,
    "pos": [
-    2.4318,
-    -0.3977,
-    0.1502
+    3.4167,
+    -0.4246,
+    0.4099
    ],
    "orn": [
-    0.0023,
-    -0.00343,
-    5e-05,
-    0.99999
+    -6e-05,
+    -0.00015,
+    0.00567,
+    0.99998
    ]
   },
   {
-   "index": 26,
+   "index": 99,
    "container": 1,
    "pos": [
-    2.2043,
-    0.455,
-    1.3707
+    3.3716,
+    -0.3521,
+    0.7548
    ],
    "orn": [
-    0.01994,
-    -0.02056,
-    7e-05,
-    0.99959
+    0.70706,
+    0.00348,
+    0.00364,
+    0.70713
+   ]
+  },
+  {
+   "index": 89,
+   "container": 1,
+   "pos": [
+    2.383,
+    -0.4264,
+    0.17
+   ],
+   "orn": [
+    8e-05,
+    -2e-05,
+    -0.00019,
+    1.0
+   ]
+  },
+  {
+   "index": 90,
+   "container": 1,
+   "pos": [
+    2.3773,
+    -0.4186,
+    0.4099
+   ],
+   "orn": [
+    -1e-05,
+    -2e-05,
+    0.00089,
+    1.0
+   ]
+  },
+  {
+   "index": 91,
+   "container": 1,
+   "pos": [
+    2.8055,
+    -0.3397,
+    0.25
+   ],
+   "orn": [
+    0.50008,
+    0.50028,
+    0.49976,
+    0.49988
+   ]
+  },
+  {
+   "index": 102,
+   "container": 1,
+   "pos": [
+    2.3606,
+    -0.2943,
+    0.6549
+   ],
+   "orn": [
+    -9e-05,
+    -8e-05,
+    0.70798,
+    0.70623
+   ]
+  },
+  {
+   "index": 92,
+   "container": 1,
+   "pos": [
+    2.3422,
+    -0.327,
+    0.8999
+   ],
+   "orn": [
+    -0.00012,
+    -0.00011,
+    0.70758,
+    0.70664
    ]
   },
   {
    "index": 6,
    "container": 1,
    "pos": [
-    3.1484,
-    0.4821,
-    1.3912
+    2.8835,
+    0.282,
+    1.0193
    ],
    "orn": [
-    0.00526,
-    0.01047,
-    0.00044,
-    0.99993
+    0.7071,
+    -0.0,
+    0.0,
+    0.70711
    ]
   },
   {
-   "index": 7,
+   "index": 109,
    "container": 1,
    "pos": [
-    1.9556,
-    0.0852,
-    1.3927
+    2.8774,
+    -0.3,
+    0.7749
    ],
    "orn": [
-    -0.01058,
-    -0.00679,
-    0.00032,
-    0.99992
+    0.00124,
+    0.70734,
+    -0.00147,
+    0.70687
    ]
   },
   {
-   "index": 8,
+   "index": 113,
    "container": 1,
    "pos": [
-    1.9554,
-    -0.2576,
-    1.3936
+    3.3651,
+    -0.2803,
+    1.2048
    ],
    "orn": [
-    0.00028,
-    -0.00631,
-    3e-05,
-    0.99998
+    0.70703,
+    0.00062,
+    0.00076,
+    0.70718
+   ]
+  },
+  {
+   "index": 114,
+   "container": 1,
+   "pos": [
+    2.2669,
+    -0.2022,
+    1.2448
+   ],
+   "orn": [
+    0.49964,
+    0.50021,
+    0.50034,
+    0.49981
+   ]
+  },
+  {
+   "index": 115,
+   "container": 1,
+   "pos": [
+    2.8775,
+    -0.1999,
+    1.3249
+   ],
+   "orn": [
+    0.50053,
+    0.4998,
+    0.49932,
+    0.50034
    ]
   },
   {
    "index": 96,
    "container": 2,
    "pos": [
-    5.905,
-    0.3424,
+    5.9058,
+    0.3428,
     0.165
    ],
    "orn": [
-    8e-05,
     -1e-05,
-    0.00023,
+    6e-05,
+    -0.00038,
     1.0
    ]
   },
@@ -5194,14 +5581,14 @@
    "index": 97,
    "container": 2,
    "pos": [
-    5.9044,
-    0.343,
+    5.9055,
+    0.3434,
     0.4149
    ],
    "orn": [
-    -0.0001,
-    -0.0,
-    0.00047,
+    -1e-05,
+    6e-05,
+    -0.00024,
     1.0
    ]
   },
@@ -5209,29 +5596,14 @@
    "index": 98,
    "container": 2,
    "pos": [
-    5.9046,
-    0.3431,
-    0.6648
+    5.9045,
+    0.3447,
+    0.6649
    ],
    "orn": [
-    -4e-05,
-    -4e-05,
-    -0.00011,
-    1.0
-   ]
-  },
-  {
-   "index": 99,
-   "container": 2,
-   "pos": [
-    5.9047,
-    0.343,
-    0.9148
-   ],
-   "orn": [
-    -5e-05,
-    -6e-05,
-    0.00021,
+    1e-05,
+    6e-05,
+    -0.00089,
     1.0
    ]
   },
@@ -5239,14 +5611,14 @@
    "index": 100,
    "container": 2,
    "pos": [
-    5.9041,
-    0.3437,
-    1.1648
+    5.9022,
+    0.3469,
+    0.9149
    ],
    "orn": [
-    -4e-05,
-    -7e-05,
-    0.00025,
+    1e-05,
+    3e-05,
+    -0.00119,
     1.0
    ]
   },
@@ -5254,182 +5626,212 @@
    "index": 101,
    "container": 2,
    "pos": [
-    4.6166,
-    0.2434,
-    1.1
-   ],
-   "orn": [
-    0.50015,
-    0.49985,
-    0.49986,
-    0.50014
-   ]
-  },
-  {
-   "index": 102,
-   "container": 2,
-   "pos": [
-    6.002,
-    -0.2351,
+    5.1657,
+    0.2448,
     0.1649
    ],
    "orn": [
-    1e-05,
-    -7e-05,
-    0.70562,
-    0.70859
+    -6e-05,
+    0.0001,
+    0.70612,
+    0.7081
    ]
   },
   {
    "index": 103,
    "container": 2,
    "pos": [
-    5.9076,
-    -0.0324,
-    0.5149
+    5.164,
+    0.2454,
+    0.4148
    ],
    "orn": [
-    0.70714,
-    0.00084,
-    0.00076,
-    0.70707
+    -0.0002,
+    -5e-05,
+    0.70782,
+    0.70639
    ]
   },
   {
    "index": 104,
    "container": 2,
    "pos": [
-    5.9026,
-    -0.4057,
-    0.5149
+    6.0026,
+    -0.2318,
+    0.1649
    ],
    "orn": [
-    0.70714,
-    5e-05,
-    8e-05,
-    0.70707
+    -0.00017,
+    -0.00014,
+    0.70795,
+    0.70627
+   ]
+  },
+  {
+   "index": 93,
+   "container": 2,
+   "pos": [
+    5.1897,
+    0.2968,
+    0.6597
+   ],
+   "orn": [
+    -0.00036,
+    -0.0001,
+    0.70941,
+    0.70479
+   ]
+  },
+  {
+   "index": 94,
+   "container": 2,
+   "pos": [
+    5.2645,
+    0.3721,
+    0.8996
+   ],
+   "orn": [
+    1e-05,
+    -0.00033,
+    0.00131,
+    1.0
+   ]
+  },
+  {
+   "index": 95,
+   "container": 2,
+   "pos": [
+    5.9542,
+    -0.0306,
+    0.4898
+   ],
+   "orn": [
+    0.70707,
+    0.00178,
+    0.00187,
+    0.70714
    ]
   },
   {
    "index": 105,
    "container": 2,
    "pos": [
-    5.9032,
-    -0.4047,
-    0.9649
+    5.9039,
+    -0.4055,
+    0.5149
    ],
    "orn": [
-    0.70714,
-    -0.00092,
-    -0.00089,
-    0.70707
+    0.70707,
+    0.00157,
+    0.00176,
+    0.70714
+   ]
+  },
+  {
+   "index": 24,
+   "container": 2,
+   "pos": [
+    4.606,
+    -0.1823,
+    1.0382
+   ],
+   "orn": [
+    0.49942,
+    0.49923,
+    0.50071,
+    0.50064
+   ]
+  },
+  {
+   "index": 25,
+   "container": 2,
+   "pos": [
+    5.053,
+    -0.2889,
+    0.3514
+   ],
+   "orn": [
+    0.00956,
+    0.70706,
+    0.00857,
+    0.70704
+   ]
+  },
+  {
+   "index": 26,
+   "container": 2,
+   "pos": [
+    5.3709,
+    -0.2264,
+    0.3493
+   ],
+   "orn": [
+    -0.49999,
+    0.50001,
+    0.50001,
+    0.49999
    ]
   },
   {
    "index": 106,
    "container": 2,
    "pos": [
-    5.1644,
-    0.244,
-    0.165
+    5.9044,
+    -0.0359,
+    0.9148
    ],
    "orn": [
-    -1e-05,
-    5e-05,
-    0.70706,
-    0.70715
-   ]
-  },
-  {
-   "index": 107,
-   "container": 2,
-   "pos": [
-    5.162,
-    0.2437,
-    0.4149
-   ],
-   "orn": [
-    5e-05,
-    8e-05,
-    0.70717,
-    0.70704
-   ]
-  },
-  {
-   "index": 108,
-   "container": 2,
-   "pos": [
-    5.0612,
-    -0.3375,
-    0.365
-   ],
-   "orn": [
-    0.00068,
-    0.70712,
-    -0.00069,
-    0.70709
-   ]
-  },
-  {
-   "index": 109,
-   "container": 2,
-   "pos": [
-    5.3525,
-    0.3438,
-    0.8649
-   ],
-   "orn": [
-    3e-05,
-    0.70717,
-    -7e-05,
-    0.70704
-   ]
-  },
-  {
-   "index": 110,
-   "container": 2,
-   "pos": [
-    5.3379,
-    -0.3385,
-    0.365
-   ],
-   "orn": [
-    -0.00049,
     0.70708,
-    0.00046,
-    0.70714
+    0.00138,
+    0.00143,
+    0.70713
    ]
   },
   {
-   "index": 111,
+   "index": 116,
    "container": 2,
    "pos": [
-    5.1966,
-    -0.2382,
-    0.815
+    5.8035,
+    -0.3719,
+    1.0648
    ],
    "orn": [
-    -4e-05,
-    -1e-05,
-    0.70694,
-    0.70727
+    0.50029,
+    -0.49975,
+    -0.50012,
+    -0.49984
    ]
   },
   {
-   "index": 112,
+   "index": 117,
    "container": 2,
    "pos": [
-    5.1966,
-    -0.2383,
-    1.065
+    5.1133,
+    0.2446,
+    1.2445
    ],
    "orn": [
-    -3e-05,
-    -2e-05,
-    0.70692,
-    0.70729
+    0.50014,
+    0.49953,
+    0.49985,
+    0.50048
+   ]
+  },
+  {
+   "index": 118,
+   "container": 2,
+   "pos": [
+    5.3797,
+    0.2438,
+    1.2447
+   ],
+   "orn": [
+    0.50021,
+    0.4994,
+    0.49983,
+    0.50056
    ]
   }
  ],
- "log_tail": "port item 64\nplace item 64\ntransport item 65\nplace item 65\ntransport item 66\nplace item 66\ntransport item 67\nplace item 67\ntransport item 68\nplace item 68\ntransport item 69\nplace item 69\ntransport item 70\nplace item 70\ntransport item 71\nplace item 71\ntransport item 72\nplace item 72\ntransport item 73\nplace item 73\ntransport item 74\nplace item 74\ntransport item 75\nplace item 75\ntransport item 76\nplace item 76\ntransport item 77\nplace item 77\ntransport item 78\nplace item 78\ntransport item 79\nplace item 79\ntransport item 80\nplace item 80\ntransport item 81\nplace item 81\ntransport item 82\nplace item 82\ntransport item 83\nplace item 83\ntransport item 84\nplace item 84\ntransport item 85\nplace item 85\ntransport item 86\nplace item 86\ntransport item 87\nplace item 87\ntransport item 88\nplace item 88\ntransport item 89\nplace item 89\ntransport item 90\nplace item 90\ntransport item 91\nplace item 91\ntransport item 92\nplace item 92\ntransport item 93\nplace item 93\ntransport item 0\nplace item 0\ntransport item 1\nplace item 1\ntransport item 2\nplace item 2\ntransport item 3\nplace item 3\ntransport item 4\nplace item 4\ntransport item 5\nplace item 5\ntransport item 96\nplace item 96\ntransport item 97\nplace item 97\ntransport item 98\nplace item 98\ntransport item 94\nplace item 94\ntransport item 95\nplace item 95\ntransport item 99\nplace item 99\ntransport item 100\nplace item 100\ntransport item 101\nplace item 101\ntransport item 102\nplace item 102\ntransport item 103\nplace item 103\ntransport item 104\nplace item 104\ntransport item 105\nplace item 105\ntransport item 106\nplace item 106\ntransport item 107\nplace item 107\ntransport item 108\nplace item 108\ntransport item 24\nplace item 24\ntransport item 25\nplace item 25\ntransport item 26\nplace item 26\ntransport item 6\nplace item 6\ntransport item 7\nplace item 7\ntransport item 8\nplace item 8\ntransport item 109\nplace item 109\ntransport item 110\nplace item 110\ntransport item 111\nplace item 111\ntransport item 112\nplace item 112\ntransport item 113\nplace item 113\nclose env.\n"
+ "log_tail": "\nplace item 69\ntransport item 70\nplace item 70\ntransport item 71\nplace item 71\ntransport item 72\nplace item 72\ntransport item 73\nplace item 73\ntransport item 74\nplace item 74\ntransport item 75\nplace item 75\ntransport item 76\nplace item 76\ntransport item 77\nplace item 77\ntransport item 78\nplace item 78\ntransport item 79\nplace item 79\ntransport item 80\nplace item 80\ntransport item 81\nplace item 81\ntransport item 82\nplace item 82\ntransport item 83\nplace item 83\ntransport item 84\nplace item 84\ntransport item 85\nplace item 85\ntransport item 0\nplace item 0\ntransport item 1\nplace item 1\ntransport item 2\nplace item 2\ntransport item 3\nplace item 3\ntransport item 4\nplace item 4\ntransport item 5\nplace item 5\ntransport item 96\nplace item 96\ntransport item 97\nplace item 97\ntransport item 98\nplace item 98\ntransport item 86\nplace item 86\ntransport item 87\nplace item 87\ntransport item 88\nplace item 88\ntransport item 99\nplace item 99\ntransport item 100\nplace item 100\ntransport item 101\nplace item 101\ntransport item 89\nplace item 89\ntransport item 90\nplace item 90\ntransport item 91\nplace item 91\ntransport item 102\nplace item 102\ntransport item 103\nplace item 103\ntransport item 104\nplace item 104\ntransport item 92\nplace item 92\ntransport item 93\nplace item 93\ntransport item 94\nplace item 94\ntransport item 95\nplace item 95\ntransport item 105\nplace item 105\ntransport item 24\nplace item 24\ntransport item 25\nplace item 25\ntransport item 26\nplace item 26\ntransport item 6\nplace item 6\ntransport item 7\nplace item 7\ntransport item 106\nplace item 106\ntransport item 107\nplace item 107\ntransport item 108\nplace item 108\ntransport item 109\nplace item 109\ntransport item 110\nplace item 110\ntransport item 111\nplace item 111\ntransport item 112\nplace item 112\ntransport item 113\nplace item 113\ntransport item 114\nplace item 114\ntransport item 115\nplace item 115\ntransport item 116\nplace item 116\ntransport item 117\nplace item 117\ntransport item 118\nplace item 118\ntransport item 27\nplace item 27\nclose env.\n"
 }
