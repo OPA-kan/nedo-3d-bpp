@@ -60,6 +60,26 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(len(containers), 2)
         self.assertEqual(containers[1]["_spec"]["index"], 1)
 
+    def test_sample_scene_is_the_official_sample(self):
+        config = json.loads((pathlib.Path(__file__).resolve().parents[1]
+                             / "reports" / "submission" / "abc_config.json").read_text(encoding="utf-8"))
+        a = make_scene(0, "sample", "A")
+        self.assertEqual(a.name, "a-sample-s0000")
+        self.assertTrue(a.optimize)
+        self.assertEqual(a.items, config["000"]["item_stream"]["item_list"])
+        self.assertEqual(a.containers, config["000"]["containers"]["container_list"])
+        self.assertEqual(make_scene(0, "sample", "B").look_ahead, 10)
+        self.assertEqual(len(make_scene(0, "sample", "C").items), 42)
+        shuffled = make_scene(3, "sample", "A")
+        self.assertNotEqual([i["length"] for i in shuffled.items], [i["length"] for i in a.items])
+        self.assertEqual(sorted(json.dumps({k: v for k, v in i.items() if k != "index"}, sort_keys=True)
+                                for i in shuffled.items),
+                         sorted(json.dumps({k: v for k, v in i.items() if k != "index"}, sort_keys=True)
+                                for i in a.items))
+        self.assertEqual([i["index"] for i in shuffled.items], list(range(41)))
+        self.assertEqual(shuffled.items, make_scene(3, "sample", "A").items)
+        self.assertEqual(len(build_suite("sample-a")), 12)
+
 
 class ArmTests(unittest.TestCase):
     def test_override_parsing(self):

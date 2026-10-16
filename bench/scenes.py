@@ -9,6 +9,8 @@ repeated SKUs rather than of uniformly random boxes.
 
 from __future__ import annotations
 
+import json
+import pathlib
 import random
 from dataclasses import dataclass, field
 
@@ -379,12 +381,42 @@ def make_hard2_scene(seed: int, task: str = "C") -> Scene:
                  items=items, containers=containers, spacing=spacing, spec=spec)
 
 
+SAMPLE_CONFIG = pathlib.Path(__file__).resolve().parents[1] / "reports" / "submission" / "abc_config.json"
+SAMPLE_ENTRY = {"A": "000", "B": "001", "C": "002"}
+
+
+def make_sample_scene(seed: int, task: str = "A") -> Scene:
+    """The official sample's scene of the task (``reports/submission/
+    abc_config.json``: 000 is Task A, 001 Task B, 002 Task C), the one
+    input where the platform's own result is known (reports/submission/
+    official-results.md).  Seed 0 is the sample itself, item order and all;
+    a seed above 0 keeps the sample's items (the same multiset, so the
+    same demand on the container) and shuffles their order, which is what
+    the platform's manifests of the sample's kind look like from here."""
+    if task not in SAMPLE_ENTRY:
+        raise KeyError(f"unknown task {task!r}; known: A, B, C")
+    entry = json.loads(SAMPLE_CONFIG.read_text(encoding="utf-8"))[SAMPLE_ENTRY[task]]
+    containers = [dict(c) for c in entry["containers"]["container_list"]]
+    items = [dict(i) for i in entry["item_stream"]["item_list"]]
+    if seed:
+        random.Random(30_000 + seed).shuffle(items)
+    for index, item in enumerate(items):
+        item["index"] = index
+    look_ahead = int(entry["item_stream"].get("look_ahead", TASK_LOOKAHEAD[task]))
+    name = f"{task.lower()}-sample-s{seed:04d}"
+    return Scene(name=name, seed=seed, layout="sample", task=task, look_ahead=look_ahead,
+                 items=items, containers=containers, spacing=float(entry["containers"].get("spacing", SPACING)),
+                 spec={"sample_entry": SAMPLE_ENTRY[task], "shuffled": bool(seed)})
+
+
 def make_scene(seed: int, layout: str = "c1", task: str = "C",
                items_per_container: int = 41, look_ahead: int | None = None) -> Scene:
     if layout == "hard":
         return make_hard_scene(seed, task)
     if layout == "hard2":
         return make_hard2_scene(seed, task)
+    if layout == "sample":
+        return make_sample_scene(seed, task)
     base = layout
     if layout.startswith("c1x") and layout[3:].isdigit():
         # the dense single-container manifests (``dense-a``): ``c1x60`` is
@@ -434,6 +466,12 @@ SUITES = {
     "hard2": [("C", "hard2", seed) for seed in range(1, 97)],
     "hard2-b": [("B", "hard2", seed) for seed in range(1, 97)],
     "hard2-a": [("A", "hard2", seed) for seed in range(1, 97)],
+    # the official sample's scene of each task (seed 0, the platform's own
+    # result known) and eleven shuffles of its items: the sample's kind of
+    # manifest, where Task A's count sits a few items over the threshold
+    "sample-a": [("A", "sample", seed) for seed in range(0, 12)],
+    "sample-b": [("B", "sample", seed) for seed in range(0, 12)],
+    "sample-c": [("C", "sample", seed) for seed in range(0, 12)],
     # training streams for a learned ranker: disjoint seeds from every
     # evaluation suite above
     "train-small": [("C", layout, seed) for seed in range(101, 107) for layout in ("c1", "c1s", "c2", "c2p")],
