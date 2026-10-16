@@ -38,6 +38,14 @@ To measure a change, append `,field=value` to the ship arm's line.
 - `arm_acs_a.txt`: the v51 A form (`arm_acount0_a`) plus the typed-standing
   gallery (`plan_typed_standing`, braced variants, no priority container),
   the combination measured as `reports/bench/acs-*`.
+- `arm_asoft_a.txt` / `arm_asoftnl_a.txt`: the v56 A form (`arm_acsfix_a`)
+  with the soft frame block among the count-secured re-plans
+  (`plan_count_secure_blocks=plain;soft;soft@plan_count_secure_soft_ledge=true`
+  / `plain;soft`: the count frame's soft cargo standing two deep against
+  the back wall, with / without the boxes on the small shelf's ledge;
+  `reports/wedge/a-soft-frame.md`). Measured at the platform's regime
+  (`,offline_budget_seconds=30` appended); records `reports/bench/asoft30-*`
+  and `asoftnl30-dense-a`, priced against `ship30-*` and `acsfix30-*`.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
