@@ -74,7 +74,54 @@ ascending, then the priority boxes, then the hard ones),
 `soft-first-prio-last`, `small-first`.  Arms `arm_atail_a` /
 `arm_atailp_a` / `arm_atails_a` are the shipped form with the flag.
 
-### Local measurement (sample-a, physics, budget 4.5 s)
+A first cut of the flag left the plan's own trailing items ahead of the
+tail and changed nothing (the dry-run's plan holds 8, 30 and 14 after the
+hard boxes, and 8 is what fails): the plan's trailing run of soft and
+priority items now joins the tail.  On the sample itself (local, physics,
+budget 4.5 s) the shipped form then places 27 of 41 (fill 44.9) instead
+of 25: two soft boxes in the pockets, then nothing again.
 
-(filled in below from `scratchpad/tail_exp.py`: the shipped form's
-optimize, the tail rearranged after it, one episode a seed)
+### The sample-a suite
+
+A shuffle of the sample's items gives Task A the same episode (the agent
+orders the manifest itself), so a seed above 0 of the `sample` layout
+resamples the manifest instead: 41 items drawn from the sample's 41 with
+replacement (24-30 hard, 7-16 soft).  CI records (physics, 4.5 s, offline
+budget 140 s), priced with `bench.platform_score` against the shipped form
+(`ship-sample-a`: 59.23, 12 of 12 counted, placed 25.8, fill 41.5, cog
+74.5, placement 49.3, soft 28.3):
+
+| arm | delta [95 % CI] | up / down | fill | cog | placement | soft | placed |
+|---|---|---|---:|---:|---:|---:|---:|
+| dry-run alone (`adry`) | -8.31 [-13.19, -3.62] | 0 / 6 | +2.6 | -6.6 | -35.4 | -18.2 | -0.1 |
+| planner alone (`aplan`) | **+6.75 [+2.28, +11.32]** | 6 / 0 | -5.8 | +8.8 | +26.4 | +17.4 | -1.8 |
+| tail soft-first (`atail`) | -1.14 [-4.02, +1.22] | 5 / 5 | +0.4 | -0.9 | -18.1 | +10.5 | +0.8 |
+| tail soft-first, priority last (`atailp`) | -1.14 [-4.02, +1.22] | 5 / 5 | +0.4 | -0.9 | -18.1 | +10.5 | +0.8 |
+
+On core-a the tail orders read -0.60 [-1.74, +0.46] and -0.10 [-1.24,
++1.04] (soft +8 to +10, placement -10).  The tail order trades the
+priority boxes for soft ones: more items, more soft credit, the placement
+component down by more.  It is not a lever.
+
+The reading that matters is the planner alone.  On the sample's kind of
+manifest the race picks the dry-run's plan on 6 of 12 episodes (the ones
+where the planner's plan sits at or under the threshold), and that plan
+holds no soft and no priority box: fill 2-3 points higher, placement and
+soft zero.  The platform prices a counted episode's placement and soft at
+0.143 and 0.141 of 100 each; the dry-run's fill is worth about a point.
+Where the planner's plan is chosen it carries 4-7 soft and 1-6 priority
+boxes.  So on this suite the planner alone is +6.75, and the dry-run study
+(reports/wedge/a-count-secure.md section 7) reads the planner alone as
+never worse on the generated suites at 140 s (core-a +0.93 [+0.12,
++2.09], dense-a +1.26 n.s., hard-a +0.15 n.s.) and -2.48 n.s. on hard-a at
+20 s, where the dry-run rescues sub-threshold planner plans.
+
+The candidate that keeps both: the race with the planner's plan preferred
+(`plan_prefer_planner=true`, arm `aprefer`): the planner's plan unless it
+is under the count threshold and the dry-run's is not.  On the sample
+itself that is still the dry-run (the planner plans 20 of 41, the
+threshold is 21); on the other sample-a episodes it is the planner.
+Measured on sample-a, core-a, dense-a, hard-a at 140 s and on sample-a and
+hard-a at 30 s, with the planner alone and the shipped form at 30 s on
+sample-a beside it (records `aprefer*-*`, `aplan30-sample-a`,
+`ship30-sample-a`; section 4 below when they land).
