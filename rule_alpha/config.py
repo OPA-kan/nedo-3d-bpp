@@ -3002,6 +3002,20 @@ class RuleAlphaConfig:
     """Task A, the planner first: the planner stops this share of the
     offline budget before the deadline, which the dry-run keeps."""
 
+    plan_tail_order: str = ""
+    """Task A: how the order's tail -- the items after the chosen plan's --
+    is arranged.  The online phase ends at the first item it cannot
+    place, so the tail's order decides how many of the plan's leftovers
+    get placed at all.  On the official sample the shipped form's plan
+    holds the 25 hard boxes, its tail opens with the three priority boxes,
+    the first of them has no pose on the board as it settled and the
+    episode ends with 13 soft boxes untried, 11 of which had a pose
+    (reports/wedge/a-tail-order.md).  ``soft-first``: the soft items by
+    volume ascending, then the priority items, then the hard ones;
+    ``soft-first-prio-last``: the hard ones before the priority ones;
+    ``small-first``: the tail by volume ascending.  Empty: the tail as the
+    plan left it (the dry-run's untried items, then its declined ones)."""
+
     plan_count_secure: bool = False
     """Task A: when the planner's best plan holds fewer than the count
     threshold plus ``plan_value_margin`` items, the manifest is planned

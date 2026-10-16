@@ -192,3 +192,51 @@ class GateHeldTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TailOrderTest(unittest.TestCase):
+    """config.plan_tail_order: the order's tail after the chosen plan."""
+
+    def _agent(self, mode):
+        scene = make_scene(0, "sample", "A")
+        agent = make_arm(f"ladder-stable@plan_tail_order={mode}")(scene)
+        items = [dict(i) for i in scene.items]
+        by_index = {int(i["index"]): i for i in items}
+        # the shipped form's order on the sample: the 25 hard boxes planned,
+        # the tail opening with two priority boxes
+        order = [3, 17, 21, 33, 5, 9, 11, 19, 20, 22, 23, 35, 39, 0, 4, 6, 10, 12, 18, 24, 27, 29, 32, 36, 38,
+                 8, 30, 14, 13, 16, 31, 34, 40, 1, 28, 15, 25, 26, 37, 2, 7]
+        agent.plan = [{"index": i} for i in order[:25]]
+        agent.plan_source = "dry-run"
+        return agent, items, by_index, order
+
+    def test_off_leaves_the_order(self):
+        agent, items, _by, order = self._agent("")
+        self.assertEqual(agent._tail_order(order, items), order)
+
+    def test_soft_first_then_priority_then_hard(self):
+        agent, items, by_index, order = self._agent("soft-first")
+        got = agent._tail_order(order, items)
+        self.assertEqual(got[:25], order[:25])
+        self.assertEqual(sorted(got), sorted(order))
+        tail = got[25:]
+        kinds = ["S" if by_index[i]["is_soft"] else "P" if by_index[i]["is_prioritized"] else "H" for i in tail]
+        self.assertEqual(kinds, ["S"] * 13 + ["P"] * 3)
+        vols = [by_index[i]["length"] * by_index[i]["width"] * by_index[i]["height"] for i in tail[:13]]
+        self.assertEqual(vols, sorted(vols))
+
+    def test_priority_last_and_small_first(self):
+        agent, items, by_index, order = self._agent("soft-first-prio-last")
+        tail = agent._tail_order(order, items)[25:]
+        self.assertTrue(all(by_index[i]["is_prioritized"] for i in tail[-3:]))
+        agent, items, by_index, order = self._agent("small-first")
+        tail = agent._tail_order(order, items)[25:]
+        vols = [by_index[i]["length"] * by_index[i]["width"] * by_index[i]["height"] for i in tail]
+        self.assertEqual(vols, sorted(vols))
+
+    def test_planned_items_keep_their_order_whatever_their_place(self):
+        agent, items, _by, order = self._agent("soft-first")
+        agent.plan = [{"index": i} for i in (14, 3, 8)]
+        got = agent._tail_order(order, items)
+        self.assertEqual(got[:3], [3, 8, 14])
+        self.assertEqual(sorted(got), sorted(order))

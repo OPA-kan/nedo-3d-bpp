@@ -41,6 +41,10 @@ To measure a change, append `,field=value` to the ship arm's line.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
+- `arm_atail_a.txt` / `arm_atailp_a.txt` / `arm_atails_a.txt`: the shipped A
+  form with the order's tail after the plan rearranged
+  (`plan_tail_order=soft-first` / `soft-first-prio-last` / `small-first`,
+  reports/wedge/a-tail-order.md); records `reports/bench/atail*-*`.
 
 ## Judging a run
 

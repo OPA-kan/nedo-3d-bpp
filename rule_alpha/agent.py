@@ -581,11 +581,39 @@ class RuleAlphaAgent:
                 # planner's entries)
                 self.plan_by_index = {}
                 self.plan_source = f"search:{label}"
+        order = self._tail_order(order, item_list)
         self._order = [int(i) for i in order]
         if getattr(self, "optimize_stats", None) is not None:
             self.optimize_stats["source"] = self.plan_source
             self.optimize_stats["seconds"] = round(time.perf_counter() - started, 2)
         return list(self._order)
+
+    def _tail_order(self, order: list, item_list: list) -> list:
+        """config.plan_tail_order: the items the chosen plan holds stay
+        first in their order; the rest (the tail) is rearranged."""
+        mode = str(getattr(self.config, "plan_tail_order", "") or "")
+        order = [int(i) for i in order]
+        if not mode or not self.plan:
+            return order
+        planned = {int(e["index"]) for e in self.plan}
+        head = [i for i in order if i in planned]
+        tail = [i for i in order if i not in planned]
+        by_index = {int(it["index"]): it for it in item_list}
+        vol = lambda i: float(by_index[i]["length"]) * float(by_index[i]["width"]) * float(by_index[i]["height"])
+        soft = sorted((i for i in tail if by_index[i].get("is_soft")), key=vol)
+        prio = [i for i in tail if by_index[i].get("is_prioritized") and not by_index[i].get("is_soft")]
+        hard = [i for i in tail if not by_index[i].get("is_soft") and not by_index[i].get("is_prioritized")]
+        if mode == "soft-first":
+            tail = soft + prio + hard
+        elif mode == "soft-first-prio-last":
+            tail = soft + hard + prio
+        elif mode == "small-first":
+            tail = sorted(tail, key=vol)
+        else:
+            return order
+        if getattr(self, "optimize_stats", None) is not None:
+            self.optimize_stats["tail_order"] = mode
+        return head + tail
 
     def policy(self, observation: dict):
         # the shadow check's per-call state: the world is synced from this
