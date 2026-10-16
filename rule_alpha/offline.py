@@ -111,6 +111,9 @@ def dry_run_order(agent, item_list: list[dict], order: list[int], deadline: floa
                      "container_idx": int(action["container_idx"]),
                      "orientation": int(action["orientation"]),
                      "place_pos": [float(v) for v in action["place_pos"]],
+                     # the settled pose (the commanded place_pos carries the
+                     # release lift), for the plan race's centre-of-mass term
+                     "center": [float(v) for v in placement.box.center],
                      "archetype": getattr(placement, "archetype", ""),
                      "packed_before": len(board.containers[int(action["container_idx"])]["packed_items"]) - 1})
     # for the records: whether the deadline cut the dry-run (items never

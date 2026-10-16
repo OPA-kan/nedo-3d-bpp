@@ -2952,8 +2952,12 @@ class RuleAlphaConfig:
     plan_score_weights: str = "1,0.5,0.5,0"
     """How the planner's plan and the ladder's dry-run plan are compared:
     weights of the fill (volume over the containers' volume), the share of
-    the soft cargo placed, the share of the priority cargo placed and the
-    share of all items placed.  The
+    the soft cargo placed, the share of the priority cargo placed, the
+    share of all items placed, and, as a fifth weight (0 unless given),
+    one minus the plan's centre-of-mass height ratio (the mass-weighted
+    mean height of the boxes' centres over the container's height: the
+    platform's cog component prices the centre of mass at about 137
+    points per unit of ratio, reports/wedge/platform-refit.md).  The
     official score has a component for each; the fill is the one whose
     definition is known, so the other two count half."""
 

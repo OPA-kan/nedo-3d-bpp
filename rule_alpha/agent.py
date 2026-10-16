@@ -420,19 +420,43 @@ class RuleAlphaAgent:
         # "," or ";" between the weights: an arm spec's overrides are
         # themselves comma-separated
         weights = [float(w) for w in re.split(r"[,;]", str(getattr(self.config, "plan_score_weights", "1,0.5,0.5,0"))) if w]
-        weights = (weights + [0.0, 0.0, 0.0, 0.0])[:4]
+        weights = (weights + [0.0, 0.0, 0.0, 0.0, 0.0])[:5]
         n_items = max(1, len(item_list))
+        heights = {ci: max(float(c.get("height", 0.0)), 1e-9)
+                   for ci, c in enumerate(self.board.containers if self.board is not None else [])}
+
+        def com_ratio(plan):
+            """The plan's load: the mass-weighted mean height of its boxes'
+            centres over the container's height (the platform's cog
+            component prices the centre of mass, reports/wedge/platform-refit.md)."""
+            mass_sum = 0.0
+            moment = 0.0
+            for e in plan:
+                item = by_index.get(int(e["index"]))
+                # the planner's entries carry "center", the dry-run's "place_pos"
+                pos = e.get("center") or e.get("place_pos")
+                if item is None or not pos:
+                    continue
+                mass = float(item.get("mass", 1.0) or 1.0)
+                mass_sum += mass
+                moment += mass * float(pos[2]) / heights.get(int(e.get("container_idx", 0)), 1.0)
+            return moment / mass_sum if mass_sum > 0.0 else 0.0
 
         def score_of(plan):
             """What the official score is made of, each part in [0, 1]:
             the fill, the share of the soft cargo placed, the share of the
-            priority cargo placed -- weighted by ``plan_score_weights``."""
+            priority cargo placed, the share of the items, and (fifth
+            weight) one minus the load's centre-of-mass height ratio --
+            weighted by ``plan_score_weights``."""
             items = [by_index[int(e["index"])] for e in plan if int(e["index"]) in by_index]
             volume = sum(float(i["length"]) * float(i["width"]) * float(i["height"]) for i in items)
-            return (weights[0] * volume / capacity
-                    + weights[1] * sum(1 for i in items if i.get("is_soft")) / soft_total
-                    + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total
-                    + weights[3] * len(items) / n_items)
+            score = (weights[0] * volume / capacity
+                     + weights[1] * sum(1 for i in items if i.get("is_soft")) / soft_total
+                     + weights[2] * sum(1 for i in items if i.get("is_prioritized")) / prio_total
+                     + weights[3] * len(items) / n_items)
+            if weights[4] > 0.0 and items:
+                score += weights[4] * (1.0 - com_ratio(plan))
+            return score
 
         self.plan_score = score_of
         planned = None

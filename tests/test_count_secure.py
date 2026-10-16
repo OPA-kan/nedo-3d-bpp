@@ -260,3 +260,21 @@ class TailOrderTest(unittest.TestCase):
         got = agent._tail_order(order, items)
         self.assertEqual(got[:4], [3, 17, 21, 14])
         self.assertEqual(got[4], 2)  # the smallest soft box of the tail
+
+
+class PlanScoreComTest(unittest.TestCase):
+    """The fifth plan-score weight prices the plan's centre of mass."""
+
+    def test_lower_load_scores_higher_with_the_fifth_weight(self):
+        scene = make_scene(0, "sample", "A")
+        items = [dict(i) for i in scene.items]
+        for weights, expect_low_wins in (("0;0;0;0;1", True), ("0;0;0;0", False)):
+            agent = make_arm(f"ladder-stable@plan_score_weights={weights},offline_dry_run=false,offline_planner=")(scene)
+            agent.get_init_states({"container_list": scene.rule_alpha_containers()})
+            agent.optimize(items)
+            low = [{"index": 0, "container_idx": 0, "center": [0.0, 0.0, 0.2]}, {"index": 1, "container_idx": 0, "center": [0.5, 0.0, 0.2]}]
+            high = [{"index": 0, "container_idx": 0, "center": [0.0, 0.0, 1.2]}, {"index": 1, "container_idx": 0, "place_pos": [0.5, 0.0, 1.2]}]
+            if expect_low_wins:
+                self.assertGreater(agent.plan_score(low), agent.plan_score(high))
+            else:
+                self.assertEqual(agent.plan_score(low), agent.plan_score(high))
