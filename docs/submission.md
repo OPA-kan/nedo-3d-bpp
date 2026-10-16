@@ -900,7 +900,12 @@ same placements.  Official sample: A 32.11 / 25 with the optimize
 27.2 -> 14.6 s, B 29.59 / 26, C 26.44 / 25; policy max B 3.65 s,
 C 3.23 s (`official-sample-abc-v54.json`).  Expected on the platform:
 v50's result where the dry-run was already finishing; where the 140 s
-budget had cut it, the race now sees the whole dry-run plan.
+budget had cut it, the race now sees the whole dry-run plan.  Official
+platform: 56.18, the best so far (v50 56.04): the optimize 56.0 s
+against 118.9 (the platform's dry-runs had been hitting the 140 s
+budget), fill +0.63, placement +2.15, cog -1.13, stability -0.39,
+soft -0.1, the counted episodes unchanged.  Kept; the shipped form is
+v54's (`reports/submission/official-results.md`).
 
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):

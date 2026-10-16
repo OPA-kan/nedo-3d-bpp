@@ -181,7 +181,10 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # decision the same (rule_alpha.fastgeom.validate_points and
 # stability.evaluate_points: the anchor grids validated in one pass;
 # config.batch_validate).  Official sample as v50's, the optimize
-# 27.2 -> 14.6 s.
+# 27.2 -> 14.6 s.  v54 scored 56.18 on the platform, the best so far
+# (v50 56.04): the optimize 56.0 s against 118.9, so the race saw whole
+# dry-run plans; fill +0.63, placement +2.15, cog -1.13, the counted
+# episodes unchanged.  Kept.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses

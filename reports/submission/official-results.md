@@ -43,6 +43,7 @@
 | v51 (6a459ba2: v50 plus Task A's count-secured re-plan under the count threshold; not kept) | 38.32 | 61.21 | 73.99 | 48.45 | 46.6 | 0.6391 | 138.8 | 6.71 |
 | v52 (08586211: v51's re-plan with the race and time fixes, the plain variant alone; not kept) | 38.31 | 61.11 | 73.95 | 49.0 | 45.8 | 0.6385 | 139.2 | 6.72 |
 | v53 (0fb97699: v50 plus the planner's plan preferred in Task A's race, `plan_prefer_planner`; not kept) | 37.76 | 65.56 | 78.25 | 48.2 | 51.55 | 0.6337 | 118.0 | 6.75 |
+| v54 (4314e7e3: v50's form with Task A's offline phase 35-40 % faster, every decision the same; the best so far) | 39.25 | 63.69 | 77.80 | 52.55 | 50.0 | 0.6540 | 56.0 | 6.84 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -644,3 +645,15 @@ policy max B 3.65 s, C 3.23 s), awaiting the platform.  Expected: v50's
 result where the dry-run was already finishing inside the 140 s budget;
 where it was cut, the race now sees the whole dry-run plan
 (reports/wedge/findings.md).
+
+v54's total is 56.18, the best so far (v50 56.04, +0.14; v53 55.86).  The
+optimize time 56.0 s against v50's 118.9 s: on the platform the cut was
+larger than on the bench (-53 % against -35 to -40 %), since v50's
+dry-runs were hitting the 140 s budget and v54's finish inside it.  The
+race therefore saw whole dry-run plans where v50's saw cut ones, and the
+components moved the way the bench's full-budget records read against
+the short-budget ones: fill 39.25 (+0.63), placement 52.55 (+2.15), cog
+63.69 (-1.13), stability 77.80 (-0.39, two topples' worth, the counted
+episodes unchanged), soft 50.0 (-0.1), placed fraction 0.654 (+0.009).
+At the weights: fill +0.18, placement +0.31, cog -0.25, stability -0.08,
+soft -0.01.  Policy time 6.84 s (6.75).  Kept: the shipped form is v54's.
