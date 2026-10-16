@@ -677,3 +677,15 @@ At the 30 s bench budget against the shipped form: dense-a +16.0
 (counted 10 -> 23), hard-a +6.0 (26 -> 31), core-a +0.28 n.s.; the
 re-plan alone +12.2 / +2.2 / -0.43 (reports/wedge/a-count-secure.md,
 a-standing.md; records acsfix30-*).
+
+Diagnostic builds of Task A's offline phase on the v56 form, rebuilt
+with the batched validator (`submit_diag_a_planner_v56.zip`: the
+count-secured planner alone, no dry-run; `submit_diag_a_dryrun_v56.zip`:
+the ladder's dry-run alone, no planner; B and C as v54).  Sample check:
+planner alone A 22.94 / 23 (the re-plan lifts the sample from 21 to
+23) in 5.4 s, dry-run alone A 32.11 / 25 in 10.5 s; B and C identical
+(`official-sample-abc-diag-a-planner-v56.json`, `-dryrun-v56.json`).
+What they answer: the stability lattice gives each plan's counted A
+episodes, and the components give each plan's placement and soft
+credit per counted episode, which the bench's placement model
+(v53's reading) does not predict.
