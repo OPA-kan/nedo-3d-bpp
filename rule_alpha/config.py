@@ -3000,6 +3000,18 @@ class RuleAlphaConfig:
     """A re-plan starts only when this many times the longest plan so far
     fits in what is left of the offline budget."""
 
+    plan_count_secure_race_guard: bool = False
+    """With ``plan_count_secure`` and ``plan_count_secure_choice``: in every
+    Task A episode, the planner's plan that holds the count threshold plus
+    ``plan_value_margin`` is kept against a dry-run plan carrying fewer
+    soft and priority boxes, whatever the score says.  The ladder's
+    dry-run runs on its own clock and its plan differs from run to run;
+    when it wins the race on the score it can carry no soft and no
+    priority cargo (a-c2-s0011: 58 planned with 0 / 0 against the
+    planner's 47 with 11 / 7; a-c2p-s0008 at the full budget: soft 11 ->
+    3 and three topples), the variance behind core-a's soft and topple
+    counts moving between runs of arms that decide the same."""
+
     plan_count_secure_typed_gate: bool = False
     """With ``plan_typed_standing``: the typed-standing plans are planned
     only where the count-secured re-plan ran (the planner's plan under

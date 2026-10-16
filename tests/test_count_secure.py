@@ -193,6 +193,21 @@ class RaceTest(unittest.TestCase):
     def test_the_replan_over_the_gate_wins_over_a_dry_run_under_it(self):
         self.assertEqual(self.race("plain", 33, 32), "planner")
 
+    def test_guard_keeps_a_valuable_planner_plan_over_the_gate(self):
+        scene = make_scene(2, "c1x60", "A")
+        self.agent._manifest = {int(i["index"]): i for i in scene.items}
+        soft = [{"index": int(i["index"])} for i in scene.items if i["is_soft"]]
+        hard = [{"index": int(i["index"])} for i in scene.items if not i["is_soft"] and not i["is_prioritized"]]
+        planner = (soft + hard)[:33]
+        dry = hard[:38]
+        self.agent.count_secure_log = {"chosen": "base", "replanned": False}
+        self.assertIsNone(self.agent._count_secure_race(planner, dry))
+        self.agent.config = dataclasses.replace(self.agent.config, plan_count_secure_race_guard=True)
+        self.assertEqual(self.agent._count_secure_race(planner, dry), "planner")
+        # under the gate, or a dry-run plan as valuable: no guard
+        self.assertIsNone(self.agent._count_secure_race(planner[:32], dry))
+        self.assertIsNone(self.agent._count_secure_race(planner, (soft + hard)[:38]))
+
     def test_v51_rule_kept_without_the_flag(self):
         self.agent.config = dataclasses.replace(self.agent.config, plan_count_secure_race_chosen=False,
                                                 plan_count_secure_race_replanned=True)

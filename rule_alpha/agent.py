@@ -301,6 +301,23 @@ class RuleAlphaAgent:
             return None
         if planner_plan is None or dry_plan is None:
             return None
+        if getattr(self.config, "plan_count_secure_race_guard", False):
+            # the planner's plan over the gate is kept against a dry-run plan
+            # carrying fewer soft and priority boxes: the ladder's dry-run
+            # differs from run to run (its own clock), and when it wins on
+            # the score it can carry none (a-c2-s0011: 58 planned, 0 soft and
+            # 0 priority, against the planner's 47 with 11 and 7)
+            threshold = self._count_threshold()
+            manifest = getattr(self, "_manifest", None) or {}
+            if threshold is not None and manifest:
+                gate = threshold + int(getattr(self.config, "plan_value_margin", 2))
+
+                def valuable(plan):
+                    return sum(1 for e in plan if (manifest.get(int(e["index"])) or {}).get("is_soft")
+                               or (manifest.get(int(e["index"])) or {}).get("is_prioritized"))
+
+                if len(planner_plan) >= gate and valuable(dry_plan) < valuable(planner_plan):
+                    return "planner"
         log = getattr(self, "count_secure_log", None)
         if getattr(self.config, "plan_count_secure_race_replanned", False) and not (log and log.get("replanned")):
             # only where the planner's plan was under the re-plan's trigger:
