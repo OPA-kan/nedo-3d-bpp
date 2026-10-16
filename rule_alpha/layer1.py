@@ -4629,7 +4629,12 @@ def build_placement(chosen: Candidate, chosen_archetype: str, board: Board,
 
 
 def choose_for_item(board: Board, profile: cls.ItemProfile, config,
-                    max_orientations: int | None = None, selector=None) -> Decision | None:
+                    max_orientations: int | None = None, selector=None,
+                    surfaces: tuple | None = None) -> Decision | None:
+    """``surfaces``: the surface kinds to offer (``"shelf"``, ``"floor"``,
+    ``"item"``) instead of ``_surface_filters``' order; the restricted
+    soft-first pass asks for ``("item",)`` when the ladder's own pick for
+    a soft item is the shelf or the floor (``soft_first_restricted_tops``)."""
     if max_orientations is None:
         max_orientations = int(getattr(config, "ladder_orientations", 3) or 3)
     best: Decision | None = None
@@ -4640,7 +4645,10 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                 and not getattr(config, "routing_any_container", False)):
             continue
         pool: list[Candidate] = []
-        for surface_kinds, surface_policy in _surface_filters(profile, model, config):
+        filters = _surface_filters(profile, model, config)
+        if surfaces is not None:
+            filters = [f for f in filters if f[0][0] in surfaces]
+        for surface_kinds, surface_policy in filters:
             role_hint = cls.ROLE_ELONGATED if profile.is_elongated else cls.ROLE_NONE
             orientations = list(
                 cls.orientation_order(profile, surface_policy, role_hint, config)
@@ -4730,6 +4738,10 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
                     board, profile, container_idx, config
                 )
             )
+        if surfaces is not None:
+            # the hole, front-wedge and last-resort generators read no
+            # surface filter: the restriction holds for them too
+            pool = [c for c in pool if c.surface in surfaces]
         if pool and getattr(config, "no_cover_other_attribute", False):
             # nothing above cargo whose attribute the item does not share
             # (non-priority above priority, non-soft above soft): the rule

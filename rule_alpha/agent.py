@@ -978,6 +978,19 @@ class RuleAlphaAgent:
             if action is not None:
                 return action
 
+        # the restricted soft-first pass (config.soft_first_restricted):
+        # the same idea held to the surface no hard box in the pool could
+        # stand on -- soft cargo, and hard tops too small, too hemmed in
+        # or too high for every hard and priority item the pool shows;
+        # never a shelf, never the floor.  With a pool of one the ladder
+        # tries the item anyway, so the pass is Task B's.
+        if (getattr(self.config, "soft_first_restricted", False) and len(pool) > 1
+                and (not self.plan_by_index or self.plan_source != "planner")):
+            share = float(getattr(self.config, "soft_first_restricted_share", 0.3))
+            action = self._soft_first_restricted(ordered, min(ladder_deadline, started + share * budget))
+            if action is not None:
+                return action
+
         # the online planner (Tasks B and C, or a Task A item off the plan):
         # the lowest legal pose over every anchor -- the floor filled before
         # anything is stacked, so a large flat area stays for the big boxes
@@ -2273,6 +2286,166 @@ class RuleAlphaAgent:
             if action is not None:
                 return action
         return None
+
+    # -- the restricted soft-first pass (config.soft_first_restricted) -----
+    def _sfr_stat(self, key: str, value: float = 1) -> None:
+        self.phase_stats["sfr_" + key] = self.phase_stats.get("sfr_" + key, 0) + value
+
+    def _soft_first_restricted(self, ordered: list, deadline: float):
+        """Each soft item in the pool, smallest first, is offered the
+        ladder's pose (``layer1.choose_for_item``, the cover rule and the
+        shelf preference included); it goes first only when
+        ``_restricted_verdict`` reads the pose as resting on soft cargo or
+        on a hard top no hard or priority item of the pool could use.
+        ``_soft_first`` is the pass this one restricts: that pass also took
+        a shelf, and a top judged free by its height under the ceiling
+        alone, and lost the priority cargo's room.  The verdicts are
+        counted in ``phase_stats`` (``sfr_*``: the calls, the decisions,
+        every verdict, what fired and on what)."""
+        soft_pairs = sorted(((pi, pr) for pi, pr in ordered if pr.is_soft),
+                            key=lambda pp: (1 if pp[1].is_prioritized else 0, round(pp[1].volume, 6), pp[0]))
+        if not soft_pairs:
+            return None
+        self._sfr_stat("calls")
+        others = [pr for _pi, pr in ordered if not pr.is_soft]
+        tops = bool(getattr(self.config, "soft_first_restricted_tops", False))
+        t_pass = time.perf_counter()
+        try:
+            for pool_index, profile in soft_pairs:
+                if not self._can_start(deadline):
+                    self._sfr_stat("timeouts")
+                    break
+                for source, decision in self._restricted_sources(profile, deadline, tops):
+                    self._sfr_stat("decisions")
+                    self._sfr_stat("decisions_" + source)
+                    if decision is None:
+                        self._sfr_stat("no_pose")
+                        continue
+                    placement = decision.placement
+                    t0 = time.perf_counter()
+                    verdict = self._restricted_verdict(placement.box, placement.container_idx, profile, others)
+                    self._sfr_stat("verdict_seconds", time.perf_counter() - t0)
+                    self._sfr_stat("verdict_" + verdict.replace("-", "_"))
+                    if verdict not in ("soft", "top"):
+                        continue
+                    placement.reason = f"soft-first (restricted, on {verdict}, {source}): " + placement.reason
+                    placement.features["soft_first_restricted"] = verdict
+                    self.last_decision = decision
+                    self.soft_first_used = getattr(self, "soft_first_used", 0) + 1
+                    action = self._emit(pool_index, placement)
+                    if action is not None:
+                        self._sfr_stat("fired")
+                        self._sfr_stat("fired_" + verdict)
+                        self._sfr_stat("fired_" + source)
+                        return action
+                    self._sfr_stat("shadow_vetoed")
+        finally:
+            self._sfr_stat("seconds", time.perf_counter() - t_pass)
+        return None
+
+    def _restricted_sources(self, profile, deadline: float, tops: bool):
+        """The poses the restricted pass judges for one soft item, in
+        order, as ``(source, decision)`` pairs: the ladder's own pick
+        (``"ladder"``); with ``soft_first_restricted_tops`` also the
+        ladder over item surfaces only with the typed soft-on-soft column
+        on (``"ladder-tops"``) and the stack option's pose (``"stack"``),
+        each only while the deadline allows another decision.  A
+        generator, so a pose that fires costs nothing past it."""
+        yield "ladder", self._timed(layer1.choose_for_item, self.board, profile, self.config, selector=self.selector)
+        if not tops:
+            return
+        if not self._can_start(deadline):
+            self._sfr_stat("timeouts")
+            return
+        config = getattr(self, "_sfr_tops_config", None)
+        if config is None:
+            config = self._sfr_tops_config = dataclasses.replace(self.config, soft_tops_for_soft=True)
+        yield "ladder-tops", self._timed(layer1.choose_for_item, self.board, profile, config,
+                                         selector=self.selector, surfaces=("item",))
+        if self.stack_option is None or not self._can_start(deadline):
+            if self.stack_option is not None:
+                self._sfr_stat("timeouts")
+            return
+        try:
+            yield "stack", self._timed(self.stack_option.propose, self.board, profile, deadline=deadline)
+        except TypeError:
+            yield "stack", self._timed(self.stack_option.propose, self.board, profile)
+
+    @staticmethod
+    def _restricted_windows(others: list, standing: bool) -> list:
+        """The ``(l, w, h)`` boxes the pool's hard and priority items would
+        stand on a top as: flat (the two largest sides down), or in every
+        orientation when ``standing``."""
+        out = set()
+        for pr in others:
+            try:
+                dims = sorted((float(pr.item["length"]), float(pr.item["width"]), float(pr.item["height"])), reverse=True)
+            except (KeyError, TypeError, ValueError):
+                continue
+            a, b, c = (round(v, 4) for v in dims)
+            out.add((a, b, c))
+            if standing:
+                out.add((a, c, b))
+                out.add((b, c, a))
+        return sorted(out)
+
+    def _restricted_verdict(self, box, container_idx: int, profile, others: list) -> str:
+        """Where a soft item's pose rests, as the restricted pass judges it:
+        ``"floor"``, ``"shelf"``, ``"unsupported"`` (nothing within the
+        settle tolerance under it), ``"priority-top"`` (a normal soft box
+        over a priority box: the cover rule's case, refused whatever the
+        ladder said), ``"soft"`` (every support soft), ``"top-usable"``
+        (a hard top on which one of ``others`` still stands under the
+        validator's rules: ``surface.top_holds``) or
+        ``"top"`` (a hard top none of them could use).  Only ``"soft"`` and
+        ``"top"`` let the soft item go first."""
+        from ._reuse import packed_aabbs_local
+        from . import surface
+
+        model = self.board.model(container_idx)
+        container = self.board.container(container_idx)
+        bottom = float(box.minimum[2])
+        tol = surface.TOL
+        if bottom <= model.z_floor + tol:
+            return "floor"
+
+        def over(other) -> bool:
+            ox = min(float(box.maximum[0]), float(other.maximum[0])) - max(float(box.minimum[0]), float(other.minimum[0]))
+            oy = min(float(box.maximum[1]), float(other.maximum[1])) - max(float(box.minimum[1]), float(other.minimum[1]))
+            return ox > 0.005 and oy > 0.005
+
+        for shelf in model.shelves:
+            if abs(float(shelf.maximum[2]) - bottom) <= tol and over(shelf):
+                return "shelf"
+        soft_under, hard_under = [], []
+        for b, soft, prio in packed_aabbs_local(container):
+            if abs(float(b.maximum[2]) - bottom) <= tol and over(b):
+                (soft_under if soft else hard_under).append((b, prio))
+        if not soft_under and not hard_under:
+            return "unsupported"
+        if not hard_under:
+            return "soft"
+        if any(prio for _b, prio in hard_under) and not profile.is_prioritized:
+            return "priority-top"
+        windows = self._restricted_windows(others, bool(getattr(self.config, "soft_first_restricted_standing", False)))
+        if not windows:
+            return "top"
+        scorer = surface.scorer_for(self.config)
+        load = scorer.load(self.board, container_idx)
+        seed = np.zeros((load.nx, load.ny), dtype=bool)
+        for b, _prio in hard_under:
+            seed |= load.mask(b)
+        z = max(float(b.maximum[2]) for b, _prio in hard_under)
+        # the validator's clearances: the settled clearance between boxes,
+        # the inclusion clearance (and the band lift's and the anchors'
+        # slack) under the ceiling for the commanded pose, the centre of
+        # mass inside the contacts' hull by com_margin
+        lateral = float(self.config.settled_clearance)
+        vertical = (float(self.config.inclusion_clearance) + float(getattr(self.config, "anchor_slack", 0.0) or 0.0)
+                    + float(getattr(self.config, "band_lift", 0.0) or 0.0))
+        if surface.top_holds(load, z, seed, windows, lateral, vertical, float(self.config.com_margin)):
+            return "top-usable"
+        return "top"
 
     def _hard_box_fits_over(self, ordered: list, model, container: dict, container_idx: int, box) -> bool:
         """Would the smallest hard box in the pool (or the smallest hard
