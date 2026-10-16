@@ -38,3 +38,6 @@ To measure a change, append `,field=value` to the ship arm's line.
 - `arm_acs_a.txt`: the v51 A form (`arm_acount0_a`) plus the typed-standing
   gallery (`plan_typed_standing`, braced variants, no priority container),
   the combination measured as `reports/bench/acs-*`.
+- `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
+  dry-run alone (`offline_planner=` empty) / the row planner alone
+  (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
