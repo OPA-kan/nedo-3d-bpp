@@ -200,3 +200,129 @@ pockets, not on top of the load at the end).  (v) Time: the mean of the
 episode maxima falls on every suite (the resort stages are reached
 less often), the maximum step does not rise, and the mean rises
 0.1-0.2 s a call on the hard suite.
+
+### 3.4 The second wave: the low-phase never-cover, k = 9, and the combination
+
+`ncl` is the shipped form with `count_cover_priority=false` alone (the
+low phase's covers of priority stop, the count pass's covers under the
+threshold proper stay; the grid rescue now reads the switch too);
+`k9` the deferral at 9; `nck` = `ncl` + `pool_defer_max=6`.
+
+| suite (base) | run | score | delta [95 % CI] | counted | up / down | fill | cog | stability | placement | soft | placed | policy max |
+|---|---|---:|---|---:|---|---:|---:|---:|---:|---:|---:|---:|
+| sample-b (55.44, 11/12) | ncl | 55.81 | +0.38 [-1.44, +2.23] | 11 (+0) | 2 / 1 | -1.2 | +0.8 | +0.0 | +9.7 | -5.9 | -1.00 | 4.4 s (base 5.8) |
+| | k9 | 67.02 | **+11.58 [+2.33, +23.28]** | 12 (+1) | 10 / 2 | -6.0 | +7.9 | +7.1 | +21.5 | +49.5 | -0.25 | 5.8 s |
+| | nck | 66.47 | **+11.03 [+1.78, +22.72]** | 12 (+1) | 10 / 2 | -7.5 | +9.5 | +8.1 | +23.6 | +42.9 | -1.42 | 5.6 s |
+| core-b (62.74, 48/48) | ncl | 62.19 | -0.56 [-3.21, +1.05] | 47 (-1) | 21 / 15 | -1.6 | -0.6 | -2.3 | +12.6 | -9.1 | -1.92 | 7.2 s (base 7.4) |
+| | k9 | 62.66 | -0.08 [-3.68, +2.76] | 46 (-2) | 35 / 13 | -5.0 | -1.2 | -4.8 | +2.1 | +16.6 | -0.42 | 7.4 s |
+| | nck | 66.15 | **+3.41 [+2.17, +4.78]** | 48 (+0) | 39 / 9 | -5.8 | +3.5 | -1.5 | +13.8 | +18.8 | -1.38 | 6.6 s |
+| hard2-b (34.67, 47/96) | ncl | 34.07 | -0.61 [-2.86, +1.26] | 46 (-1) | 23 / 25 | -0.5 | -0.5 | -1.2 | +1.2 | -2.0 | +0.19 | 7.3 s (base 7.3) |
+| | k9 | 36.85 | +2.17 [-0.59, +5.04] | 50 (+3) | 47 / 33 | -1.1 | +2.6 | +2.8 | +3.1 | +6.2 | +0.39 | 7.3 s |
+| | nck | 35.39 | +0.71 [-3.56, +4.98] | 47 (+0) | 39 / 45 | -2.0 | +1.2 | -0.1 | +2.5 | +4.9 | -0.54 | 7.4 s |
+
+The low-phase never-cover alone (`ncl`) reads what the first wave's
+split said it would: on core-b the priority boxes covered go 39 -> 4
+and the placement component +12.6 on the 39 touched episodes (+0.64
+[-0.19, +1.52] there), but the soft cargo that would have stood on the
+covering poses is not placed (-9.1, 1.9 items fewer an episode), and
+the suite reads -0.56 with one crossing lost (b-c2p-s0003 43 -> 41 of
+82, an untouched episode's replicate drift).  On its own it is a swap
+of soft for placement credit at the weights, not a gain.  The deferral
+at 9 is k6 with less of the hard cargo displaced (fill -5.0 against
+-4.9, placed -0.42) and two crossings lost on core-b (b-c2-s0004 47 ->
+32 ended on a settle failure at step 32: a stack-rl pose at 4.35 s with
+the shadow check skipped tipped on landing, the same accident as k3's
+b-c2-s0007), so its core-b reading is -0.08 against k6's +2.44; the
+settle accident is the shadow's time budget (`shadow_budget_share`
+0.95 of 4.5 s), which the deferral reaches more often when the deferred
+items' ladder decisions come first, and it is the one cost of the
+mechanism the records show.
+
+The combination does what neither does alone.  On core-b `nck` reads
+**+3.41 [+2.17, +4.78]** with every episode counted, 39 up and 9 down:
+the deferral's soft credit (+18.8, the soft boxes placed 9.9 -> 12.9 an
+episode) and the never-cover's placement credit (+13.8: the priority
+boxes covered 0.81 -> 0.06 a scene, 12 episodes with every priority box
+credited against the ship's 7) at the price of 1.4 items an episode of
+hard cargo (fill -5.8).  The never-cover costs no count here because
+the deferral has already placed the soft cargo the low phase's covers
+were buying: the count pass's covers of soft stay (32 of the 18 soft
+boxes covered on nck-core-b are count-mode poses over the threshold),
+and the covers of priority were buying soft and count the deferral
+earns earlier.  The policy time falls (mean 0.95 -> 0.67 s, the mean of
+the episode maxima 5.10 -> 3.98, the maximum 7.42 -> 6.64, the
+over-budget steps 170 -> 63): the typed cargo's decisions are cheap
+and the resort stages are reached later.  Two settle ends on 48
+episodes (the base none), both episodes still counted.
+
+On sample-b `nck` reads +11.03 [+1.78, +22.72] (the count-edge scene
+b-sample-s0010 21 -> 27 of 42 is 37 of the 132 points; the other
+eleven +7.6 a scene, 9 up and 2 down):
+
+| scene | placed (base) | soft placed (base) | priority placed / covered (base) | max s (base) | score (base) |
+|---|---|---|---|---|---|
+| b-sample-s0000 | 25 (26) of 42 | 7 (2) | 1 / 0 (1 / 0) | 2.73 (4.70) | 61.4 (57.2) |
+| b-sample-s0001 | 27 (26) | 7 (3) | 1 / 1 (2 / 0) | 4.67 (5.40) | 53.0 (65.7) |
+| b-sample-s0002 | 26 (23) | 9 (2) | 2 / 0 (2 / 0) | 1.84 (4.42) | 71.6 (63.0) |
+| b-sample-s0003 | 23 (28) | 8 (6) | 3 / 0 (3 / 2) | 4.47 (4.89) | 69.6 (57.5) |
+| b-sample-s0004 | 24 (25) | 8 (4) | 1 / 0 (1 / 1) | 3.46 (5.18) | 64.7 (52.0) |
+| b-sample-s0005 | 24 (26) | 8 (4) | 3 / 0 (3 / 0) | 1.89 (4.79) | 64.6 (62.5) |
+| b-sample-s0006 | 29 (30) | 8 (2) | 1 / 0 (0 / 0) | 5.64 (4.78) | 71.4 (50.2) |
+| b-sample-s0007 | 25 (28) | 11 (10) | 2 / 0 (3 / 0) | 2.94 (5.18) | 64.3 (70.9) |
+| b-sample-s0008 | 23 (26) | 7 (3) | 2 / 0 (0 / 0) | 2.27 (4.86) | 68.9 (49.2) |
+| b-sample-s0009 | 23 (28) | 3 (1) | 1 / 0 (1 / 0) | 2.40 (5.13) | 64.8 (64.1) |
+| b-sample-s0010 | 27 (21) | 10 (3) | 2 / 0 (1 / 0) | 4.50 (5.81) | 74.5 (10.2) |
+| b-sample-s0011 | 24 (30) | 4 (0) | 0 / 0 (0 / 0) | 1.80 (4.43) | 69.0 (62.8) |
+
+The two scenes down are a priority box covered (s0001: a settled
+contact under a terrace pose, which the AABB cover rule does not read)
+and a priority box not placed (s0007, 2 of 3).  On hard2-b the
+combination reads +0.71 [-3.56, +4.98], 47 counted as the base, 14
+crossings changed, 7 up and 7 down: the dense manifests are where the
+count pass's covers buy counts, and the never-cover and the deferral
+pull in opposite directions there (k9 alone +2.17 with +3 counted, ncl
+alone -0.61 with -1).  The platform's B episodes are core-b's kind
+(eleven counted episodes at 0.62 placed, the diagnostics), not hard2's.
+
+## 4. Verdict
+
+**Ship candidate for Task B: `arm_nck_b.txt`** -- the shipped B form
+plus `count_cover_priority=false` (with the grid rescue now reading it)
+and `pool_defer_max=6`.  Priced with `bench.platform_score` against
+the fresh replicates of the shipped arm: sample-b **+11.03 [+1.78,
++22.72]** (one more counted, the other eleven +7.6 a scene), core-b
+**+3.41 [+2.17, +4.78]** (48 of 48 counted, 39 up / 9 down, placement
++13.8, soft +18.8, fill -5.8, cog +3.5), hard2-b +0.71 [-3.56, +4.98]
+(47 counted as the base).  The policy time falls on every suite but
+hard2-b's maximum (7.33 -> 7.45 s, under the 10 s limit; core-b 7.42 ->
+6.64).  At the platform's task shares (B 11 of 23) a core-b gain of
++3.4 a B episode is about +1.6 on the platform total, which would be
+the largest single step since v50.
+
+The deferral alone (`k6`) is the fallback: core-b +2.44 [+1.32, +3.71],
+sample-b +10.21, hard2-b +1.55, all counted on core-b.  The never-cover
+alone is not a lever: the full rule (`nc`, under the threshold too)
+loses four core-b crossings (-3.85 [-8.70, -0.07]) because the count
+pass's covers are what the low phase places with, and the low-phase
+rule (`ncl`) swaps soft credit for placement credit (-0.56 n.s.).  The
+deferral at 3 loses five core-b crossings (the earlier soft cargo
+reshapes the layout; one settle accident), at 9 two (both the shadow's
+skipped check at the budget's edge); 6 holds all 48.
+
+What to watch on the platform: the fill (-5.8 on core-b: 1.4 hard
+boxes an episode give way to soft cargo on the shelf and in the
+pockets), the settle accidents (two on 48 core-b episodes, from stack
+poses emitted at 4.3-4.4 s of the 4.5 s bench budget with the shadow
+skipped; the platform's budget is 8-10 s, so the gate's 0.95 share is
+reached less often there), and the deferred fallback poses (8 % of the
+fires are poses the shadow hard-vetoed and nothing replaced).  A reset
+of a passed-over item's counter when its deferred decision finds no
+pose (so it waits k more calls instead of costing a decision every
+call: 208 of 870 deferred calls on nck-core-b passed) is the one
+refinement the records suggest, and it was not measured.
+
+Records: `reports/bench/nc-*`, `ncl-*`, `k3-*`, `k6-*`, `k9-*`,
+`nck-*` (sample-b, core-b, hard2-b); arms `arm_nc_b`, `arm_ncl_b`,
+`arm_k3_b`, `arm_k6_b`, `arm_k9_b`, `arm_nck_b`; tests
+`tests/test_b_content.py`; probes in the session scratchpad
+(`covers.py`, `tables.py`, `fires.py`, `ends.py`, `scenes.py`).
