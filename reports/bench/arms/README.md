@@ -74,9 +74,15 @@ To measure a change, append `,field=value` to the ship arm's line.
   soft boxes in rows before the 0.40 m ones; `plan_count_secure_dense_priority_fill`:
   the priority hard boxes first in the fill passes;
   `reports/wedge/a-dense-quality.md`).  `arm_adenseq2_a.txt`: the same
-  with a two-row strip.  Measured at the platform's regime
-  (`,offline_budget_seconds=30` appended); records `adenseq30-*`,
-  `adenseq230-*`, priced against `adense30-*`.
+  with a two-row strip.  Both fixed forms lose the count on c1x80 (the
+  strip costs two items and the threshold of 41 has no slack), so neither
+  was run on CI.  `arm_adenser_a.txt`: the v58 form with the priority-first
+  fill and the strip as a fourth count-secured token
+  (`dense@plan_standing_rows_max_height=0.4&plan_count_secure_dense_priority_rows=1&plan_count_secure_dense_soft_thin=0.25`),
+  ranked against the unstripped plans: a plan over the gate first, then
+  the plan score, so the strip is taken where the count still holds.
+  Measured at the platform's regime (`,offline_budget_seconds=30`
+  appended); records `adenser30-*`, priced against `adense30-*`.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
