@@ -125,6 +125,19 @@ To measure a change, append `,field=value` to the ship arm's line.
   `ship-*` records had drifted (+1.2 / +2.0 against them); use the
   `shipr-*` records as the B bases from here.
 
+- `arm_nc_b.txt`: the shipped B form with priority cargo never covered
+  (`count_cover_priority=false`: the low phase's covers of priority stop;
+  `priority_never_covered=true`: the count pass's covers under the
+  threshold proper and the grid rescue's, which read no switch, stop too;
+  `reports/wedge/b-content.md`).  `arm_k3_b.txt` / `arm_k6_b.txt`: the
+  shipped B form with the deferral limit (`pool_defer_max=3` / `6`: a
+  soft or priority pool item passed over that many times goes to the
+  front of the ladder's order, the usual rules applying).
+  `arm_nck_b.txt`: the never-cover rule plus the better k.  Records
+  `reports/bench/nc-*`, `k3-*`, `k6-*`, `nck-*` on `sample-b`, `core-b`,
+  `hard2-b`, priced against `ship-sample-b` / `shipr-core-b` /
+  `shipr-hard2-b`.
+
 ## Judging a run
 
 `python -m bench.platform_score <base_dir> <new_dir> ...` prices every

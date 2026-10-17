@@ -384,7 +384,8 @@ def level_reading(box: AABB, packed: list, bottom: float) -> tuple[float, bool]:
 def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_candidates: int = 96,
                      fast: bool = True, mass: float = 0.0, tower_min: float | None = None,
                      extra_clearance: float = 0.0, z_top: float | None = None,
-                     dense: float = 0.0, deadline: float | None = None) -> list[Candidate]:
+                     dense: float = 0.0, deadline: float | None = None,
+                     stats: dict | None = None) -> list[Candidate]:
     """Every legal pose on the floor or on a packed top, lowest first.
 
     ``tower_min``: smallest combined centre-of-mass margin (``Tower``) a
@@ -399,8 +400,15 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
     stops and returns what it has (lowest supports and the first
     orientations first): on a three-container floor of twenty soft boxes
     the dense anchors made 113,000 poses to validate in one policy call
-    (c-hard-s0018, 11-12 s where the platform allows 8)."""
+    (c-hard-s0018, 11-12 s where the platform allows 8).  ``stats``: a
+    dict the count pass's refusals of priority covers are added to
+    (``priority_cover_refused``), for the agent's phase stats."""
     import time as _time
+    # the count pass keeps the cover rule for priority cargo when the
+    # pass's switch (config.count_cover_priority) or the never-cover rule
+    # (config.priority_never_covered) says so
+    keep_priority = (not getattr(cfg, "count_cover_priority", True)
+                     or bool(getattr(cfg, "priority_never_covered", False)))
     if getattr(cfg, "soft_is_structure", False) and not getattr(cfg, "stack_soft_is_structure", True):
         # soft cargo carries no load here (see the config): the validator
         # and the stability call below read the flag from ``cfg``
@@ -513,13 +521,15 @@ def stack_candidates(model: ContainerModel, container: dict, cfg, profile, max_c
                     # over priority cargo when the pass keeps that cover
                     # (config.count_cover_priority off: a covered priority
                     # box costs the placement score what the count earns)
-                    if not getattr(cfg, "count_cover_priority", True) and covers_other_attribute(
+                    if keep_priority and covers_other_attribute(
                             box, container, True, bool(getattr(profile, "is_prioritized", False))):
                         # the contact reading of the cover rule for priority
                         # alone (a soft box under the pose is allowed); the
                         # column reading (covers_priority, anything above a
                         # priority box) emptied the priority container's
                         # upper poses and cost 4-5 crossings a suite
+                        if stats is not None:
+                            stats["priority_cover_refused"] = stats.get("priority_cover_refused", 0) + 1
                         continue
                 elif getattr(cfg, "no_cover_other_attribute", False):
                     if covers_other_attribute(box, container, bool(getattr(profile, "is_soft", False)),

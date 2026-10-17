@@ -729,6 +729,23 @@ class RuleAlphaConfig:
     costs a share of the placement or soft score).  Off: the cover rule
     stays until the threshold is really under."""
 
+    priority_never_covered: bool = False
+    """No pose of the rescue stages may cover priority cargo, whatever the
+    count says: ``count_cover_priority`` off narrows the count pass above
+    the threshold only (under it the covers of priority stay allowed,
+    since the v32 crossings rest on them), and the grid rescue took the
+    count pass's covers without reading that switch at all.  On the
+    shipped B records (reports/wedge/b-content.md) 33 of core-b's 39
+    covered priority boxes came from the count pass and 3 from the grid
+    rescue, 34 of the 39 over the threshold: the platform's B episodes are
+    all counted with room to spare, so a cover that buys a count point
+    there buys nothing and costs the priority box's credit (18 % of the
+    placed priority boxes on core-b).  Soft cargo may still be covered
+    under the count pass's rules (soft on soft is not charged, and a soft
+    box's share is one of fifteen where a priority box's is one of three).
+    Phase stats: ``prio_cover_refused_count`` (the count pass's poses
+    refused), ``prio_cover_refused_grid`` (the grid rescue's)."""
+
     grow_ground_arbiter: str = ""
     """Grow or ground (``room.arbitrate_growth``): ``shadow`` puts a
     growth pick (terrace, plateau merge, wedge bridge) that shadows
@@ -2592,6 +2609,31 @@ class RuleAlphaConfig:
     pose, when no pool item has one -- on sample-b 40 of 128 soft boxes
     are placed, on core-b 479 of 874; the rest are in the stream at the
     decline.  So the credit has to be earned while the surface is there."""
+
+    pool_defer_max: int = 0
+    """Task B's deferral limit for the soft and priority cargo in the pool
+    (0: off).  The pool order puts every soft and priority item behind
+    every hard one, so a soft item is passed over call after call while
+    the hard cargo has poses, and the episode ends on a hard box's
+    decline with the soft cargo still in the stream (sample-b 40 of 128
+    soft boxes placed, core-b 479 of 874; the soft component 51 against
+    Task C's 64 with the same ladder, which has to place what arrives).
+    With k > 0, a soft or priority pool item that has been passed over k
+    times (``_passed_over``: the calls it sat in the pool while another
+    item was placed) goes to the front of the ladder's order, the usual
+    rules applying (the cover rule, the shelf preference, the headroom
+    reserve; the ladder's own pose or none, then the next item), and the
+    hard items after it; among several the pool order holds (priority
+    before soft, smallest first).  So the pool keeps its advantage for
+    the first k passes -- the hard box that fills the floor gap still goes
+    first -- and the indefinite deferral that leaves 7-8 soft boxes in
+    the stream at the decline stops.  The earlier soft-first passes went
+    first on the pose's surface and took the tops and shelves the
+    priority cargo needed; this one goes first on time alone.  Phase
+    stats: ``defer_calls`` (calls with a deferred item at the front),
+    ``defer_items`` (distinct items that reached k), ``defer_fired``
+    (the deferred item placed; ``_soft`` / ``_priority`` and by
+    archetype), ``defer_passed`` (passed over again)."""
 
     soft_first_restricted_share: float = 0.3
     """The share of the policy budget the restricted pass may use (its

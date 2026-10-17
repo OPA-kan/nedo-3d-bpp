@@ -119,6 +119,11 @@ class RuleAlphaAgent:
         self._phase_low = False
         self._count_cover = True
         self._really_under = True
+        # the deferral limit (config.pool_defer_max): per item index, the
+        # calls it sat in the pool while another item was placed, and the
+        # items at the front of this call's order for having reached it
+        self._passed_over: dict[int, int] = {}
+        self._deferred_now: set[int] = set()
         self.last_shadow: dict | None = None
 
     def _resize_zones_for_what_is_left(self) -> None:
@@ -665,7 +670,71 @@ class RuleAlphaAgent:
         self._shadow_synced = False
         self._shadow_fallback = None
         self.last_shadow = None
-        return self._policy_inner(observation)
+        action = self._policy_inner(observation)
+        if int(getattr(self.config, "pool_defer_max", 0) or 0) > 0:
+            self._note_passed_over(observation.get("pool_list", []) or [], action)
+        return action
+
+    # -- the deferral limit (config.pool_defer_max) --------------------------
+    def _defer_stat(self, key: str, value: float = 1) -> None:
+        self.phase_stats["defer_" + key] = self.phase_stats.get("defer_" + key, 0) + value
+
+    def _defer_order(self, ordered: list) -> list:
+        """The ladder's order with the soft and priority pool items passed
+        over ``pool_defer_max`` times or more at the front, in the pool
+        order among themselves (priority before soft, smallest first), the
+        rest after them in their order.  Sets ``_deferred_now``."""
+        k = int(getattr(self.config, "pool_defer_max", 0) or 0)
+        self._deferred_now = set()
+        if k <= 0 or len(ordered) < 2:
+            return ordered
+        front = [(pi, pr) for pi, pr in ordered
+                 if pr.cargo_class != cls.NORMAL_HARD and self._passed_over.get(int(pr.index), 0) >= k]
+        if not front:
+            return ordered
+        self._deferred_now = {int(pr.index) for _pi, pr in front}
+        self._defer_stat("calls")
+        seen = getattr(self, "_deferred_seen", None)
+        if seen is None:
+            seen = self._deferred_seen = set()
+        for index in self._deferred_now:
+            if index not in seen:
+                seen.add(index)
+                self._defer_stat("items")
+        return front + [pp for pp in ordered if pp not in front]
+
+    def _note_passed_over(self, pool: list, action: dict | None) -> None:
+        """After a call that placed something: every other pool item was
+        passed over once more; the counters of the deferred items say
+        whether the front of the order fired."""
+        if action is None:
+            return
+        try:
+            placed = int(action["item_idx"])
+        except (KeyError, TypeError, ValueError):
+            return
+        placed_index = None
+        for pool_index, item in enumerate(pool):
+            try:
+                index = int(item["index"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if pool_index == placed:
+                placed_index = index
+                continue
+            self._passed_over[index] = self._passed_over.get(index, 0) + 1
+        if not self._deferred_now:
+            return
+        if placed_index in self._deferred_now:
+            item = pool[placed]
+            self._defer_stat("fired")
+            self._defer_stat("fired_priority" if item.get("is_prioritized") else "fired_soft")
+            decision = self.last_decision
+            archetype = getattr(getattr(decision, "placement", None), "archetype", None) if decision is not None else None
+            if archetype:
+                self._defer_stat("fired_" + str(archetype))
+        else:
+            self._defer_stat("passed")
 
     # -- the shadow check ----------------------------------------------------
     def _shadow_sim(self):
@@ -942,6 +1011,13 @@ class RuleAlphaAgent:
                 ordered = layer1.pool_order_fit(profiles, self.config, self.board)
             except Exception as exc:
                 print(f"[pool-order] fit order failed: {exc!r}", flush=True)
+        # the deferral limit (config.pool_defer_max): a soft or priority
+        # pool item passed over k times goes to the front of every stage's
+        # order; the stages' own rules decide whether it has a pose
+        self._deferred_now = set()
+        if (int(getattr(self.config, "pool_defer_max", 0) or 0) > 0 and len(pool) > 1
+                and not (self.plan_by_index and self.plan_source == "planner")):
+            ordered = self._defer_order(ordered)
         reserve = self._soft_headroom_reserve(containers)
         self.board.soft_headroom_reserve = reserve
         self.board.soft_headroom_reserve_by_container = {
@@ -2750,6 +2826,20 @@ class RuleAlphaAgent:
             value += 0.9 if item.get("is_soft") else (2.9 if item.get("is_prioritized") else 0.3)
         return value >= float(getattr(self.config, "count_mode_min_value", 2.0))
 
+    def _priority_cover_allowed(self, count: bool) -> bool:
+        """Whether a pose of the rescue stages (the count pass, the grid
+        rescue) may cover priority cargo on this call, once the cover
+        rule has been lifted for the call (``_count_cover``).  Never with
+        ``priority_never_covered``; otherwise under the threshold proper
+        yes, and above it (the low phase's covers) only while
+        ``count_cover_priority`` says so.  Outside the count pass the
+        cover rule itself decides, so True."""
+        if getattr(self.config, "priority_never_covered", False):
+            return False
+        if not count:
+            return True
+        return bool(getattr(self, "_really_under", True)) or bool(getattr(self.config, "count_cover_priority", True))
+
     def _rescue_order(self, count: bool) -> tuple[float, bool]:
         """(rescue_seal_area, rescue_deep_first) for this rescue call, after
         config.rescue_order_gate: (0.0, False) where the gate is shut."""
@@ -2842,11 +2932,11 @@ class RuleAlphaAgent:
             # under the threshold proper the covers of priority stay allowed
             # whatever count_cover_priority says: the v32 crossings rest on
             # them (phase5/6 refused them there too and lost five crossings
-            # a suite); the switch narrows the low phase above it only
+            # a suite); the switch narrows the low phase above it only, and
+            # priority_never_covered closes both (_priority_cover_allowed)
             cfg = dataclasses.replace(cfg, allow_cover_other_attribute=bool(getattr(self, "_count_cover", True)),
                                       soft_is_structure=True, stack_soft_is_structure=True,
-                                      count_cover_priority=bool(getattr(self, "_really_under", True))
-                                      or bool(getattr(strict, "count_cover_priority", True)))
+                                      count_cover_priority=self._priority_cover_allowed(True))
         elif getattr(strict, "resort_soft_structure", False):
             # over the threshold too, soft tops carry soft cargo in the
             # resort (config.resort_soft_structure): the cover rule stays,
@@ -2910,11 +3000,15 @@ class RuleAlphaAgent:
                         # 11-12 s in one call where the platform allows 8)
                         gen_deadline = deadline - max(self._shadow_longest, 0.2) \
                             if getattr(strict, "physics_resort_generation_deadline", True) else None
+                        gen_stats: dict = {}
                         cands = stack_candidates(model, container, cfg, profile, max_candidates=limit,
                                                  mass=float(item.get("mass", 0.0)), tower_min=None,
                                                  extra_clearance=0.0, z_top=None,
                                                  dense=float(getattr(strict, "physics_resort_anchor_step", 0.04)),
-                                                 deadline=gen_deadline)
+                                                 deadline=gen_deadline, stats=gen_stats)
+                        if gen_stats.get("priority_cover_refused"):
+                            self.phase_stats["prio_cover_refused_count"] = (
+                                self.phase_stats.get("prio_cover_refused_count", 0) + int(gen_stats["priority_cover_refused"]))
                         # half the footprint over the support at least: the
                         # shake test comes after the settle
                         # (under the threshold the physics judges the
@@ -3215,6 +3309,11 @@ class RuleAlphaAgent:
             band_lift=max(float(strict.band_lift), float(getattr(strict, "band_lift_rescue", 0.0))),
         )
         allow_cover = bool(getattr(self, "_count_cover", True)) if count else bool(getattr(strict, "allow_cover_other_attribute", False))
+        # the covers of priority cargo under the count pass's own switch
+        # (config.count_cover_priority) and the never-cover rule
+        # (config.priority_never_covered): the rescue took every cover the
+        # count pass allowed without reading the switch
+        allow_priority_cover = self._priority_cover_allowed(count)
         min_support = self._grid_min_support(count)
         tries_limit = int(getattr(strict, "grid_rescue_tries", 12))
         need = max(self._shadow_longest, 0.2)
@@ -3295,6 +3394,12 @@ class RuleAlphaAgent:
                             continue
                         cover = bool(covers_other_attribute(box, container, bool(profile.is_soft), bool(profile.is_prioritized)))
                         if cover and not allow_cover:
+                            continue
+                        if cover and not allow_priority_cover and covers_other_attribute(
+                                box, container, True, bool(profile.is_prioritized)):
+                            # the contact reading for priority alone, as in
+                            # the count pass (wedge_rl.stack.stack_candidates)
+                            self.phase_stats["prio_cover_refused_grid"] = self.phase_stats.get("prio_cover_refused_grid", 0) + 1
                             continue
                         pose = _Pose()
                         pose.orientation, pose.on_floor, pose.box, pose.bottom = orientation.index, on_floor, box, bottom
