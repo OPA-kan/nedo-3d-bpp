@@ -49,6 +49,22 @@ To measure a change, append `,field=value` to the ship arm's line.
   `arm_asofte_a.txt` / `arm_asoftnle_a.txt`: the same two with the block's
   rows ending 3 cm short of the wall (`plan_count_secure_soft_end_slack`);
   records `asofte30-*`, `asoftnle30-*`. None adopted.
+- `arm_adense_a.txt`: the v57 A form (`arm_acsfix_a` with the dry-run off)
+  with the dense count-secured plans and the plan-only soft cap
+  (`plan_count_secure_soft_cap=1.6`,
+  `plan_count_secure_blocks=plain;dense;dense@plan_standing_rows_max_height=0.4`:
+  the hard cargo's flat layers, the frame's soft boxes standing on the
+  chamfer ledge, the standing layer -- the shipped 0.55 m one or the boxes
+  on edge at 0.40 m -- with the priority hard boxes last, then two flat
+  soft layers over the top; `reports/wedge/a-dense.md`).  Measured at the
+  platform's regime (`,offline_budget_seconds=30` appended); records
+  `reports/bench/adense30-*` (the dense plans ranked like any re-plan,
+  `plan_count_secure_dense_when_short=false` in effect: the commit before
+  the guard) and `adenses30-*` (the dense plans only while no plan holds
+  the threshold plus the margin, the default), priced against
+  `acsfix30-*` and `ship30-*`.  `arm_acap_a.txt`: the v57 form with the
+  plan-only soft cap alone (`plain` under the cap: a second soft layer on
+  the shipped standing layer); record `acap30-dense-a`.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
