@@ -151,10 +151,14 @@ To measure a change, append `,field=value` to the ship arm's line.
   shipped B form with the deferral limit (`pool_defer_max=3` / `6`: a
   soft or priority pool item passed over that many times goes to the
   front of the ladder's order, the usual rules applying).
-  `arm_nck_b.txt`: the never-cover rule plus the better k.  Records
-  `reports/bench/nc-*`, `k3-*`, `k6-*`, `nck-*` on `sample-b`, `core-b`,
-  `hard2-b`, priced against `ship-sample-b` / `shipr-core-b` /
-  `shipr-hard2-b`.
+  `arm_k9_b.txt`: the same at 9.  `arm_ncl_b.txt`: the shipped B form
+  with `count_cover_priority=false` alone (the low phase's covers of
+  priority stop, the count pass's under the threshold stay; with the
+  grid rescue now reading the switch).  `arm_nck_b.txt`: **the
+  candidate B form**, `arm_ncl_b` plus `pool_defer_max=6`.  Records
+  `reports/bench/nc-*`, `ncl-*`, `k3-*`, `k6-*`, `k9-*`, `nck-*` on
+  `sample-b`, `core-b`, `hard2-b`, priced against `ship-sample-b` /
+  `shipr-core-b` / `shipr-hard2-b`.
 
 ## Judging a run
 
