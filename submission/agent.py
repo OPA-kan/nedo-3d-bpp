@@ -209,6 +209,9 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # [-0.22, +6.61] (31 -> 33 counted).  The platform's four uncounted A
 # episodes are of the dense kind (findings, the composition from the
 # diagnostics).
+# v59: v58 plus the dense plan's priority strip as a ranked fourth token
+# and the priority-first fill (reports/wedge/a-dense-quality.md): the
+# count unchanged, the priority credit back (dense-a +3.40 over v58).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -597,7 +600,20 @@ class Agent(RuleAlphaAgent):
                       # v58 note below): flat hard layers, the chamfer
                       # ledge, the 0.55 x 0.40 class standing low, two soft
                       # layers under a plan-only soft cap
-                      plan_count_secure_blocks="plain;dense;dense@plan_standing_rows_max_height=0.4",
+                      # v59: a fourth dense token with a front strip of the
+                      # standing layer reserved for the priority boxes (and
+                      # the flat soft laid before the 0.40 m ones), which
+                      # the re-plan's rank takes only where the count holds;
+                      # the priority boxes first in every dense fill pass.
+                      # reports/wedge/a-dense-quality.md: dense-a +3.40
+                      # [+2.46, +4.41] over v58 with the same 47 counted
+                      # (priority placed 2.1 -> 4.0 a scene), core-a +0.19,
+                      # hard-a -0.18 n.s.
+                      plan_count_secure_blocks=("plain;dense;dense@plan_standing_rows_max_height=0.4;"
+                                                "dense@plan_standing_rows_max_height=0.4"
+                                                "&plan_count_secure_dense_priority_rows=1"
+                                                "&plan_count_secure_dense_soft_thin=0.25"),
+                      plan_count_secure_dense_priority_fill=True,
                       plan_count_secure_soft_cap=1.6,
                       # v56: the re-plan with the typed-standing gallery
                       # (reports/wedge/a-standing.md: the count frame's soft

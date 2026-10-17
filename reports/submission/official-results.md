@@ -730,3 +730,12 @@ C 2.25 s), awaiting the platform.  Bench at the 30 s budget against
 v56's form: dense-a +27.97 [+20.81, +35.34] (counted 23 -> 47 of 48),
 core-a +0.55 n.s., hard-a +2.61 n.s. (31 -> 33).  Expected: the four
 uncounted dense A episodes crossing (reports/wedge/a-dense.md).
+
+v59 (v58 plus the dense plan's priority strip as a ranked token and the
+priority-first fill; B and C as v54) is built and checked on the
+official sample (A 33.35 / 31 against v58's 29, B 29.59 / 26,
+C 26.44 / 25, the optimize 10.5 s, policy max B 2.80 s, C 2.44 s),
+awaiting the platform; it supersedes v58.  Bench at the 30 s budget
+against v58: dense-a +3.40 [+2.46, +4.41] with the same 47 of 48
+counted (priority placed 2.1 -> 4.0 a scene), core-a +0.19, hard-a
+-0.18 n.s. (reports/wedge/a-dense-quality.md).

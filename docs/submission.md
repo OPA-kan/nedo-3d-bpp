@@ -982,6 +982,20 @@ platform: the four uncounted A episodes (dense, 0.45 placed) crossing
 where the x70/x80 bench does, about 2.7 points each; the price a
 little priority credit on those scenes.
 
+Fifty-ninth build (v59): v58 plus the dense plan's priority strip as a
+ranked fourth count-secured token (a front strip of the standing layer
+reserved for the priority boxes, the flat soft laid before the 0.40 m
+ones; the re-plan's rank takes it only where the count holds, 16 of 48
+dense scenes) and the priority boxes first in every dense fill pass
+(`plan_count_secure_dense_priority_fill`; `reports/wedge/a-dense-quality.md`).
+At the 30 s bench budget against v58: dense-a +3.40 [+2.46, +4.41] with
+the same 47 of 48 counted (priority placed 2.1 -> 4.0 a scene,
+placement +28.0, fill -0.9, soft -3.6, topples 1 -> 0), core-a +0.19
+[+0.00, +0.56], hard-a -0.18 [-0.49, +0.08]; the fourth plan adds 1-3 s
+a scene.  Official sample: A 33.35 / 31 (v58 29, v57 23), B 29.59 / 26,
+C 26.44 / 25, the optimize 10.5 s; policy max B 2.80 s, C 2.44 s
+(`official-sample-abc-v59.json`).  Supersedes v58 as the candidate.
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the
