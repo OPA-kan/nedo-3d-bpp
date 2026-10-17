@@ -286,6 +286,11 @@ priority.  No topple added (4 -> 4).
 |---|---|---:|---|---|---:|---|---:|---:|---:|---:|---:|---:|---:|
 | v56 | `acsfix30-hard-a` | 45.95 | +6.01 [+1.18, +11.88] | base | 31 | - | +0.0 | +7.9 | +10.1 | +9.9 | +5.3 | +1.77 | 20 |
 | dense | `adense30-hard-a` | 48.56 | +8.63 [+3.25, +14.82] | **+2.61 [-0.22, +6.61]** | **33** (+2) | 13 / 10 | +0.2 | +3.5 | +4.3 | +1.3 | +5.1 | +0.73 | **14** |
+| dense, when short | `adenses30-hard-a` | 48.57 | +8.64 [+3.23, +14.84] | +2.63 [-0.19, +6.56] | 33 (+2) | 13 / 10 | -0.0 | +3.6 | +4.2 | +1.8 | +5.0 | +0.62 | 15 |
+
+(The guard changes hard-a by nothing: the same two crossings in,
+s0016 and s0019, none out, the dense plan picked on 8 scenes instead of
+10, 48.57 against 48.56.)
 
 Crossings in: a-hard-s0016 (39 -> 41, the threshold 41) and a-hard-s0019
 (62 -> 71 against 64; the plain re-plan under the plan cap, 78 planned);

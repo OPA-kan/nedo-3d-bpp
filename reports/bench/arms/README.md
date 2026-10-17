@@ -62,7 +62,8 @@ To measure a change, append `,field=value` to the ship arm's line.
   the default), priced against `acsfix30-*` and `ship30-*`.
   `arm_adenses_a.txt`: the same with `plan_count_secure_dense_when_short`
   (the dense plans only while no plan holds the threshold plus the
-  margin); records `adenses30-*`, 2.2 under the default form on dense-a.
+  margin); records `adenses30-*`, 2.2 under the default form on dense-a,
+  level with it on core-a and hard-a.
   `arm_acap_a.txt`: the v57 form with the plan-only soft cap alone
   (`plain` under the cap: a second soft layer on the shipped standing
   layer); record `acap30-dense-a` (+0.67, eight topples).
