@@ -442,3 +442,139 @@ class SoftFrameBlockTest(unittest.TestCase):
             self.assertGreaterEqual(y_back - o.dy / 2.0 - float(placed.maximum[1]), 0.026 - 1e-6)
         finally:
             agent.config = saved
+
+
+class DensePlanTest(unittest.TestCase):
+    """``plan_count_secure_blocks`` token ``dense`` (reports/wedge/a-dense.md):
+    the flat hard layers, the frame's soft boxes standing on the chamfer
+    ledge, the standing layer with the priority hard boxes last, then the
+    soft layers over the top under the re-plan's own soft-structure cap
+    (``plan_count_secure_soft_cap``), which the replay validates under."""
+
+    @classmethod
+    def setUpClass(cls):
+        import time
+
+        cls.scene = make_scene(3, "c1x80", "A")
+        cls.agent = make_arm(PLANNER + ",plan_standing_rows=true,plan_soft_own_rows=true,"
+                             "plan_standing_rows_max_height=0.4,plan_count_secure_soft_cap=1.6")(cls.scene)
+        cls.containers = cls.scene.rule_alpha_containers()
+        cls.agent.get_init_states({"container_list": cls.containers})
+        cls.items = [dict(i) for i in cls.scene.items]
+        cls.agent._prepare_manifest(cls.items)
+        cls.agent._manifest_total = len(cls.items)
+        cls.agent.plan_source = "planner"
+        cls.threshold = len(cls.items) // 2 + 1
+        cls.frame = count_secure.count_frame(cls.items, cls.threshold + 2)
+        cls.by_index = {int(i["index"]): i for i in cls.items}
+        cap = count_secure._plan_soft_cap(cls.agent.config)
+        with cap:
+            cls.order, cls.plan, cls.info = count_secure.plan_dense(cls.agent, cls.items, time.perf_counter() + 120,
+                                                                   cls.frame)
+        cls.capped = cap.mark(cls.plan, cls.by_index)
+
+    def test_defaults_leave_the_dense_plan_out(self):
+        self.assertEqual(DEFAULT_CONFIG.plan_count_secure_blocks, "plain")
+        self.assertLess(DEFAULT_CONFIG.plan_count_secure_soft_cap, 0.0)
+        self.assertTrue(DEFAULT_CONFIG.plan_count_secure_dense_ledge)
+
+    def test_layers_in_carrying_order(self):
+        steps = sorted(self.plan, key=lambda e: e["step"])
+        model = self.agent.board.model(0)
+        shelf_top = float(model.small_shelf.maximum[2])
+        n_flat, n_ledge, n_stand = self.info["flat"], self.info["ledge"], self.info["standing"]
+        flat = steps[:n_flat]
+        ledge = steps[n_flat:n_flat + n_ledge]
+        standing = steps[n_flat + n_ledge:n_flat + n_ledge + n_stand]
+        self.assertGreaterEqual(n_flat, 10)
+        self.assertGreaterEqual(n_ledge, 4)
+        self.assertGreaterEqual(n_stand, 10)
+        # the flat layers: hard, flat, two deep at most
+        for e in flat:
+            self.assertFalse(self.by_index[e["index"]]["is_soft"])
+            self.assertAlmostEqual(e["size"][2], min(e["size"]), places=6)
+        self.assertLess(max(e["bottom"] + e["size"][2] for e in flat), 0.6)
+        # the ledge: the frame's normal soft boxes standing on the small
+        # shelf's top, inside its width, before the standing layer
+        for e in ledge:
+            item = self.by_index[e["index"]]
+            self.assertTrue(item["is_soft"] and not item["is_prioritized"] and e["index"] in set(self.frame))
+            self.assertAlmostEqual(e["bottom"], shelf_top, places=3)
+            self.assertAlmostEqual(e["size"][2], max(e["size"]), places=6)
+            self.assertLessEqual(e["center"][0] + e["size"][0] / 2.0, float(model.small_shelf.maximum[0]) + 1e-6)
+        # the standing layer on edge (0.40 m tall), the priority boxes last
+        for e in standing:
+            self.assertFalse(self.by_index[e["index"]]["is_soft"])
+            self.assertLessEqual(e["size"][2], 0.4 + 1e-6)
+        prio = [k for k, e in enumerate(standing) if self.by_index[e["index"]]["is_prioritized"]]
+        if prio:
+            self.assertEqual(prio, list(range(len(standing) - len(prio), len(standing))))
+
+    def test_soft_layers_two_deep_under_the_plan_cap(self):
+        soft = [e for e in self.plan if self.by_index[e["index"]]["is_soft"] and not e["on_floor"]]
+        # a second soft layer over the first, above the online cap of 0.7 m
+        self.assertTrue(any(e["bottom"] > 1.1 for e in soft if e["bottom"] > 0.9))
+        self.assertEqual(self.capped, len(soft))
+        for e in soft:
+            self.assertAlmostEqual(e["soft_cap"], 1.6, places=6)
+        self.assertGreaterEqual(len(self.plan), self.threshold)
+        self.assertEqual(self.order[:len(self.plan)], [e["index"] for e in sorted(self.plan, key=lambda e: e["step"])])
+
+    def test_plan_is_legal_step_by_step_under_the_cap(self):
+        from rule_alpha.planner import _Pose, _placement
+
+        config = self.agent.config
+        board = layer1.Board([dict(c, packed_items=[]) for c in self.containers], config)
+        with count_secure._plan_soft_cap(config):
+            for entry in sorted(self.plan, key=lambda e: e["step"]):
+                model = board.model(entry["container_idx"])
+                box = AABB(tuple(entry["center"]), tuple(entry["size"]), "plan")
+                ok, why = layer1.validate(box, model, board.container(entry["container_idx"]), config)
+                self.assertTrue(ok, f"step {entry['step']}: {why}")
+                profile = self.agent.profiles[entry["index"]]
+                orientation = next(o for o in profile.orientations if o.index == entry["orientation"])
+                board.apply(_placement(_Pose(box, orientation, model.z_floor), 1, profile, entry["container_idx"],
+                                       model))
+
+    def test_replay_lifts_the_cap_for_a_capped_pose_only(self):
+        from rule_alpha import stability
+        from rule_alpha.planner import replay
+
+        agent = self.agent
+        soft = [p for p in agent.profiles.values() if p.is_soft and not p.is_prioritized
+                and abs(p.orientations[0].dx - 0.65) < 1e-9]
+        first, second = soft[0], soft[1]
+        o = next(oo for oo in first.orientations if abs(oo.dz - 0.23) < 1e-9 and abs(oo.dx - 0.65) < 1e-9)
+        board = layer1.Board([dict(c, packed_items=[]) for c in self.containers], agent.config)
+        model = board.model(0)
+        rect = model.floor_rect
+        x, y = rect.x_min + 0.5, rect.y_max - 0.4
+        # a hard column to 0.94 m, a flat soft box on it (top 1.17 m), and
+        # the plan's pose for a second soft box on that one
+        hard = [p for p in agent.profiles.values() if not p.is_soft and abs(p.orientations[0].dx - 0.65) < 1e-9]
+        z = model.z_floor
+        for h in hard[:2]:
+            oh = next(oo for oo in h.orientations if abs(oo.dz - 0.45) < 1e-9 and abs(oo.dx - 0.65) < 1e-9)
+            board.container(0)["packed_items"].append(dict(index=h.index, position=[x, y, z + oh.dz / 2.0],
+                                                           dims=[oh.dx, oh.dy, oh.dz], is_soft=False,
+                                                           is_prioritized=False))
+            z += oh.dz
+        board.container(0)["packed_items"].append(dict(index=first.index, position=[x, y, z + o.dz / 2.0],
+                                                       dims=[o.dx, o.dy, o.dz], is_soft=True, is_prioritized=False))
+        z += o.dz
+        self.assertGreater(z, 0.7)
+        entry = {"step": 9, "index": second.index, "container_idx": 0, "orientation": int(o.index),
+                 "center": [x, y, z + o.dz / 2.0], "size": [o.dx, o.dy, o.dz], "bottom": z, "on_floor": False}
+        pool = [(0, second)]
+        agent.plan_misses = 0
+        saved = (stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE)
+        try:
+            stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.7, 0.35
+            self.assertIsNone(replay(agent, board, pool, {second.index: dict(entry)}))
+            hit = replay(agent, board, pool, {second.index: dict(entry, soft_cap=1.6)})
+            self.assertIsNotNone(hit)
+            self.assertAlmostEqual(float(hit[1].placement.box.minimum[2]), z, places=3)
+            # the online cap is back once the replay returns
+            self.assertEqual((stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE), (0.7, 0.35))
+        finally:
+            stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE = saved

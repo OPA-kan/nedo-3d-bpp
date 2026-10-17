@@ -1180,10 +1180,17 @@ def replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict)
     the validator on the board as it stands (settled, not as planned).  A
     soft-floor plan (config.plan_soft_floor_under_count) replays with the
     soft floor carrying load whatever its share of the floor."""
-    if not any(e.get("over_soft") for e in plan_by_index.values()):
-        return _replay(agent, board, pool_profiles, plan_by_index)
-    with _soft_floor_structure(agent.config, None):
-        return _replay(agent, board, pool_profiles, plan_by_index)
+    if any(e.get("over_soft") for e in plan_by_index.values()):
+        with _soft_floor_structure(agent.config, None):
+            return _replay(agent, board, pool_profiles, plan_by_index)
+    caps = [float(e["soft_cap"]) for e in plan_by_index.values() if e.get("soft_cap") is not None]
+    if caps:
+        # a count-secured plan made under its own soft-structure cap
+        # (config.plan_count_secure_soft_cap): its soft poses on soft tops
+        # over the online cap are legal only under the plan's
+        with _soft_floor_structure(agent.config, max(caps)):
+            return _replay(agent, board, pool_profiles, plan_by_index)
+    return _replay(agent, board, pool_profiles, plan_by_index)
 
 
 def _replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict) -> layer1.Decision | None:
