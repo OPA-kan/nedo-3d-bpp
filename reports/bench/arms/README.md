@@ -59,12 +59,13 @@ To measure a change, append `,field=value` to the ship arm's line.
   soft layers over the top; `reports/wedge/a-dense.md`).  Measured at the
   platform's regime (`,offline_budget_seconds=30` appended); records
   `reports/bench/adense30-*` (the dense plans ranked like any re-plan,
-  `plan_count_secure_dense_when_short=false` in effect: the commit before
-  the guard) and `adenses30-*` (the dense plans only while no plan holds
-  the threshold plus the margin, the default), priced against
-  `acsfix30-*` and `ship30-*`.  `arm_acap_a.txt`: the v57 form with the
-  plan-only soft cap alone (`plain` under the cap: a second soft layer on
-  the shipped standing layer); record `acap30-dense-a`.
+  the default), priced against `acsfix30-*` and `ship30-*`.
+  `arm_adenses_a.txt`: the same with `plan_count_secure_dense_when_short`
+  (the dense plans only while no plan holds the threshold plus the
+  margin); records `adenses30-*`, 2.2 under the default form on dense-a.
+  `arm_acap_a.txt`: the v57 form with the plan-only soft cap alone
+  (`plain` under the cap: a second soft layer on the shipped standing
+  layer); record `acap30-dense-a` (+0.67, eight topples).
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.

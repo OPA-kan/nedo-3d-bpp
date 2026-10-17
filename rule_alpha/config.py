@@ -3326,17 +3326,22 @@ class RuleAlphaConfig:
     standing layer's left column, and the planner's sweep refuses the
     pose once that column stands.  Off: no ledge."""
 
-    plan_count_secure_dense_when_short: bool = True
-    """The ``dense`` plans are planned only while no plan so far (the
+    plan_count_secure_dense_when_short: bool = False
+    """On, the ``dense`` plans are planned only while no plan so far (the
     planner's, or an earlier count-secured one) holds the count threshold
     plus ``plan_value_margin``.  The dense plan holds 36-40 items on the
     c1x50 manifests (threshold 26), where the plain re-plan's 27-33
-    already count, and the plan score's count weight would take it; it
-    gets there by leaving the priority hard boxes out of the standing
-    layer (nothing normal may cover them, so they take its front rows or
-    none), which the platform's placement component prices on a counted
-    episode (about -2 a scene against +1.5 of fill and soft).  Off: the
-    dense plans are ranked like any other re-plan."""
+    already count, and the plan score's count weight takes it; it gets
+    there by leaving the priority hard boxes out of the standing layer
+    (nothing normal may cover them, so they take its front rows or none),
+    which the platform's placement component prices on a counted episode.
+    Measured on the bench (``reports/bench/adense30-dense-a`` against
+    ``adenses30-dense-a``, ``reports/wedge/a-dense.md``): the priority
+    boxes the guard keeps are worth less than the soft boxes and the fill
+    the dense plan adds on the counted scenes (placement -2.0 against
+    +0.6, soft +57.5 against +42.0, the suite +28.0 against +25.8 over
+    the v56 form), so the guard is off: the dense plans are ranked like
+    any other re-plan."""
 
     transport_clearance: float = 0.0
     """Clearance of the transport sweep from packed cargo and shelves when
