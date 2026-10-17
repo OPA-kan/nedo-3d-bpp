@@ -138,7 +138,34 @@ platform: about 2.5), so the rank is conservative.
 (`agent.optimize`, the 30 s offline budget) per scene for the v58 arm
 and the form; the plan it ships, and every variant's count.
 
-RANKED_TABLE
+| items (threshold) | arm | planned | over the threshold | soft | priority (hard) | com | price vs v58 | planner s |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| 50 (26) | v58 | 33.7 | 11 of 12 | 11.2 | 3.3 (1.7) | 0.404 | - | 6.9 |
+| 50 | form | 32.7 | 11 | 10.2 | 4.4 (2.6) | 0.397 | +1.60 | 8.4 |
+| 60 (31) | v58 | 40.0 | 12 of 12 | 15.5 | 2.1 (0.4) | 0.444 | - | 9.4 |
+| 60 | form | 39.2 | 12 | 14.6 | 4.2 (2.2) | 0.440 | +3.89 | 11.2 |
+| 70 (36) | v58 | 40.8 | 12 of 12 | 16.1 | 1.7 (0.3) | 0.450 | - | 10.3 |
+| 70 | form | 39.9 | 12 | 15.7 | 4.3 (2.2) | 0.444 | +4.98 | 12.3 |
+| 80 (41) | v58 | 42.1 | 11 of 12 | 17.6 | 1.2 (0.0) | 0.457 | - | 13.5 |
+| 80 | form | 41.7 | 11 | 17.2 | 3.2 (1.0) | 0.456 | +3.21 | 16.1 |
+| all | form | 38.4 (v58 39.1) | 46 of 48 (46) | 14.4 (15.1) | 4.0 (2.1) | 0.434 (0.439) | **+3.42**, 40 up / 3 down | |
+
+(`rank_dense.md`, the picks in `picks.txt`, `rank_picks.py`.)  The same
+46 of 48 plans over the threshold, the priority boxes planned 2.1 ->
+4.0 a scene (the hard ones 0.6 -> 2.0) for 0.7 items and 0.7 soft boxes
+fewer.  The strip's plan is picked on 16 of the 48 scenes (x50 2, x60
+7, x70 6, x80 1: x80-s0005, where it holds the threshold exactly and
+stands 5 of its 13 priority items against 0), the unstripped on-edge
+plan with the priority-first fill on 21, the 0.55 m standing plan on 7
+and the planner's own plan on 4 (x50, as v58).  On c1x80 the rank falls
+back as meant: the strip's plans hold 38-41 against the thresholds and
+are out-ranked by the unstripped 41-43 everywhere but s05.  The three
+scenes down are x50's, the fill's (-0.6 to -1.5: a priority box placed
+first in the fill changes what the pose search finds after it, 1-5 items
+on x50-s0002 for one priority box).  The planner's time grows 1.5-2.6 s
+a scene here for the fourth plan (4-13 s on the platform's machine); on
+the biggest hard-a manifests the start-factor guard skips it as it
+skips the on-edge plan today.
 
 ## 4. Local physics (`python -m bench run`, physics, policy budget 4.5 s, offline budget 30 s)
 
