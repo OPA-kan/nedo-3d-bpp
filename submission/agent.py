@@ -116,6 +116,22 @@ DIAGNOSTIC_SURRENDER_TASKS: tuple = ()
 # offline_dry_run=False; the ladder's dry-run alone: offline_planner="").
 # Empty in every scored build.
 DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
+# v60: Task B's content levers (reports/wedge/b-content.md), applied once
+# on the first policy call that shows a pool (Task B; Tasks A and C keep
+# the shared config): the count pass never covers a priority box (the
+# platform's B episodes are all counted with room to spare, so a cover
+# that buys a count point there buys nothing and costs the box's
+# placement credit), and a soft or priority pool item passed over six
+# times goes first (Task C's soft credit comes from placing the soft
+# cargo when it arrives; B deferred it behind every hard box and ended
+# with it in the stream).  Bench against fresh replicates of the shipped
+# B form: core-b +3.41 [+2.17, +4.78] (48 of 48 counted, placement
+# +13.8, soft +18.8, cog +3.5, fill -5.8; the max step time 7.4 -> 6.6 s),
+# sample-b +11.03 [+1.78, +22.72], hard2-b +0.71 n.s.  Either alone is
+# worse: never-cover alone loses four core-b crossings (the low phase's
+# covers are what it places with under the threshold), the deferral
+# alone +2.44; together the deferral places what the covers were buying.
+TASK_B_OVERRIDES: dict = {"count_cover_priority": False, "pool_defer_max": 6}
 # v41 (not kept, see OVERRIDES): the row-tiling term along both axes
 # with the near-neighbour slivers on Tasks B and C; official 50.32
 # against v39's 52.71, one episode under the count threshold.
@@ -672,6 +688,16 @@ class Agent(RuleAlphaAgent):
         if DIAGNOSTIC_SURRENDER_TASKS and self._task_of(observation) in DIAGNOSTIC_SURRENDER_TASKS:
             action = None
         else:
+            if TASK_B_OVERRIDES and not getattr(self, "_task_b_applied", False) and self._task_of(observation) == "B":
+                # v60: Task B's content levers, once, on the first call
+                # that shows a pool (see TASK_B_OVERRIDES)
+                self._task_b_applied = True
+                try:
+                    self.config = dataclasses.replace(self.config, **TASK_B_OVERRIDES)
+                    if self.stack_option is not None:
+                        self.stack_option.config = dataclasses.replace(self.stack_option.config, **TASK_B_OVERRIDES)
+                except Exception:
+                    pass
             try:
                 action = super().policy(observation)
             except Exception:

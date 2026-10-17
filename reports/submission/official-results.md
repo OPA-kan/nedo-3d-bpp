@@ -739,3 +739,16 @@ awaiting the platform; it supersedes v58.  Bench at the 30 s budget
 against v58: dense-a +3.40 [+2.46, +4.41] with the same 47 of 48
 counted (priority placed 2.1 -> 4.0 a scene), core-a +0.19, hard-a
 -0.18 n.s. (reports/wedge/a-dense-quality.md).
+
+v60 (v59 plus Task B's content levers, applied on Task B only: the
+count pass never covers a priority box, and a soft or priority pool
+item passed over six times goes first; A and C as v59) is built and
+checked on the official sample (A 33.35 / 31 as v59, B 24.82 / 25
+against v59's 29.59 / 26 -- the fill falls while the platform's pricing
+of the same B scene reads 57.2 -> 61.4 on placement and soft, C 26.44 /
+25, the optimize 10.2 s, policy max B 2.31 s, C 2.41 s), awaiting the
+platform; it supersedes v59.  Bench against fresh replicates of the
+shipped B form: core-b +3.41 [+2.17, +4.78] with 48 of 48 counted
+(placement +13.8, soft +18.8, cog +3.5, fill -5.8), sample-b +11.03,
+hard2-b +0.71 n.s. (reports/wedge/b-content.md).  Expected at the task
+shares: about +1.6 on the platform total.

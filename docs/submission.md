@@ -996,6 +996,28 @@ a scene.  Official sample: A 33.35 / 31 (v58 29, v57 23), B 29.59 / 26,
 C 26.44 / 25, the optimize 10.5 s; policy max B 2.80 s, C 2.44 s
 (`official-sample-abc-v59.json`).  Supersedes v58 as the candidate.
 
+Sixtieth build (v60): v59 plus Task B's content levers
+(`TASK_B_OVERRIDES` in `submission/agent.py`, applied once on the first
+policy call that shows a pool, so Tasks A and C keep the shared config):
+`count_cover_priority=False` (the count pass never covers a priority box;
+the platform's B episodes are all counted with room to spare, so a cover
+that buys a count point there buys nothing and costs the box's placement
+credit) and `pool_defer_max=6` (a soft or priority pool item passed over
+six times goes to the front of the ladder's order;
+`reports/wedge/b-content.md`).  Bench against fresh replicates of the
+shipped B form: core-b +3.41 [+2.17, +4.78] (48 of 48 counted, 39 up / 9
+down; placement +13.8, soft +18.8, cog +3.5, fill -5.8; the policy max
+step 7.4 -> 6.6 s), sample-b +11.03 [+1.78, +22.72], hard2-b +0.71 n.s.
+(the crossings 7 up / 7 down).  Either lever alone is worse: never-cover
+alone loses four core-b crossings, the deferral alone +2.44.  Official
+sample: A 33.35 / 31 (as v59), B 24.82 / 25 (v59 29.59 / 26: the fill
+falls, the platform's pricing of the same scene 57.2 -> 61.4 on
+placement and soft), C 26.44 / 25, the optimize 10.2 s; policy max B
+2.31 s, C 2.41 s (`official-sample-abc-v60.json`).  Watch items: the fill
+cost (-5.8 on core-b) and the settle accidents from stack poses emitted
+at the budget's edge with the shadow check skipped (the deferral at 9
+lost two crossings to them; at 6 none).  Supersedes v59 as the candidate.
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the
