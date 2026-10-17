@@ -3358,7 +3358,14 @@ class RuleAlphaConfig:
     layer) and the platform's placement component pays for it once the
     episode counts (4.8 -> 2.1 priority boxes a scene on dense-a).  The
     strip trades the soft row over it, one soft box a layer a row, for
-    the strip's priority boxes.  0: no strip."""
+    the strip's priority boxes: two items a plan on the dense manifests,
+    which c1x80 (threshold 41, the plans 41-44) cannot spare (the strip
+    on every plan: 10 -> 3 of 12 plans over the threshold).  So the strip
+    is meant as a token of its own beside the unstripped plan
+    ("dense@plan_standing_rows_max_height=0.4&plan_count_secure_dense_priority_rows=1&...",
+    ``arm_adenser_a.txt``), and the re-plan's rank -- a plan over the
+    gate first, then the plan score -- takes it where the count still
+    holds.  0: no strip."""
 
     plan_count_secure_dense_soft_thin: float = 0.0
     """The ``dense`` plan lays the normal soft boxes whose flat height is
