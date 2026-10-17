@@ -82,7 +82,9 @@ To measure a change, append `,field=value` to the ship arm's line.
   ranked against the unstripped plans: a plan over the gate first, then
   the plan score, so the strip is taken where the count still holds.
   Measured at the platform's regime (`,offline_budget_seconds=30`
-  appended); records `adenser30-*`, priced against `adense30-*`.
+  appended); records `adenser30-dense-a` / `-core-a` / `-hard-a`, priced
+  against `adense30-*`: dense-a +3.40 [+2.46, +4.41] (placement +28,
+  the same 47 counted), core-a +0.19, hard-a -0.18 n.s.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.

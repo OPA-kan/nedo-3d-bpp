@@ -200,8 +200,98 @@ grows 1.5-4 s a scene for the fourth plan.
 
 `bench.platform_score` against the v58 records `adense30-*`:
 
-CI_TABLE
+Records `reports/bench/adenser30-*` (runs 725-727 of `bench-run.yml`,
+fetched with `fetch.sh` and sorted by `sort_records.py`); columns as
+`platform_score` prints them: the score, the paired delta with the
+bootstrap interval, the counted episodes, episodes up / down, the five
+components' deltas, placed, the policy's max step time.
+
+| suite | v58 (`adense30-*`) | form (`adenser30-*`) | delta vs v58 [95 % CI] | counted | up / down | fill | cog | stab. | place. | soft | placed |
+|---|---:|---:|---|---:|---|---:|---:|---:|---:|---:|---:|
+| dense-a | 66.24 | **69.64** | **+3.40 [+2.46, +4.41]** | 47 (+0) | 40 / 3 | -0.9 | +0.6 | +0.1 | **+28.0** | -3.6 | -0.79 |
+| core-a | 67.02 | 67.21 | +0.19 [+0.00, +0.56] | 48 (+0) | 1 / 0 | -0.0 | +0.1 | +0.0 | +1.2 | +0.0 | -0.04 |
+| hard-a | 48.56 | 48.38 | -0.18 [-0.49, +0.08] | 33 (+0) | 2 / 4 | -0.4 | +0.3 | -0.1 | -0.7 | -0.1 | -0.15 |
+
+**dense-a** by count (v58 -> form; `ci_tab.py`, `ci_adenser30_densea.md`;
+the per-scene prices in `scene_delta.py`):
+
+| items (threshold) | counted | placed | soft | priority | topples | dense picked (the strip) | optimize s (max) |
+|---|---|---|---|---|---|---:|---|
+| 50 (26) | 12 -> 12 | 34.1 -> 33.1 | 11.2 -> 10.3 | 3.3 -> 4.4 | 1 -> 0 | 8 (2) | 7.5 -> 8.7 (19.1) |
+| 60 (31) | 12 -> 12 | 40.2 -> 39.5 | 15.5 -> 14.5 | 2.1 -> 4.2 | 0 -> 0 | 12 (7) | 10.3 -> 12.3 (19.9) |
+| 70 (36) | 12 -> 12 | 40.9 -> 39.8 | 16.1 -> 15.6 | 1.7 -> 4.3 | 0 -> 0 | 12 (6) | 11.6 -> 13.7 (19.1) |
+| 80 (41) | 11 -> 11 | 42.1 -> 41.7 | 17.6 -> 17.2 | 1.3 -> 3.2 | 0 -> 0 | 12 (1) | 15.5 -> 18.2 (22.9) |
+
+The CI replays the analytic sweep scene for scene: the same 47 counted
+(x80-s0007 the one miss, as in v58), the strip picked on 16 scenes, the
+priority boxes placed 2.1 -> 4.0 a scene (placement 32.7 -> 60.7) for
+0.8 items and 0.7 soft boxes fewer (fill -0.9, soft -3.6), the shake
+topples 1 -> 0, no priority box covered.  The 40 scenes up gain +0.4 to
++13.7 (x80-s0005 0 -> 5 of 5 priority, x70-s0005 0 -> 5 of 5 +11.1,
+x60-s0005 1 -> 5 +9.6, x70-s0009 1 -> 7 of 10 +9.0, x50-s0011 1 -> 6 of
+6 and its topple gone +8.0); the three down are x50's (s0002 -0.6: the
+fill's priority box costs five items and four soft boxes, s0003 -1.0 and
+s0012 -1.4: one item each, no priority box gained), the cases the
+analytic sweep showed.  The optimize time is 1-3 s a scene longer for
+the fourth plan, 22.9 s at most, inside the 30.
+
+**core-a**: one scene changes, a-c1s-s0010 (+9.0: the strip's plan, 28 ->
+26 placed, priority 2 -> 5 of 5 -- the scene a-dense.md named as the
+dense plan's priority cost, -6.4 against v56, recovered); the other 47
+identical.
+
+**hard-a**: six scenes change, -0.18 over the suite, no crossing moved.
+Two are the strip's: a-hard-s0016 (41 -> 41 placed at its threshold, the
+same 5 priority boxes, -0.7 on fill and cog) and a-hard-s0023 (27 -> 25,
+priority 1 -> 0 of 4, -4.6: the strip's plan holds 30 against the on-edge
+plan's 26 and loses its priority box in the replay).  a-hard-s0024 (-5.2,
+priority 9 -> 4) picks the same on-edge plan as v58 from a different
+planner run (its plans 44 / 45 planned against v58's 34 / 43: the row
+planner's layouts differ run to run on the varied containers).  The
+other three are the budget's on the 88-120 item manifests: a-hard-s0013
+(-1.1) and s0047 (+1.8) take the plain re-plan where v58 took the dense
+one (the planner's own variants ran 0.3-0.9 s longer and the dense plan
+was not started), s0030 (+1.3) the 0.55 m dense plan.  The fourth token
+costs nothing there: it is never started on those manifests (the
+start-factor guard), as the on-edge plan is not in v58.
 
 ## 6. Verdict
 
-VERDICT
+- **Where the priority boxes went**: the v58 dense plan stands the
+  priority 0.55 x 0.40 boxes last in a standing layer the normal boxes
+  of their class fill first, so they are left out (x80-s0003: 0 of 4 in
+  an 11-box layer), and its fill pass stands a normal box in the one
+  slot a priority box could take uncovered.  The 0.75 x 0.56 priority
+  boxes have no pose in any dense plan.
+- **The strip costs the count where there is none to spare.**  A front
+  row of the standing layer reserved for two priority boxes, with the
+  flat soft boxes laid first behind it, is worth +2 to +5 on c1x50-c1x70
+  on the plan alone but costs two items a plan, and on c1x80 (threshold
+  41, the plans 41-44) that loses 7 of 10 crossings (-14).  So the strip
+  is not a setting: it is a fourth count-secured token, and the re-plan's
+  rank (a plan over the gate first, then the plan score) takes it on 16
+  of 48 dense scenes and on c1x80 only where it still holds the count.
+- **The priority-first fill is free** (+2.25 on the plan alone, no
+  crossing lost) and is on for every dense plan.
+- **The physics takes it**: every plan pose replayed, no topple, the
+  strip's boxes on edge at 0.54-0.94 m in the front row with the priority
+  soft over them.
+- **The verdict (`bench.platform_score`, 30 s budget, against v58):**
+  dense-a **+3.40 [+2.46, +4.41]**, the same 47 of 48 counted, 40 scenes
+  up and 3 down, placement +28.0 (priority placed 2.1 -> 4.0 a scene)
+  against fill -0.9 and soft -3.6; core-a +0.19 [+0.00, +0.56] (one
+  scene, +9.0); hard-a -0.18 [-0.49, +0.08] (no crossing moved, the
+  changes the budget's and the strip's -4.6 on one scene).  Ship
+  candidate: `arm_adenser_a.txt` (the v58 form plus
+  `plan_count_secure_dense_priority_fill=true` and the strip token
+  `dense@plan_standing_rows_max_height=0.4&plan_count_secure_dense_priority_rows=1&plan_count_secure_dense_soft_thin=0.25`
+  appended to `plan_count_secure_blocks`).  On the platform's terms the
+  four dense A episodes are worth about +3.4 x 4 / 23 = +0.6 of the
+  total, less if the slower machine skips the fourth plan.
+- **What is left**: the 0.75 x 0.56 x 0.27 priority boxes (5 of 13 on
+  x80-s0003), which stand 0.56 m tall on their side and fit nowhere in
+  the dense plan's layers; a flat slot for them in the first hard layer,
+  with the stack above kept off them, is the next lever (one such box
+  is worth about 1.5 points on a counted dense episode).  And the
+  strip's pick on a-hard-s0023, which loses a priority box in the
+  replay: the rank reads the plan, not the replay.
