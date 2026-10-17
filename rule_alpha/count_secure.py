@@ -668,6 +668,13 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
     factor = float(getattr(config, "plan_count_secure_start_factor", 1.2))
     best = chosen
     for token in sides:
+        if (token.partition("@")[0] == "dense" and getattr(config, "plan_count_secure_dense_when_short", True)
+                and best is not None and len(best[2]) >= gate):
+            # a plan so far holds the threshold plus the margin: the dense
+            # plan would win the rank on its count and trade the priority
+            # boxes the platform pays for once the episode counts
+            record["variants"].append({"side": token, "skipped": True, "held": len(best[2])})
+            continue
         now = time.perf_counter()
         if now + factor * longest >= deadline:
             # not started: it would not finish in what is left of the budget
