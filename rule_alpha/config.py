@@ -3168,8 +3168,14 @@ class RuleAlphaConfig:
     strip along the back wall, the whole width), "top" (the count frame
     without a block: its soft cargo over its hard rows), "soft" (the
     count frame with its soft cargo standing two deep against the back
-    wall, ``plan_count_secure_soft_*``).  A token may carry fields of its
-    own: "plain@field=value&field=value".  On the dense manifests the
+    wall, ``plan_count_secure_soft_*``), "dense" (the hard cargo's flat
+    layers, the frame's soft boxes standing on the chamfer ledge, the
+    standing layer with the priority hard boxes in its front rows, then
+    the soft layers over the hard tops; ``count_secure.plan_dense``,
+    ``reports/wedge/a-dense.md``).  A token may carry fields of its own:
+    "plain@field=value&field=value" ("dense@plan_standing_rows_max_height=0.4"
+    stands the third layer on edge, 0.40 m tall, top 0.94 m, where two
+    flat soft layers fit under the ceiling).  On the dense manifests the
     flat block plans hold 15-30 items against plain's 26-34
     (``reports/wedge/a-count-secure.md``)."""
 
@@ -3292,6 +3298,33 @@ class RuleAlphaConfig:
     their bottom the shelf's top.  The row planner never rests cargo
     there: a box dropped over the ledge fits under it and lands in the
     chamfer, which the validator refuses."""
+
+    plan_count_secure_soft_cap: float = -1.0
+    """The soft-structure cap (m, container frame) the count-secured
+    re-plans are planned under, in place of ``soft_structure_max_top``
+    (negative: the online cap), the soft floor share waived with it; the
+    plan's soft poses off the floor carry it (``soft_cap``) and the replay
+    validates them under it (``planner.replay``).  The online cap (0.7 m)
+    is the ladder's: it keeps the ladder's soft columns to the two or
+    three layers the soft carpet needs.  The planner's soft cargo rides
+    on the hard rows at 0.94-1.09 m, where the cap forbids soft on soft,
+    so the plan's soft gallery is one layer deep and the dense c1x70 /
+    c1x80 manifests stop at 29-36 items (``reports/wedge/a-dense.md``):
+    a second flat soft layer there adds 2-8 items a plan.  In physics a
+    flat soft box on a flat soft box at 1.1-1.5 m stands (the shake
+    topples none).  The ladder's own placements after the plan keep the
+    online cap."""
+
+    plan_count_secure_dense_ledge: bool = True
+    """The ``dense`` count-secured plan (``plan_count_secure_blocks`` token
+    ``dense``, ``count_secure.plan_dense``) stands the frame's soft boxes
+    on the small shelf over the chamfer pocket (the c1 container's ledge
+    at 0.845 m, 0.44 x 1.37 m: five 0.65 x 0.35 x 0.23 boxes on their
+    0.35 x 0.23 face, tops at 1.50 m) after the flat hard layers and
+    before the standing layer: a ledge pose's bottom is at the mid-height
+    level, so the simulator slides it in at its own height, across the
+    standing layer's left column, and the planner's sweep refuses the
+    pose once that column stands.  Off: no ledge."""
 
     transport_clearance: float = 0.0
     """Clearance of the transport sweep from packed cargo and shelves when

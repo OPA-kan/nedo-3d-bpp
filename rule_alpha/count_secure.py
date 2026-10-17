@@ -436,6 +436,161 @@ def plan_frame(agent, item_list: list[dict], deadline: float, frame: list[int], 
     return done + unplanned, plan, info
 
 
+def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
+               log=None) -> tuple[list[int], list[dict], dict]:
+    """The ``dense`` count-secured plan (``plan_count_secure_blocks`` token
+    ``dense``): the load of the dense c1x70 / c1x80 manifests built layer
+    by layer, in the order the simulator can carry in
+    (``reports/wedge/a-dense.md``):
+
+    1. the hard cargo's flat layers (``pack_rows`` without standing rows:
+       the row planner's two flat layers of the boxes that tile the floor,
+       tops at 0.29 and 0.54 m in the c1 container; a flat third layer's
+       top lands in the mid-height transport band);
+    2. ``plan_count_secure_dense_ledge``: the frame's normal soft boxes
+       standing on the small shelf over the chamfer pocket (the ledge the
+       row planner never rests cargo on: 0.44 m wide, the whole depth, its
+       top at the mid-height level), from the back -- before the standing
+       layer, since a ledge pose slides in at its own height and would
+       cross the standing layer's left column;
+    3. the standing layer: the hard cargo left in standing rows
+       (``plan_standing_rows``, the poses up to
+       ``plan_standing_rows_max_height``: 0.55 keeps the shipped layer of
+       0.55 x 0.40 x 0.24 boxes on their 0.24 x 0.40 face, tops 1.09 m;
+       0.40 stands them on edge, tops 0.94 m, where two flat soft layers
+       fit under the ceiling), the normal hard boxes first and the
+       priority ones last, so they take the front rows and the soft rows
+       over the back are not kept off them (normal cargo may not cover
+       priority cargo);
+    4. the soft cargo in flat rows over the standing tops, its own row
+       lines, layer upon layer while the soft-structure cap the re-plan
+       runs under (``plan_count_secure_soft_cap``) lets soft carry soft:
+       the frame's normal soft boxes first, the priority soft last (over
+       the priority hard boxes in front, where nothing else may go);
+    5. the rest for fill: the bigger hard cargo on the rows' lines, the
+       pose search.
+
+    Returns ``(order, plan, info)`` in the planner's form."""
+    from .planner import pack_rows, pack_typed_gallery, planning_order
+
+    config = agent.config
+    containers = copy.deepcopy(agent.board.containers)
+    for container in containers:
+        container.setdefault("packed_items", [])
+    board = layer1.Board(containers, config)
+    by_index = {int(item["index"]): item for item in item_list}
+    profiles = {p.index: p for p in (cls.classify_item(int(i["index"]), i, config) for i in item_list)}
+    has_priority = any(m.is_prioritized for m in board.models)
+    order = planning_order(list(profiles.values()), config, has_priority, "after-hard")
+    in_frame = set(int(i) for i in frame)
+    plan: list[dict] = []
+    planned: list[int] = []
+    priority_idx = [i for i, m in enumerate(board.models) if m.is_prioritized]
+    normal_idx = [i for i, m in enumerate(board.models) if not m.is_prioritized] or list(range(len(board.models)))
+    info = {"side": "dense", "ledge": 0, "flat": 0, "standing": 0, "soft": 0}
+    flat_config = dataclasses.replace(config, plan_standing_rows=False, plan_standing=False)
+
+    def left_of(pool):
+        done = set(planned)
+        return [p for p in pool if p.index not in done]
+
+    priority_lines: dict[int, list] = {}
+    for ci in priority_idx:
+        # the priority container takes the priority cargo first, as the
+        # row planner does
+        items = [profiles[i] for i in order if profiles[i].is_prioritized and i not in set(planned)]
+        priority_lines[ci] = pack_rows(agent, board, ci, items, config, plan, planned, deadline, log,
+                                       deep_first=bool(getattr(config, "plan_priority_deep_first", False)))
+    hard_lines: dict[int, list] = {}
+    for ci in normal_idx:
+        if time.perf_counter() >= deadline:
+            break
+        here = [profiles[i] for i in order if i not in set(planned) and not (profiles[i].is_prioritized and priority_idx)]
+        hard = [p for p in here if not p.is_soft and not p.is_prioritized] + [p for p in here if not p.is_soft and p.is_prioritized]
+        soft_frame = [p for p in here if p.is_soft and not p.is_prioritized and p.index in in_frame]
+        soft_rest = [p for p in here if p.is_soft and not p.is_prioritized and p.index not in in_frame]
+        soft_prio = [p for p in here if p.is_soft and p.is_prioritized]
+        # 1. the flat layers
+        n0 = len(planned)
+        lines = pack_rows(agent, board, ci, hard, flat_config, plan, planned, deadline, log)
+        info["flat"] += len(planned) - n0
+        # 2. the ledge
+        if getattr(config, "plan_count_secure_dense_ledge", True) and getattr(board.model(ci), "small_shelf", None) is not None:
+            n0 = len(planned)
+            pack_typed_gallery(agent, board, ci, soft_frame, config, plan, planned, deadline, log, mode="column",
+                               max_rows=0, layers=1, ledge=True,
+                               replay_nudge=float(getattr(config, "plan_count_secure_soft_nudge", 0.04)))
+            info["ledge"] += len(planned) - n0
+        # 3. the standing layer: pack_rows switches to standing rows once
+        # a flat pass places nothing (the band), so the flat lines are
+        # handed back for the hard cargo's later passes
+        n0 = len(planned)
+        standing_config = dataclasses.replace(config, plan_standing_rows=True)
+        pack_rows(agent, board, ci, left_of(hard), standing_config, plan, planned, deadline, log, row_lines=lines)
+        info["standing"] += len(planned) - n0
+        hard_lines[ci] = lines
+        # 4. the soft layers over the top, their own rows, layer on layer
+        n0 = len(planned)
+        soft = left_of(soft_frame) + soft_rest + soft_prio
+        pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log)
+        info["soft"] += len(planned) - n0
+    # 5. the rest for fill
+    for ci in normal_idx:
+        if time.perf_counter() >= deadline:
+            break
+        rest = [profiles[i] for i in order if i not in set(planned)]
+        hard = [p for p in rest if not p.is_soft and not (p.is_prioritized and priority_idx)]
+        pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, row_lines=hard_lines.get(ci))
+    if priority_idx and getattr(config, "plan_normal_in_priority_container", False):
+        for ci in priority_idx:
+            hard = [profiles[i] for i in order if i not in set(planned)
+                    and not profiles[i].is_soft and not profiles[i].is_prioritized]
+            pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, row_lines=priority_lines.get(ci))
+    left = [i for i in order if i not in set(planned)]
+    _greedy_tail(agent, board, profiles, by_index, left, config, plan, planned, deadline)
+    for n, e in enumerate(plan):
+        e["step"] = n + 1
+    done = [int(e["index"]) for e in plan]
+    info["frame_planned"] = sum(1 for i in done if i in in_frame)
+    info["planned"] = len(plan)
+    return done + [i for i in order if i not in set(done)], plan, info
+
+
+class _plan_soft_cap:
+    """``plan_count_secure_soft_cap``: the soft-structure cap the re-plan
+    is planned under (the floor share waived with it), restored after."""
+
+    def __init__(self, config):
+        self.cap = float(getattr(config, "plan_count_secure_soft_cap", -1.0))
+
+    def __enter__(self):
+        from . import stability
+
+        self.saved = (stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE)
+        if self.cap >= 0.0:
+            stability.SOFT_STRUCTURE_MAX_TOP = self.cap
+            stability.SOFT_STRUCTURE_FLOOR_SHARE = 0.0
+        return self
+
+    def __exit__(self, *exc):
+        from . import stability
+
+        stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE = self.saved
+        return False
+
+    def mark(self, plan: list, by_index: dict) -> int:
+        """The plan's soft poses off the floor carry the cap for the replay
+        (``planner.replay``); returns how many."""
+        if self.cap < 0.0:
+            return 0
+        n = 0
+        for e in plan:
+            if by_index.get(int(e["index"]), {}).get("is_soft") and not e.get("on_floor"):
+                e["soft_cap"] = self.cap
+                n += 1
+        return n
+
+
 def _rank(entry, threshold: int, gate: int) -> tuple:
     """The re-plan's order of plans: over the threshold the plan score
     decides (the soft and priority shares count there), the threshold plus
@@ -526,17 +681,22 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
         mine.update(parse_overrides(config, extra.replace("&", ";")))
         if mine:
             agent.config = dataclasses.replace(config, **mine)
+        soft_cap = _plan_soft_cap(agent.config)
         try:
-            if side == "plain":
-                # the row planner itself under the count-secured overrides,
-                # no frame: its first priority order
-                from .planner import _plan_once
+            with soft_cap:
+                if side == "plain":
+                    # the row planner itself under the count-secured overrides,
+                    # no frame: its first priority order
+                    from .planner import _plan_once
 
-                variant = (re.split(r"[,+|]", str(getattr(config, "plan_variants", "after-hard"))) or ["after-hard"])[0]
-                order, plan = _plan_once(agent, item_list, deadline, variant, log)
-                info = {"frame_planned": sum(1 for e in plan if int(e["index"]) in set(frame))}
-            else:
-                order, plan, info = plan_frame(agent, item_list, deadline, frame, side, log)
+                    variant = (re.split(r"[,+|]", str(getattr(config, "plan_variants", "after-hard"))) or ["after-hard"])[0]
+                    order, plan = _plan_once(agent, item_list, deadline, variant, log)
+                    info = {"frame_planned": sum(1 for e in plan if int(e["index"]) in set(frame))}
+                elif side == "dense":
+                    order, plan, info = plan_dense(agent, item_list, deadline, frame, log)
+                else:
+                    order, plan, info = plan_frame(agent, item_list, deadline, frame, side, log)
+            info["soft_capped"] = soft_cap.mark(plan, by_index)
         except Exception as exc:  # a failed variant leaves the planner's plan
             record["variants"].append({"side": token, "error": repr(exc)})
             continue
@@ -549,9 +709,14 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
         score = scorer(plan) if scorer is not None else float(len(plan))
         n_soft = sum(1 for e in plan if by_index[int(e["index"])].get("is_soft"))
         n_prio = sum(1 for e in plan if by_index[int(e["index"])].get("is_prioritized"))
-        record["variants"].append({"side": token, "planned": len(plan), "frame_planned": info.get("frame_planned"),
-                                   "soft": n_soft, "priority": n_prio, "score": round(score, 3),
-                                   "seconds": round(time.perf_counter() - t0, 1)})
+        entry_log = {"side": token, "planned": len(plan), "frame_planned": info.get("frame_planned"),
+                     "soft": n_soft, "priority": n_prio, "score": round(score, 3),
+                     "seconds": round(time.perf_counter() - t0, 1)}
+        if side == "dense":
+            entry_log["layers"] = {k: info.get(k) for k in ("flat", "ledge", "standing", "soft")}
+        if info.get("soft_capped"):
+            entry_log["soft_capped"] = info["soft_capped"]
+        record["variants"].append(entry_log)
         if log:
             log(f"  [count-secure] {token}: {len(plan)} planned (frame {info.get('frame_planned')} of {len(frame)}, "
                 f"soft {n_soft}, priority {n_prio}), score {score:.3f}, gate {gate}")
