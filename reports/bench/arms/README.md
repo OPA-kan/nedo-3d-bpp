@@ -67,6 +67,16 @@ To measure a change, append `,field=value` to the ship arm's line.
   `arm_acap_a.txt`: the v57 form with the plan-only soft cap alone
   (`plain` under the cap: a second soft layer on the shipped standing
   layer); record `acap30-dense-a` (+0.67, eight topples).
+  `arm_adenseq_a.txt`: the v58 form (`arm_adense_a`) with the dense plan's
+  priority levers (`plan_count_secure_dense_priority_rows=1`: the standing
+  layer's front row reserved for the priority hard boxes, the normal soft
+  rows kept behind it; `plan_count_secure_dense_soft_thin=0.25`: the flat
+  soft boxes in rows before the 0.40 m ones; `plan_count_secure_dense_priority_fill`:
+  the priority hard boxes first in the fill passes;
+  `reports/wedge/a-dense-quality.md`).  `arm_adenseq2_a.txt`: the same
+  with a two-row strip.  Measured at the platform's regime
+  (`,offline_budget_seconds=30` appended); records `adenseq30-*`,
+  `adenseq230-*`, priced against `adense30-*`.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.

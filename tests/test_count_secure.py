@@ -578,3 +578,122 @@ class DensePlanTest(unittest.TestCase):
             self.assertEqual((stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE), (0.7, 0.35))
         finally:
             stability.SOFT_STRUCTURE_MAX_TOP, stability.SOFT_STRUCTURE_FLOOR_SHARE = saved
+
+
+class DensePriorityStripTest(unittest.TestCase):
+    """The dense plan's priority levers (reports/wedge/a-dense-quality.md):
+    ``plan_count_secure_dense_priority_rows`` reserves the standing layer's
+    front strip for the priority hard boxes and keeps the normal soft rows
+    behind it, ``plan_count_secure_dense_soft_thin`` lays the flat soft
+    boxes before the tall ones, ``plan_count_secure_dense_priority_fill``
+    puts the priority hard boxes first in the fill passes."""
+
+    FLAGS = (",plan_count_secure_dense_priority_rows=1,plan_count_secure_dense_soft_thin=0.25,"
+             "plan_count_secure_dense_priority_fill=true")
+
+    @classmethod
+    def setUpClass(cls):
+        import time
+
+        cls.scene = make_scene(3, "c1x80", "A")
+        cls.agent = make_arm(PLANNER + ",plan_standing_rows=true,plan_soft_own_rows=true,"
+                             "plan_standing_rows_max_height=0.4,plan_count_secure_soft_cap=1.6" + cls.FLAGS)(cls.scene)
+        cls.containers = cls.scene.rule_alpha_containers()
+        cls.agent.get_init_states({"container_list": cls.containers})
+        cls.items = [dict(i) for i in cls.scene.items]
+        cls.agent._prepare_manifest(cls.items)
+        cls.agent._manifest_total = len(cls.items)
+        cls.agent.plan_source = "planner"
+        cls.threshold = len(cls.items) // 2 + 1
+        cls.frame = count_secure.count_frame(cls.items, cls.threshold + 2)
+        cls.by_index = {int(i["index"]): i for i in cls.items}
+        with count_secure._plan_soft_cap(cls.agent.config):
+            cls.order, cls.plan, cls.info = count_secure.plan_dense(cls.agent, cls.items, time.perf_counter() + 120,
+                                                                   cls.frame)
+
+    def _kind(self, entry):
+        item = self.by_index[entry["index"]]
+        return bool(item["is_soft"]), bool(item["is_prioritized"])
+
+    def test_defaults_leave_the_levers_out(self):
+        self.assertEqual(DEFAULT_CONFIG.plan_count_secure_dense_priority_rows, 0)
+        self.assertEqual(DEFAULT_CONFIG.plan_count_secure_dense_soft_thin, 0.0)
+        self.assertFalse(DEFAULT_CONFIG.plan_count_secure_dense_priority_fill)
+
+    def test_strip_is_the_shallowest_standing_pose_a_row(self):
+        config = self.agent.config
+        model = self.agent.board.model(0)
+        prio = [p for p in self.agent.profiles.values() if p.is_prioritized and not p.is_soft
+                and abs(p.orientations[0].dx - 0.55) < 1e-9]
+        self.assertEqual(len(prio), 4)
+        gap = config.settled_clearance + config.anchor_slack
+        # on edge the 0.55 x 0.40 x 0.24 box is 0.24 m deep and 0.55 m wide: two a row
+        depth, rows = count_secure.priority_strip(model, config, prio, 1)
+        self.assertEqual(rows, 1)
+        self.assertAlmostEqual(depth, 0.24 + gap, places=6)
+        depth, rows = count_secure.priority_strip(model, config, prio, 3)
+        self.assertEqual(rows, 2)
+        self.assertAlmostEqual(depth, 2 * (0.24 + gap), places=6)
+        self.assertEqual(count_secure.priority_strip(model, config, prio[:2], 3)[1], 1)
+        # the 0.75 x 0.56 x 0.27 boxes have no standing pose under the 0.40 m cap
+        tall = [p for p in self.agent.profiles.values() if p.is_prioritized and abs(p.orientations[0].dx - 0.75) < 1e-9]
+        self.assertIsNone(count_secure.priority_strip(model, config, tall, 2))
+        self.assertIsNone(count_secure.priority_strip(model, config, prio, 0))
+
+    def test_priority_boxes_stand_in_the_front_strip_with_nothing_normal_over_them(self):
+        steps = sorted(self.plan, key=lambda e: e["step"])
+        n_flat, n_ledge, n_stand = self.info["flat"], self.info["ledge"], self.info["standing"]
+        standing = steps[n_flat + n_ledge:n_flat + n_ledge + n_stand]
+        prio = [e for e in standing if self._kind(e) == (False, True)]
+        normal = [e for e in standing if self._kind(e) == (False, False)]
+        self.assertEqual(self.info["priority_strip"]["rows"], 1)
+        self.assertEqual(len(prio), 2)
+        self.assertGreaterEqual(len(normal), 8)
+        # the strip is in front of every normal standing box, loaded after them
+        front = min(e["center"][1] - e["size"][1] / 2.0 for e in normal)
+        for e in prio:
+            self.assertLessEqual(e["center"][1] + e["size"][1] / 2.0, front + 1e-6)
+            self.assertLessEqual(e["size"][2], 0.4 + 1e-6)
+        self.assertLess(max(e["step"] for e in normal), min(e["step"] for e in prio))
+        # no normal box of any class sits over a priority box in the plan
+        for p in [e for e in self.plan if self._kind(e)[1]]:
+            for e in self.plan:
+                if self._kind(e)[1] or e["bottom"] < p["bottom"] + p["size"][2] - 1e-6:
+                    continue
+                dx = min(e["center"][0] + e["size"][0] / 2.0, p["center"][0] + p["size"][0] / 2.0) \
+                    - max(e["center"][0] - e["size"][0] / 2.0, p["center"][0] - p["size"][0] / 2.0)
+                dy = min(e["center"][1] + e["size"][1] / 2.0, p["center"][1] + p["size"][1] / 2.0) \
+                    - max(e["center"][1] - e["size"][1] / 2.0, p["center"][1] - p["size"][1] / 2.0)
+                self.assertFalse(dx > 1e-6 and dy > 1e-6, f"step {e['step']} over priority step {p['step']}")
+
+    def test_flat_soft_boxes_before_the_tall_ones(self):
+        steps = sorted(self.plan, key=lambda e: e["step"])
+        soft = [e for e in steps if self._kind(e) == (True, False) and e["bottom"] > 0.9]
+        tall = [k for k, e in enumerate(soft) if min(e["size"]) > 0.25 + 1e-6]
+        thin = [k for k, e in enumerate(soft) if min(e["size"]) <= 0.25 + 1e-6]
+        self.assertTrue(thin)
+        if tall:
+            self.assertLess(max(thin), min(tall))
+
+    def test_fill_takes_the_priority_boxes_first_and_the_count_holds(self):
+        # the strip's two, and the fill's standing slot at the layer's
+        # right edge goes to a priority box (the shipped plan's normal one)
+        n_prio = sum(1 for e in self.plan if self._kind(e) == (False, True))
+        self.assertGreaterEqual(n_prio, 3)
+        self.assertGreaterEqual(len(self.plan), self.threshold)
+
+    def test_plan_is_legal_step_by_step_under_the_cap(self):
+        from rule_alpha.planner import _Pose, _placement
+
+        config = self.agent.config
+        board = layer1.Board([dict(c, packed_items=[]) for c in self.containers], config)
+        with count_secure._plan_soft_cap(config):
+            for entry in sorted(self.plan, key=lambda e: e["step"]):
+                model = board.model(entry["container_idx"])
+                box = AABB(tuple(entry["center"]), tuple(entry["size"]), "plan")
+                ok, why = layer1.validate(box, model, board.container(entry["container_idx"]), config)
+                self.assertTrue(ok, f"step {entry['step']}: {why}")
+                profile = self.agent.profiles[entry["index"]]
+                orientation = next(o for o in profile.orientations if o.index == entry["orientation"])
+                board.apply(_placement(_Pose(box, orientation, model.z_floor), 1, profile, entry["container_idx"],
+                                       model))

@@ -436,6 +436,30 @@ def plan_frame(agent, item_list: list[dict], deadline: float, frame: list[int], 
     return done + unplanned, plan, info
 
 
+def priority_strip(model, config, priority: list, max_rows: int) -> tuple[float, int] | None:
+    """``plan_count_secure_dense_priority_rows``: the depth (m) of the
+    standing layer's front strip reserved for the priority hard boxes, and
+    its rows: the shallowest standing pose under
+    ``plan_standing_rows_max_height`` among them (the 0.55 x 0.40 x 0.24
+    class on edge is 0.24 m deep and 0.55 m wide: two a row), as many rows
+    as the boxes need up to ``max_rows``.  None when no priority box has a
+    standing pose under the cap (the 0.75 x 0.56 x 0.27 boxes on their
+    side are 0.56 or 0.75 m tall)."""
+    from .planner import _standing_poses
+
+    cap = float(getattr(config, "plan_standing_rows_max_height", 10.0))
+    poses = [o for p in priority for o in _standing_poses(p) if o.dz <= cap + 1e-9]
+    if not poses or max_rows <= 0:
+        return None
+    gap = config.settled_clearance + config.anchor_slack
+    rect = model.floor_rect
+    width = rect.x_max - rect.x_min - 2.0 * config.anchor_slack
+    pose = min(poses, key=lambda o: (o.dy, -o.dx))
+    per_row = max(1, int((width + gap) / (pose.dx + gap) + 1e-9))
+    rows = min(int(max_rows), -(-len(priority) // per_row))
+    return rows * (pose.dy + gap), rows
+
+
 def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
                log=None) -> tuple[list[int], list[dict], dict]:
     """The ``dense`` count-secured plan (``plan_count_secure_blocks`` token
@@ -489,6 +513,8 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
     normal_idx = [i for i, m in enumerate(board.models) if not m.is_prioritized] or list(range(len(board.models)))
     info = {"side": "dense", "ledge": 0, "flat": 0, "standing": 0, "soft": 0}
     flat_config = dataclasses.replace(config, plan_standing_rows=False, plan_standing=False)
+    prio_rows = int(getattr(config, "plan_count_secure_dense_priority_rows", 0))
+    thin_cap = float(getattr(config, "plan_count_secure_dense_soft_thin", 0.0))
 
     def left_of(pool):
         done = set(planned)
@@ -526,27 +552,82 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
         # handed back for the hard cargo's later passes
         n0 = len(planned)
         standing_config = dataclasses.replace(config, plan_standing_rows=True)
-        pack_rows(agent, board, ci, left_of(hard), standing_config, plan, planned, deadline, log, row_lines=lines)
+        model = board.model(ci)
+        gap = config.settled_clearance + config.anchor_slack
+        strip = None
+        if prio_rows > 0:
+            strip = priority_strip(model, config, [p for p in left_of(hard) if p.is_prioritized], prio_rows)
+        soft_floor_line = None
+        if strip is None:
+            pack_rows(agent, board, ci, left_of(hard), standing_config, plan, planned, deadline, log, row_lines=lines)
+        else:
+            # plan_count_secure_dense_priority_rows: the normal boxes keep
+            # off the layer's front strip; the priority boxes stand there
+            # (the rows behind them are loaded first), the normal boxes
+            # left take what the strip has left, and the normal soft rows
+            # over the top stop at the priority boxes' back edge, so
+            # nothing normal covers them
+            depth, rows = strip
+            normal = [p for p in left_of(hard) if not p.is_prioritized]
+            s0 = len(plan)
+            pack_rows(agent, board, ci, normal, standing_config, plan, planned, deadline, log, row_lines=lines,
+                      y_bottom=model.floor_rect.y_min + config.anchor_slack + depth)
+            fronts = [float(e["center"][1]) - float(e["size"][1]) / 2.0 for e in plan[s0:]]
+            y_top = min(fronts) - gap if fronts else None
+            s1 = len(plan)
+            pack_rows(agent, board, ci, [p for p in left_of(hard) if p.is_prioritized], standing_config, plan,
+                      planned, deadline, log, row_lines=lines, y_top=y_top)
+            backs = [float(e["center"][1]) + float(e["size"][1]) / 2.0 for e in plan[s1:]]
+            info["priority_strip"] = {"rows": rows, "depth": round(depth, 3), "standing": len(plan) - s1}
+            if backs:
+                soft_floor_line = max(backs) + gap
+            pack_rows(agent, board, ci, left_of(normal), standing_config, plan, planned, deadline, log,
+                      row_lines=lines, y_top=y_top)
         info["standing"] += len(planned) - n0
         hard_lines[ci] = lines
         # 4. the soft layers over the top, their own rows, layer on layer
         n0 = len(planned)
         soft = left_of(soft_frame) + soft_rest + soft_prio
-        pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log)
+        if soft_floor_line is None and thin_cap <= 0.0:
+            pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log)
+        else:
+            # plan_count_secure_dense_soft_thin: the flat soft boxes up to
+            # the cap first, in rows of their own, the taller ones after
+            # (the count-first layout search takes a row of 0.40 m boxes
+            # for its floor count and the second layer is lost over it);
+            # the normal soft rows behind the priority strip, the priority
+            # soft over the whole top (it may cover the priority boxes)
+            normal = [p for p in soft if not p.is_prioritized]
+            passes = [normal]
+            if thin_cap > 0.0:
+                passes = [[p for p in normal if min(o.dz for o in p.orientations) <= thin_cap + 1e-9],
+                          [p for p in normal if min(o.dz for o in p.orientations) > thin_cap + 1e-9]]
+            for pool in passes:
+                if pool:
+                    pack_rows(agent, board, ci, pool, config, plan, planned, deadline, log, y_bottom=soft_floor_line)
+            pack_rows(agent, board, ci, [p for p in left_of(soft) if p.is_prioritized], config, plan, planned,
+                      deadline, log)
         info["soft"] += len(planned) - n0
-    # 5. the rest for fill
+    # 5. the rest for fill (plan_count_secure_dense_priority_fill: the
+    # priority hard boxes before the normal ones -- what the fill places
+    # now is never covered by the plan's soft rows, which are laid)
+    def fill_order(pool):
+        if not getattr(config, "plan_count_secure_dense_priority_fill", False):
+            return list(pool)
+        return [p for p in pool if p.is_prioritized] + [p for p in pool if not p.is_prioritized]
+
     for ci in normal_idx:
         if time.perf_counter() >= deadline:
             break
         rest = [profiles[i] for i in order if i not in set(planned)]
-        hard = [p for p in rest if not p.is_soft and not (p.is_prioritized and priority_idx)]
+        hard = fill_order([p for p in rest if not p.is_soft and not (p.is_prioritized and priority_idx)])
         pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, row_lines=hard_lines.get(ci))
     if priority_idx and getattr(config, "plan_normal_in_priority_container", False):
         for ci in priority_idx:
             hard = [profiles[i] for i in order if i not in set(planned)
                     and not profiles[i].is_soft and not profiles[i].is_prioritized]
             pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, row_lines=priority_lines.get(ci))
-    left = [i for i in order if i not in set(planned)]
+    left = [p.index for p in fill_order([profiles[i] for i in order if i not in set(planned)])]
     _greedy_tail(agent, board, profiles, by_index, left, config, plan, planned, deadline)
     for n, e in enumerate(plan):
         e["step"] = n + 1

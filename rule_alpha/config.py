@@ -3343,6 +3343,44 @@ class RuleAlphaConfig:
     the v56 form), so the guard is off: the dense plans are ranked like
     any other re-plan."""
 
+    plan_count_secure_dense_priority_rows: int = 0
+    """The ``dense`` plan reserves up to this many of the standing layer's
+    front rows for the priority hard boxes (``count_secure.priority_strip``,
+    ``reports/wedge/a-dense-quality.md``): the normal standing rows keep
+    off a front strip as deep as the boxes' shallowest standing pose a
+    row (the 0.55 x 0.40 x 0.24 class on edge: 0.24 m, two a row), the
+    priority boxes stand there after them, the normal boxes left take
+    what the strip has left, and the normal soft rows over the top stop
+    at the priority boxes' back edge (the priority soft may cover them).
+    The dense plan stands the priority hard boxes last, and on the dense
+    manifests the normal boxes of their class fill the layer first, so
+    the priority boxes are left out (x80-s0003: 0 of 4 in an 11-box
+    layer) and the platform's placement component pays for it once the
+    episode counts (4.8 -> 2.1 priority boxes a scene on dense-a).  The
+    strip trades the soft row over it, one soft box a layer a row, for
+    the strip's priority boxes.  0: no strip."""
+
+    plan_count_secure_dense_soft_thin: float = 0.0
+    """The ``dense`` plan lays the normal soft boxes whose flat height is
+    at most this (m) in rows of their own before the taller ones (0.25
+    takes the 0.45 x 0.30 x 0.20, 0.65 x 0.35 x 0.23 and 0.60 x 0.30 x
+    0.25 classes before the 0.50 x 0.40 x 0.40 one).  The soft rows'
+    count-first layout search sizes a row for its floor layer alone: in
+    the depth left behind a priority strip it takes a row of the 0.40 m
+    boxes (two on the floor layer against two 0.23 m ones), and the
+    second soft layer, which the dense plan lives on, is lost over it
+    (x80-s0003 with a one-row strip: 5 soft in the layers against 11).
+    0: one pass, the taller boxes in the search."""
+
+    plan_count_secure_dense_priority_fill: bool = False
+    """The ``dense`` plan's fill passes (the hard cargo on the rows'
+    lines after the soft layers, then the pose search) take the priority
+    hard boxes before the normal ones.  What the fill places is never
+    covered by the plan's soft rows, which are laid by then, so a
+    priority box there keeps its credit; the normal 0.55 x 0.40 box the
+    fill stood at the standing layer's right edge on x80-s0003 is the
+    slot a priority box of the same class takes."""
+
     transport_clearance: float = 0.0
     """Clearance of the transport sweep from packed cargo and shelves when
     positive; otherwise ``settled_clearance``.  Set by the plan replay,
