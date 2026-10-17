@@ -940,7 +940,11 @@ dry-run cut on 19-27 of 48 core-a / hard-a episodes; the platform's
 140 s is two to three times the bench's 30 s after the slowdown).
 Official sample: A 32.11 / 25 with the optimize 19.5 s, B 29.59 / 26,
 C 26.44 / 25; policy max B 4.37 s, C 4.18 s
-(`official-sample-abc-v56.json`).  Supersedes v55 as the candidate.
+(`official-sample-abc-v56.json`).  Supersedes v55 as the candidate.  Official platform: 56.31 (v54 56.18): fill and placement unchanged,
+soft +0.75, cog +0.26, stability -0.14 (the same counted episodes), the
+optimize 74.4 s (v54 56.0).  The re-plan crossed none of the platform's
+uncounted A episodes and the race kept the dry-run's plans where the
+planner's paid; superseded by v57.
 
 Fifty-seventh build (v57): v56 with the planner alone (`offline_dry_run=False`
 in the task_a overrides; Tasks B and C as v54).  The two Task A

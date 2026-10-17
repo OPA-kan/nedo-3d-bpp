@@ -44,6 +44,7 @@
 | v52 (08586211: v51's re-plan with the race and time fixes, the plain variant alone; not kept) | 38.31 | 61.11 | 73.95 | 49.0 | 45.8 | 0.6385 | 139.2 | 6.72 |
 | v53 (0fb97699: v50 plus the planner's plan preferred in Task A's race, `plan_prefer_planner`; not kept) | 37.76 | 65.56 | 78.25 | 48.2 | 51.55 | 0.6337 | 118.0 | 6.75 |
 | v54 (4314e7e3: v50's form with Task A's offline phase 35-40 % faster, every decision the same; the best so far) | 39.25 | 63.69 | 77.80 | 52.55 | 50.0 | 0.6540 | 56.0 | 6.84 |
+| v56 (0cadbbda: v54 plus the count-secured re-plan with the typed-standing gallery for Task A; not kept, superseded by v57) | 39.24 | 63.95 | 77.66 | 52.55 | 50.75 | 0.6538 | 74.4 | 7.05 |
 | diag-A-planner (7916e502: the v56 form with the planner alone, no dry-run; a diagnostic) | 38.66 | 64.83 | 77.94 | 51.15 | 52.4 | 0.6460 | 35.2 | 6.99 |
 | diag-A-dryrun (7916e502: the v56 form with the ladder's dry-run alone, no planner; a diagnostic) | 40.60 | 53.22 | 69.41 | 35.75 | 34.05 | 0.6281 | 48.1 | 6.99 |
 
@@ -709,3 +710,13 @@ time.  The planner alone, with v56's re-plan, is the best reading so
 far and is shipped as v57.  The re-plan itself did not cross any of the
 platform's uncounted A episodes (the counted number is v50's), which
 leaves them for the soft frame block (reports/wedge/a-soft-frame.md).
+
+v56's total is 56.31 (v54 56.18, +0.13): fill 39.24 (v54 39.25), cog
+63.95 (+0.26), stability 77.66 (-0.14, the same counted episodes), placement
+52.55 (=), soft 50.75 (+0.75), the placed fraction 0.654 (=), the optimize
+74.4 s against v54's 56.0 (the re-plan's time), policy 7.05 s.  The
+re-plan changed almost nothing where the race ran: the counted number is
+v50's, so none of the platform's uncounted A episodes is of the kind the
+re-plan crosses on the bench (dense-a 10 -> 23), and the race kept taking
+the dry-run's plans where the planner's would have paid (the planner
+alone on the same form: 56.43).  Superseded by v57 (the planner alone).
