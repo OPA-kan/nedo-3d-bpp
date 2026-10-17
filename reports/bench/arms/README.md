@@ -46,6 +46,9 @@ To measure a change, append `,field=value` to the ship arm's line.
   `reports/wedge/a-soft-frame.md`). Measured at the platform's regime
   (`,offline_budget_seconds=30` appended); records `reports/bench/asoft30-*`
   and `asoftnl30-dense-a`, priced against `ship30-*` and `acsfix30-*`.
+  `arm_asofte_a.txt` / `arm_asoftnle_a.txt`: the same two with the block's
+  rows ending 3 cm short of the wall (`plan_count_secure_soft_end_slack`);
+  records `asofte30-*`, `asoftnle30-*`. None adopted.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
