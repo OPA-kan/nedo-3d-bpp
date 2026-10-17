@@ -942,6 +942,22 @@ Official sample: A 32.11 / 25 with the optimize 19.5 s, B 29.59 / 26,
 C 26.44 / 25; policy max B 4.37 s, C 4.18 s
 (`official-sample-abc-v56.json`).  Supersedes v55 as the candidate.
 
+Fifty-seventh build (v57): v56 with the planner alone (`offline_dry_run=False`
+in the task_a overrides; Tasks B and C as v54).  The two Task A
+diagnostics on the v56 form scored on the platform: the planner alone
+56.43 (fill 38.66, cog 64.83, stability 77.94, placement 51.15, soft
+52.4, the optimize 35 s), the dry-run alone 47.85 (fill 40.60, cog
+53.22, stability 69.41, placement 35.75, soft 34.05); by the stability
+lattice the dry-run alone counts two A episodes fewer and the planner
+alone as many as the shipped race (v54 56.18), so on the platform's A
+manifests the dry-run never rescues a count, its plans lose placement
+and soft, and the race only spends time.  Official sample: A 22.94 / 23
+(the sample is the one kind of manifest where the dry-run's plan is the
+better one; the platform's set is not of that kind), B 29.59 / 26,
+C 26.44 / 25, the optimize 3.6 s; policy max B 2.74 s, C 2.38 s
+(`official-sample-abc-v57.json`).  Expected on the platform: the
+diagnostic's 56.43 (the same build with no diagnostic patch).
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the

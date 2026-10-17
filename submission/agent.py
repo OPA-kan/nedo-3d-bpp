@@ -193,6 +193,10 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # v56: v55's re-plan with the typed-standing gallery (plan_typed_standing
 # and its switches below): at the 30 s bench budget dense-a +16.0
 # (counted 10 -> 23), hard-a +6.0 (26 -> 31), core-a +0.28 n.s.
+# v57: v56 with the planner alone (offline_dry_run=False): the platform's
+# diagnostics read the planner alone at 56.43 and the dry-run alone at
+# 47.85 (two counted A episodes fewer, placement and soft far lower);
+# the race (v54 56.18) never needed the dry-run there.
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -588,7 +592,17 @@ class Agent(RuleAlphaAgent):
                       # core-a +0.28 n.s. (soft +4.3); the re-plan alone
                       # +12.2 / +2.2 / -0.43 (records acsfix30-*)
                       plan_typed_standing=True, plan_typed_standing_no_priority_container=True,
-                      plan_typed_standing_variants="back-stand-2;back-stand-1")
+                      plan_typed_standing_variants="back-stand-2;back-stand-1",
+                      # v57: the planner alone, no dry-run.  The diagnostics
+                      # on the platform (v56 form): the planner alone 56.43
+                      # (fill 38.66, cog 64.83, stability 77.94, placement
+                      # 51.15, soft 52.4, the optimize 35 s), the dry-run
+                      # alone 47.85 (fill 40.60, stability 69.41: two counted
+                      # A episodes fewer, placement 35.75, soft 34.05); the
+                      # shipped race (v54) 56.18 with the planner's count.
+                      # The dry-run rescues no count there and its plans
+                      # lose placement and soft; the race only costs time.
+                      offline_dry_run=False)
         # v51 / v52 (not kept): the count-secured re-plan
         # (plan_count_secure and its switches) lost a counted A episode on
         # the platform twice; the shipped form is v50's again

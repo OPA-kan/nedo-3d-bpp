@@ -44,6 +44,8 @@
 | v52 (08586211: v51's re-plan with the race and time fixes, the plain variant alone; not kept) | 38.31 | 61.11 | 73.95 | 49.0 | 45.8 | 0.6385 | 139.2 | 6.72 |
 | v53 (0fb97699: v50 plus the planner's plan preferred in Task A's race, `plan_prefer_planner`; not kept) | 37.76 | 65.56 | 78.25 | 48.2 | 51.55 | 0.6337 | 118.0 | 6.75 |
 | v54 (4314e7e3: v50's form with Task A's offline phase 35-40 % faster, every decision the same; the best so far) | 39.25 | 63.69 | 77.80 | 52.55 | 50.0 | 0.6540 | 56.0 | 6.84 |
+| diag-A-planner (7916e502: the v56 form with the planner alone, no dry-run; a diagnostic) | 38.66 | 64.83 | 77.94 | 51.15 | 52.4 | 0.6460 | 35.2 | 6.99 |
+| diag-A-dryrun (7916e502: the v56 form with the ladder's dry-run alone, no planner; a diagnostic) | 40.60 | 53.22 | 69.41 | 35.75 | 34.05 | 0.6281 | 48.1 | 6.99 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -689,3 +691,21 @@ What they answer: the stability lattice gives each plan's counted A
 episodes, and the components give each plan's placement and soft
 credit per counted episode, which the bench's placement model
 (v53's reading) does not predict.
+
+The two Task A diagnostics on the v56 form (2026-10-17): the planner
+alone 56.43 (fill 38.66, cog 64.83, stability 77.94, placement 51.15,
+soft 52.4, fraction 0.646, the optimize 35.2 s), the dry-run alone
+47.85 (fill 40.60, cog 53.22, stability 69.41, placement 35.75, soft
+34.05, fraction 0.628, the optimize 48.1 s).  The stability lattice:
+the dry-run alone counts two A episodes fewer than the planner alone
+(69.41 against 77.94, 4.18 a counted episode), and the planner alone
+counts the same as the shipped race (v54 77.80).  So on the platform's
+A manifests the dry-run's plan never rescues a count (the bench's
+sample-like manifests, where the planner sits on the threshold and the
+dry-run crosses, are not what the platform holds), its plans carry
+more fill (+1.9) and far less placement (-15.4), soft (-18.4) and cog
+(-11.6), and the race (v54 56.18, v56 pending) only costs the dry-run's
+time.  The planner alone, with v56's re-plan, is the best reading so
+far and is shipped as v57.  The re-plan itself did not cross any of the
+platform's uncounted A episodes (the counted number is v50's), which
+leaves them for the soft frame block (reports/wedge/a-soft-frame.md).
