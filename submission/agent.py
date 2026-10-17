@@ -197,6 +197,18 @@ DIAGNOSTIC_TASK_A_OVERRIDES: dict = {}
 # diagnostics read the planner alone at 56.43 and the dry-run alone at
 # 47.85 (two counted A episodes fewer, placement and soft far lower);
 # the race (v54 56.18) never needed the dry-run there.
+# v58: v57 plus the dense count-secured plan (reports/wedge/a-dense.md;
+# plan_count_secure_blocks token "dense" and the plan-only soft cap): the
+# frame's hard boxes in flat layers, the 0.55 x 0.40 class standing low
+# (top 0.94 m, clear of the mid-height band), five standing soft boxes on
+# the chamfer ledge, two soft layers on the standing tops under a
+# plan-only cap of 1.6 m (the online 0.7 m cap stays).  Physics: one
+# shake topple in 48 dense-a episodes.  Bench at the 30 s budget
+# against v56's form: dense-a +27.97 [+20.81, +35.34], counted 23 -> 47
+# of 48 (x70 12/12, x80 11/12), core-a +0.55 n.s., hard-a +2.61
+# [-0.22, +6.61] (31 -> 33 counted).  The platform's four uncounted A
+# episodes are of the dense kind (findings, the composition from the
+# diagnostics).
 # v25: the soft headroom reserve sized for 0.9 of the soft volume (0.75
 # in v18).  v19 moved it the other way (0.5: items +1.33 a scene, the
 # centre of mass +0.015) and the platform scored it -2.61; 0.9 reverses
@@ -581,7 +593,12 @@ class Agent(RuleAlphaAgent):
                       # records acountfix20 / acountfix30)
                       plan_count_secure=True, plan_count_secure_choice=True, plan_count_secure_margin=0,
                       plan_count_secure_race_chosen=True, plan_count_secure_early=True,
-                      plan_count_secure_blocks="plain",
+                      # v58: the dense block beside the plain one (see the
+                      # v58 note below): flat hard layers, the chamfer
+                      # ledge, the 0.55 x 0.40 class standing low, two soft
+                      # layers under a plan-only soft cap
+                      plan_count_secure_blocks="plain;dense;dense@plan_standing_rows_max_height=0.4",
+                      plan_count_secure_soft_cap=1.6,
                       # v56: the re-plan with the typed-standing gallery
                       # (reports/wedge/a-standing.md: the count frame's soft
                       # and priority cargo standing against the back wall,

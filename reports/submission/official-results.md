@@ -720,3 +720,13 @@ v50's, so none of the platform's uncounted A episodes is of the kind the
 re-plan crosses on the bench (dense-a 10 -> 23), and the race kept taking
 the dry-run's plans where the planner's would have paid (the planner
 alone on the same form: 56.43).  Superseded by v57 (the planner alone).
+
+v58 (v57 plus the dense count-secured plan for Task A: flat hard layers,
+the chamfer ledge, the 0.55 x 0.40 class standing low, two soft layers
+under a plan-only soft cap; B and C as v54) is built and checked on the
+official sample (A 30.92 / 29 against v57's 23 and the dry-run's 25,
+B 29.59 / 26, C 26.44 / 25, the optimize 7.6 s, policy max B 2.55 s,
+C 2.25 s), awaiting the platform.  Bench at the 30 s budget against
+v56's form: dense-a +27.97 [+20.81, +35.34] (counted 23 -> 47 of 48),
+core-a +0.55 n.s., hard-a +2.61 n.s. (31 -> 33).  Expected: the four
+uncounted dense A episodes crossing (reports/wedge/a-dense.md).

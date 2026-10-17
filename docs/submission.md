@@ -962,6 +962,26 @@ C 26.44 / 25, the optimize 3.6 s; policy max B 2.74 s, C 2.38 s
 (`official-sample-abc-v57.json`).  Expected on the platform: the
 diagnostic's 56.43 (the same build with no diagnostic patch).
 
+Fifty-eighth build (v58): v57 plus the dense count-secured plan for
+Task A (`plan_count_secure_blocks="plain;dense;dense@plan_standing_rows_max_height=0.4"`,
+`plan_count_secure_soft_cap=1.6`; `reports/wedge/a-dense.md`): the
+count frame's hard boxes in flat layers, five standing soft boxes on
+the chamfer ledge, the 0.55 x 0.40 class standing low (top 0.94 m,
+clear of the mid-height band), two soft layers on the standing tops
+under a plan-only soft cap of 1.6 m (the online cap stays at 0.7).  In
+the physics bench the soft stacks at 1.2-1.4 m stand (one shake topple
+in 48 dense-a episodes) and the plans replay pose for pose.  At the
+30 s bench budget against v56's form: dense-a +27.97 [+20.81, +35.34],
+counted 23 -> 47 of 48 (x50 12/12, x60 12/12, x70 12/12, x80 11/12;
+placement -2.0, soft +57.5, fill +11.5), core-a +0.55 [-0.20, +1.65],
+hard-a +2.61 [-0.22, +6.61] (31 -> 33 counted); the optimize 1-20 s a
+dense episode.  Official sample: A 30.92 / 29 (v57 23, the dry-run's
+25), B 29.59 / 26, C 26.44 / 25, the optimize 7.6 s; policy max B
+2.55 s, C 2.25 s (`official-sample-abc-v58.json`).  Expected on the
+platform: the four uncounted A episodes (dense, 0.45 placed) crossing
+where the x70/x80 bench does, about 2.7 points each; the price a
+little priority credit on those scenes.
+
 Diagnostic builds for Task A's offline phase (`scripts/build_diagnostic_submission.py A:planner`
 / `A:dryrun`; `dist/submit_diag_a_planner.zip`, `dist/submit_diag_a_dryrun.zip`):
 the v50 form with the row planner alone (`offline_dry_run=False`) or the
