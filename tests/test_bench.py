@@ -108,6 +108,27 @@ class SceneTests(unittest.TestCase):
         self.assertEqual(a.name, "a-dmix-s0005")
         self.assertNotEqual(make_scene(5, "dmix", "A").items, make_scene(6, "dmix", "A").items)
 
+    def test_huge_scenes_are_single_container_manifests_of_100_to_160_items(self):
+        from bench.scenes import HUGE_COUNTS
+
+        suite = build_suite("huge-a")
+        self.assertEqual(len(suite), 36)
+        self.assertEqual(len({s.name for s in suite}), 36)
+        counts = [len(s.items) for s in suite]
+        self.assertEqual(sorted(set(counts)), sorted(HUGE_COUNTS))
+        self.assertEqual(counts.count(100), 12)
+        mixes = set()
+        for scene in suite:
+            self.assertEqual(scene.task, "A")
+            self.assertEqual(len(scene.containers), 1)
+            self.assertEqual([i["index"] for i in scene.items], list(range(len(scene.items))))
+            self.assertIn("demand", scene.spec)
+            mixes.add(scene.spec["mix"])
+        self.assertEqual(mixes, {"sample", "big", "small", "extra"})
+        self.assertGreaterEqual(sum(1 for s in suite if s.spec["mix"] == "sample"), 10)
+        self.assertEqual(make_scene(4, "huge", "A").items, make_scene(4, "huge", "A").items)
+        self.assertEqual(make_scene(4, "huge", "A").name, "a-huge-s0004")
+
 
 class ArmTests(unittest.TestCase):
     def test_override_parsing(self):

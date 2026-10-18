@@ -3473,6 +3473,19 @@ class RuleAlphaConfig:
     Set by the adaptive tokens; a token may carry it directly
     ("dense@plan_count_secure_dense_soft_layers=2")."""
 
+    plan_count_secure_fill_first: float = 0.0
+    """Task A, with ``plan_count_secure``: when the planner's plan holds
+    fewer than this share of the count threshold (0.85: a 100-item
+    manifest's plan under 43 of the 51 asked), the count is out of reach
+    and the re-plan is ranked by the planned volume -- the fill, the one
+    component the platform scores on an uncounted episode -- instead of
+    the count and the plan score, and the ``dense`` tokens, built for the
+    count, are not planned (their time saved: the platform's A
+    manifests read as 100 items and more, where the optimize ran 52 s
+    and no dense plan was ever ranked over the plain one; the v59
+    diagnostic).  The early re-plan's pick against the variants' choice
+    is read the same way.  0: off.  ``reports/wedge/a-mix.md``."""
+
     plan_row_depths_from_manifest: bool = False
     """Task A: the online rows policy's class-depth table ("auto",
     ``planner.online_row_lines``: 0.56, 0.45, 0.40, 0.35, 0.30, the sample

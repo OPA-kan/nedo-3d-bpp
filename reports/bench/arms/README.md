@@ -98,7 +98,17 @@ To measure a change, append `,field=value` to the ship arm's line.
   (`,offline_budget_seconds=30` appended) on the new `dense-mix-a` suite
   (dense single-container manifests of the hard suite's four mixes,
   `bench.scenes.make_dmix_scene`) and on dense-a / core-a / hard-a;
-  records `amix30-*`, priced against `adenser30-*`.
+  records `amix30-*`, priced against `adenser30-*`.  `arm_afill_a.txt`:
+  the v59 form with `plan_count_secure_fill_first=0.85` (the planner's
+  plan under 0.85 of the count threshold: the re-plan ranked by the
+  planned volume, the dense tokens skipped; the platform's A manifests
+  read as 100 items and more, where the count is out of reach and the
+  fill is the one component scored).  Measured on the `huge-a` suite
+  (100 / 130 / 160-item single-container manifests,
+  `bench.scenes.make_huge_scene`) at the arm's own 140 s budget -- the
+  verdict there the fill and the optimize time -- as `adenser-huge-a` /
+  `amix-huge-a` / `afill-huge-a`, and at 30 s on dense-a / core-a
+  (`afill30-*`) for no change.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.

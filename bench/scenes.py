@@ -470,6 +470,70 @@ def make_dmix_scene(seed: int, task: str = "A") -> Scene:
                  items=items, containers=[container], spacing=container["length"] + 0.5, spec=spec)
 
 
+HUGE_COUNTS = (100, 130, 160)
+
+
+def make_huge_scene(seed: int, task: str = "A") -> Scene:
+    """The huge single-container Task A manifests (``huge-a``): the
+    platform's mean optimize time (52 s against 7.5 s on the sample's 41
+    items here, 30 s on 80, 50 s on 120, 65 s on 160) reads as A manifests
+    of 90-100 c1-equivalent items on average, so its uncounted A
+    episodes are probably 100 items and more, where the count threshold
+    is out of reach of any plan (the best dense plans hold 41-44 in c1)
+    and the fill is the one component scored.  Seed s draws 100, 130 or
+    160 items (s mod 3), the mix the sample's one time in two and the
+    hard suite's big-heavy, small or extra mixes otherwise, the
+    container, the soft share and the priority rate as ``make_dmix_scene``
+    draws them, no demand check (the demand travels in the spec).  The
+    verdict there is the fill and the optimize time, not the count
+    (reports/wedge/a-mix.md)."""
+    if task not in TASK_LOOKAHEAD:
+        raise KeyError(f"unknown task {task!r}; known: A, B, C")
+    rng = random.Random(50_000 + seed)
+    skus = SKUS + EXTRA_SKUS
+    total = HUGE_COUNTS[(seed - 1) % len(HUGE_COUNTS)]
+    mix = rng.choice(["sample", "sample", "big", "small", "extra"])
+    weights = [s[7] for s in SKUS] + [0, 0, 0]
+    if mix == "big":
+        weights = [2, 8, 12, 2, 1, 5, 3, 6, 0, 2]
+    elif mix == "small":
+        weights = [14, 4, 1, 2, 8, 3, 6, 0, 10, 1]
+    elif mix == "extra":
+        weights = [8, 6, 3, 2, 2, 4, 3, 5, 5, 4]
+    soft_pool = [(w, sk) for w, sk in zip(weights, skus) if sk[5]]
+    hard_pool = [(w, sk) for w, sk in zip(weights, skus) if not sk[5]]
+    shelf = rng.random() < 0.25
+    base = ULD_SHELF if shelf else ULD
+    container = {
+        "index": 0,
+        "length": round(base["length"] * rng.uniform(0.85, 1.25), 2),
+        "width": round(base["width"] * rng.uniform(0.85, 1.15), 2),
+        "height": round(base["height"] * rng.uniform(0.85, 1.2), 2),
+        "thickness": base["thickness"],
+        "cut_x": round(base["cut_x"] * rng.uniform(0.7, 1.3), 2),
+        "cut_y": round(base["cut_y"] * rng.uniform(0.7, 1.3), 2),
+        "buffer": 0.0, "packed_items": [], "require_shelf": shelf, "is_prioritized": False,
+    }
+    soft_share = rng.choice([0.1, 0.2, 0.32, 0.45, 0.6])
+    prio_rate = rng.choice([0.0, 0.05, 0.1, 0.2, 0.3])
+    items = []
+    for index in range(total):
+        pool = soft_pool if rng.random() < soft_share else hard_pool
+        sku = rng.choices([sk for _w, sk in pool], weights=[w for w, _sk in pool], k=1)[0]
+        _name, length, width, height, mass, soft, physics, _w = sku
+        items.append({"index": index, "length": length, "width": width, "height": height, "mass": mass,
+                      "is_prioritized": rng.random() < prio_rate, "is_soft": soft, **physics})
+    demand = frame_demand(items, [container])
+    pool_size = rng.choice([3, 5, 10, 20]) if task == "B" else TASK_LOOKAHEAD[task]
+    name = f"{task.lower()}-huge-s{seed:04d}"
+    spec = {"containers_n": 1, "priority_container": False, "shelves": int(shelf),
+            "dims": [(container["length"], container["width"], container["height"])],
+            "base_count": total, "soft_share": soft_share, "priority_rate": prio_rate,
+            "mix": mix, "order": "random", "pool": pool_size, "demand": round(demand, 3)}
+    return Scene(name=name, seed=seed, layout="huge", task=task, look_ahead=pool_size,
+                 items=items, containers=[container], spacing=container["length"] + 0.5, spec=spec)
+
+
 SAMPLE_CONFIG = pathlib.Path(__file__).resolve().parents[1] / "reports" / "submission" / "abc_config.json"
 SAMPLE_ENTRY = {"A": "000", "B": "001", "C": "002"}
 
@@ -511,6 +575,8 @@ def make_scene(seed: int, layout: str = "c1", task: str = "C",
         return make_sample_scene(seed, task)
     if layout == "dmix":
         return make_dmix_scene(seed, task)
+    if layout == "huge":
+        return make_huge_scene(seed, task)
     base = layout
     if layout.startswith("c1x") and layout[3:].isdigit():
         # the dense single-container manifests (``dense-a``): ``c1x60`` is
@@ -558,6 +624,10 @@ SUITES = {
     # dense single-container Task A manifests with the SKU mix varied
     # (make_dmix_scene): the dense plan's numbers off the sample mix
     "dense-mix-a": [("A", "dmix", seed) for seed in range(1, 49)],
+    # huge single-container Task A manifests (100 / 130 / 160 items, the
+    # sample mix one time in two): the count out of reach, the fill and
+    # the optimize time the verdict (make_huge_scene)
+    "huge-a": [("A", "huge", seed) for seed in range(1, 37)],
     # the hard2 suites: 96 situations a task, the count chosen for the
     # demand the threshold makes (HARD2_STRATA)
     "hard2": [("C", "hard2", seed) for seed in range(1, 97)],

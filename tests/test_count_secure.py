@@ -869,3 +869,49 @@ class ManifestRowDepthsTest(unittest.TestCase):
         self.assertTrue(other)
         self.assertTrue(all(d in (0.5, 0.3) for _y, d in other))
         self.assertAlmostEqual(other[0][1], 0.5)
+
+
+class FillFirstTest(unittest.TestCase):
+    """``plan_count_secure_fill_first``: the count out of reach, the re-plan
+    ranked by the planned volume and the dense tokens skipped."""
+
+    ARM = AdaptiveDenseTest.ARM
+
+    def test_default_off_and_rank_by_fill(self):
+        self.assertEqual(DEFAULT_CONFIG.plan_count_secure_fill_first, 0.0)
+        big = ((0.0, 2), [], [{"size": [0.7, 0.5, 0.3]}, {"size": [0.7, 0.5, 0.3]}])
+        many = ((0.0, 3), [], [{"size": [0.3, 0.2, 0.1]}] * 3)
+        self.assertGreater(count_secure._rank(many, 10, 12), count_secure._rank(big, 10, 12))
+        self.assertGreater(count_secure._rank(big, 10, 12, by_fill=True), count_secure._rank(many, 10, 12, by_fill=True))
+        self.assertAlmostEqual(count_secure.plan_volume(big[2]), 0.21)
+
+    def test_huge_manifest_skips_the_dense_plans_and_ranks_by_volume(self):
+        scene = make_scene(3, "huge", "A")   # 160 items in a scaled container
+        self.assertEqual(len(scene.items), 160)
+        base, _c, _o = _plan(scene, self.ARM)
+        fill, _c2, _o2 = _plan(scene, self.ARM + ",plan_count_secure_fill_first=0.85")
+        threshold = len(scene.items) // 2 + 1
+        self.assertLess(len(base.plan), int(0.85 * threshold))
+        log = fill.count_secure_log
+        self.assertTrue(log["replanned"])
+        self.assertTrue(log["fill_first"])
+        self.assertFalse(base.count_secure_log.get("fill_first"))
+        dense = [v for v in log["variants"] if v["side"].startswith("dense")]
+        self.assertTrue(dense)
+        self.assertTrue(all(v.get("skipped") and v.get("fill_first") for v in dense))
+        planned = [v for v in log["variants"] if not v.get("skipped")]
+        self.assertTrue(planned)
+        # the pick is the plan of the largest volume among the planner's own and the plans made
+        self.assertGreaterEqual(count_secure.plan_volume(fill.plan), max(v["volume"] for v in planned) - 1e-6)
+        if log["chosen"] != "base":
+            self.assertEqual(max(planned, key=lambda v: v["volume"])["side"], log["chosen"])
+        self.assertLess(fill.optimize_stats["planner_seconds"], 60.0)
+
+    def test_sample_manifest_is_unchanged(self):
+        # the sample's plan holds 23 of 21 asked: the share rule never fires there
+        scene = make_scene(0, "sample", "A")
+        base, _c, base_order = _plan(scene, self.ARM)
+        fill, _c2, order = _plan(scene, self.ARM + ",plan_count_secure_fill_first=0.85")
+        self.assertFalse(fill.count_secure_log.get("fill_first"))
+        self.assertEqual(order, base_order)
+        self.assertEqual([(e["index"], e["center"]) for e in fill.plan], [(e["index"], e["center"]) for e in base.plan])
