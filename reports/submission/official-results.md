@@ -47,6 +47,7 @@
 | v56 (0cadbbda: v54 plus the count-secured re-plan with the typed-standing gallery for Task A; not kept, superseded by v57) | 39.24 | 63.95 | 77.66 | 52.55 | 50.75 | 0.6538 | 74.4 | 7.05 |
 | diag-A-planner (7916e502: the v56 form with the planner alone, no dry-run; a diagnostic) | 38.66 | 64.83 | 77.94 | 51.15 | 52.4 | 0.6460 | 35.2 | 6.99 |
 | diag-A-dryrun (7916e502: the v56 form with the ladder's dry-run alone, no planner; a diagnostic) | 40.60 | 53.22 | 69.41 | 35.75 | 34.05 | 0.6281 | 48.1 | 6.99 |
+| v59 (0e8d1c62-ish, the v59 build: v57's planner alone plus the dense count-secured plan and its priority strip for Task A; B and C as v54; submitted after v60) | 38.66 | 64.04 | 78.04 | 52.05 | 51.25 | 0.6438 | 52.5 | 6.96 |
 | v60 (815e9e88: v59's Task A form -- the planner alone, the dense count-secured plan with its priority strip -- plus Task B's content levers, no priority covers and the pool deferral at 6; **the best so far**; v57-v59 were not submitted) | 35.25 | 65.82 | 74.68 | 63.0 | 61.8 | 0.6119 | 52.4 | 6.76 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
@@ -767,12 +768,29 @@ at 4/23 of dense-a's +28), cog +1.0, fill -3.41 (the B levers' fill
 cost -5.8 at 11/23 is -2.8 of it), stability -3.26.  The stability
 lattice reads 18 counted episodes (74.68 / 18 = 4.149, no topple
 deficit; 19 would need 3.93 an episode, under every reading so far),
-one fewer than the diagnostic's 19: either no dense A episode crossed
-and one episode elsewhere dropped under the count (the B levers'
-hard2-b crossings were 7 up / 7 down on the bench), or dense crossings
-were offset by more losses.  The placed fraction -0.034 (about 0.8 of
+one fewer than the diagnostic's 19.  v59's result (below) settles it:
+the dense plan changed nothing, so the lost episode is a B episode the
+levers pushed under the count (hard2-b's crossings were 7 up / 7 down
+on the bench), and the placement left over is B's too.  The placed fraction -0.034 (about 0.8 of
 an episode's worth) and the optimize 52.4 s (the planner alone was
 35.2 s on the same manifests; the three dense tokens take the rest,
 which with the sample's 41 items at 10 s says the platform's A
 manifests are far bigger) are consistent with both.  v59 (the same A
 side, B as v54) separates the two if submitted.
+
+v59 scored 56.25 on 2026-10-18, after v60 (fill 38.66, cog 64.04,
+stability 78.04, placement 52.05, soft 51.25, placed fraction 0.6438,
+the optimize 52.5 s, policy 6.96 s): against the planner-alone
+diagnostic (the v57 form, 56.43) the fill is identical to the second
+decimal, the fraction -0.002, placement +0.9, soft -1.15, cog -0.8,
+stability +0.1 (19 counted, 4.107 an episode), the optimize +17 s.  So
+the dense plan and its strip changed nothing on the platform: the
+re-plan ran (the optimize time grew by the three dense tokens) but its
+rank never took a dense plan over the plain one, which means the
+platform's uncounted A manifests are not the bench's x70/x80 kind (the
+sample mix, where dense beats plain by 10-15 items); the plain plan is
+as good as the dense layers there.  Read with v60 (58.01): the B
+content levers are the whole of v60's gain -- placement +10.95, soft
++10.55, cog +1.78, fill -3.41 -- and they cost one counted episode
+(stability 78.04 -> 74.68, 19 -> 18), net +1.76; with that episode
+back the levers would read about +4.5.
