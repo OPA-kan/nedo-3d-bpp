@@ -761,6 +761,7 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
         priority_lines[ci] = pack_rows(agent, board, ci, items, config, plan, planned, deadline, log,
                                        deep_first=bool(getattr(config, "plan_priority_deep_first", False)))
     hard_lines: dict[int, list] = {}
+    cap_config: dict = {}
     for ci in normal_idx:
         if time.perf_counter() >= deadline:
             break
@@ -800,6 +801,10 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
                                                left_of(soft_frame) + soft_rest + soft_prio, flat_top, soft_layers,
                                                hard_limit=model.z_ceiling - reserve if reserve > 0 else None)
             standing_config = dataclasses.replace(standing_config, plan_standing_rows_max_height=cap)
+            # the derived cap holds for the rest of the container's plan
+            # (the soft rows, the fill's standing rows), as a token's
+            # fixed cap does
+            cap_config[ci] = dataclasses.replace(config, plan_standing_rows_max_height=cap)
             info["standing_cap"] = cap_info
             if log:
                 log(f"  [dense] container {ci} standing cap {cap:.2f} ({cap_info})")
@@ -838,8 +843,9 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
         # 4. the soft layers over the top, their own rows, layer on layer
         n0 = len(planned)
         soft = left_of(soft_frame) + soft_rest + soft_prio
+        ci_config = cap_config.get(ci, config)
         if soft_floor_line is None and thin_cap <= 0.0:
-            pack_rows(agent, board, ci, soft, config, plan, planned, deadline, log)
+            pack_rows(agent, board, ci, soft, ci_config, plan, planned, deadline, log)
         else:
             # plan_count_secure_dense_soft_thin: the flat soft boxes up to
             # the cap first, in rows of their own, the taller ones after
@@ -854,8 +860,8 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
                           [p for p in normal if min(o.dz for o in p.orientations) > thin_cap + 1e-9]]
             for pool in passes:
                 if pool:
-                    pack_rows(agent, board, ci, pool, config, plan, planned, deadline, log, y_bottom=soft_floor_line)
-            pack_rows(agent, board, ci, [p for p in left_of(soft) if p.is_prioritized], config, plan, planned,
+                    pack_rows(agent, board, ci, pool, ci_config, plan, planned, deadline, log, y_bottom=soft_floor_line)
+            pack_rows(agent, board, ci, [p for p in left_of(soft) if p.is_prioritized], ci_config, plan, planned,
                       deadline, log)
         info["soft"] += len(planned) - n0
     # 5. the rest for fill (plan_count_secure_dense_priority_fill: the
@@ -871,7 +877,8 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
             break
         rest = [profiles[i] for i in order if i not in set(planned)]
         hard = fill_order([p for p in rest if not p.is_soft and not (p.is_prioritized and priority_idx)])
-        pack_rows(agent, board, ci, hard, config, plan, planned, deadline, log, row_lines=hard_lines.get(ci))
+        pack_rows(agent, board, ci, hard, cap_config.get(ci, config), plan, planned, deadline, log,
+                  row_lines=hard_lines.get(ci))
     if priority_idx and getattr(config, "plan_normal_in_priority_container", False):
         for ci in priority_idx:
             hard = [profiles[i] for i in order if i not in set(planned)
@@ -922,12 +929,20 @@ class _plan_soft_cap:
         return n
 
 
-def _rank(entry, threshold: int, gate: int) -> tuple:
+def plan_volume(plan: list) -> float:
+    """The planned volume (m^3): the fill an uncounted episode is scored on."""
+    return sum(float(e["size"][0]) * float(e["size"][1]) * float(e["size"][2]) for e in plan)
+
+
+def _rank(entry, threshold: int, gate: int, by_fill: bool = False) -> tuple:
     """The re-plan's order of plans: over the threshold the plan score
     decides (the soft and priority shares count there), the threshold plus
     the margin first; under it only the count can still pay, so the plan
-    with more items comes first."""
+    with more items comes first.  ``by_fill`` (``plan_count_secure_fill_first``:
+    the count out of reach): the planned volume first, then the count."""
     n = len(entry[2])
+    if by_fill:
+        return (False, False, round(plan_volume(entry[2]), 6), n)
     if n >= threshold:
         return (n >= gate, True, entry[0][0], n)
     return (False, False, n, entry[0][0])
@@ -948,7 +963,8 @@ def prefer_secured(agent, item_list: list[dict], chosen: tuple, secured: tuple) 
         # a later variant holds the trigger itself: the shipped choice
         record["chosen"] = "base"
         return chosen
-    if _rank(secured, threshold, gate) > _rank(chosen, threshold, gate):
+    by_fill = bool(record.get("fill_first"))
+    if _rank(secured, threshold, gate, by_fill) > _rank(chosen, threshold, gate, by_fill):
         return secured
     record["chosen"] = "base"
     return chosen
@@ -981,6 +997,14 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
     if chosen is not None and base_n >= trigger:
         return chosen
     record["replanned"] = True
+    # plan_count_secure_fill_first: the count out of reach (the planner's
+    # plan under the share of the threshold), so the re-plan is ranked by
+    # the planned volume -- the fill, the one component an uncounted
+    # episode is scored on -- and the dense plans, built for the count,
+    # are not planned
+    fill_share = float(getattr(config, "plan_count_secure_fill_first", 0.0) or 0.0)
+    by_fill = fill_share > 0.0 and base_n < fill_share * threshold
+    record["fill_first"] = by_fill
     frame = count_frame(item_list, gate + int(getattr(config, "plan_count_secure_extra", 0)))
     record["frame"] = len(frame)
     scorer = getattr(agent, "plan_score", None)
@@ -1000,11 +1024,14 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
     changes.update(parse_overrides(config, str(getattr(config, "plan_count_secure_overrides", "") or "")))
 
     def rank(entry):
-        return _rank(entry, threshold, gate)
+        return _rank(entry, threshold, gate, by_fill)
 
     factor = float(getattr(config, "plan_count_secure_start_factor", 1.2))
     best = chosen
     for token in sides:
+        if by_fill and token.partition("@")[0] == "dense":
+            record["variants"].append({"side": token, "skipped": True, "fill_first": True})
+            continue
         if (token.partition("@")[0] == "dense" and getattr(config, "plan_count_secure_dense_when_short", True)
                 and best is not None and len(best[2]) >= gate):
             # a plan so far holds the threshold plus the margin: the dense
@@ -1055,7 +1082,7 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
         n_prio = sum(1 for e in plan if by_index[int(e["index"])].get("is_prioritized"))
         entry_log = {"side": token, "planned": len(plan), "frame_planned": info.get("frame_planned"),
                      "soft": n_soft, "priority": n_prio, "score": round(score, 3),
-                     "seconds": round(time.perf_counter() - t0, 1)}
+                     "volume": round(plan_volume(plan), 4), "seconds": round(time.perf_counter() - t0, 1)}
         if side == "dense":
             entry_log["layers"] = {k: info.get(k) for k in ("flat", "ledge", "standing", "soft")}
             if info.get("standing_cap"):
