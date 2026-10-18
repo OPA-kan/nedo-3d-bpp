@@ -47,7 +47,7 @@
 | v56 (0cadbbda: v54 plus the count-secured re-plan with the typed-standing gallery for Task A; not kept, superseded by v57) | 39.24 | 63.95 | 77.66 | 52.55 | 50.75 | 0.6538 | 74.4 | 7.05 |
 | diag-A-planner (7916e502: the v56 form with the planner alone, no dry-run; a diagnostic) | 38.66 | 64.83 | 77.94 | 51.15 | 52.4 | 0.6460 | 35.2 | 6.99 |
 | diag-A-dryrun (7916e502: the v56 form with the ladder's dry-run alone, no planner; a diagnostic) | 40.60 | 53.22 | 69.41 | 35.75 | 34.05 | 0.6281 | 48.1 | 6.99 |
-| v59 (0e8d1c62-ish, the v59 build: v57's planner alone plus the dense count-secured plan and its priority strip for Task A; B and C as v54; submitted after v60) | 38.66 | 64.04 | 78.04 | 52.05 | 51.25 | 0.6438 | 52.5 | 6.96 |
+| v59 (92ca523f: v57's planner alone plus the dense count-secured plan and its priority strip for Task A; B and C as v54; submitted after v60) | 38.66 | 64.04 | 78.04 | 52.05 | 51.25 | 0.6438 | 52.5 | 6.96 |
 | v60 (815e9e88: v59's Task A form -- the planner alone, the dense count-secured plan with its priority strip -- plus Task B's content levers, no priority covers and the pool deferral at 6; **the best so far**; v57-v59 were not submitted) | 35.25 | 65.82 | 74.68 | 63.0 | 61.8 | 0.6119 | 52.4 | 6.76 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
