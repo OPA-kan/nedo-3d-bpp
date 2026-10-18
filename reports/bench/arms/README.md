@@ -160,6 +160,21 @@ To measure a change, append `,field=value` to the ship arm's line.
   `sample-b`, `core-b`, `hard2-b`, priced against `ship-sample-b` /
   `shipr-core-b` / `shipr-hard2-b`.
 
+- `arm_bmix_b.txt` / `arm_cmix_c.txt`: the candidate B form (`arm_nck_b`)
+  and the shipped C form (`arm_ship_c`) with the sample-pinned tables
+  read from the stream instead (`reports/wedge/bc-mix.md`;
+  `rule_alpha/seen.py`, one tracker of the classes seen, the pool and
+  the packed items each once): `phase_switch_window=seen` (the phase
+  switch's window is the most frequent seen hard class when it leads by
+  2, else the sample's), `pocket_mix=seen` (the pocket guard's class
+  frequencies from the tracker with the foresight prior, 10 pseudo-items
+  until 10 seen) and `online_row_depths=seen` (the online rows' depth
+  table from the seen classes over the sample's; inert in these forms,
+  which do not set `online_planner`).  Records `reports/bench/bmix-*`
+  (`sample-b`, `core-b`, `hard-b`, `hard2-b`) and `cmix-*` (`sample-c`,
+  `core`, `hard`, `hard2`), priced against `nck-*` / `nck-hard-b` and
+  `ship-*` / `ship-hard`.
+
 ## Judging a run
 
 `python -m bench.platform_score <base_dir> <new_dir> ...` prices every

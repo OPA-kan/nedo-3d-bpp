@@ -715,6 +715,14 @@ class RuleAlphaConfig:
 
     phase_switch_surface: float = 0.2
     phase_switch_window: str = "0.40x0.55x0.24"
+    """``lxwxh`` of the box the usable surface is read for: the smallest
+    hard class of the sample's mix.  "seen": the most frequent hard class
+    the stream has shown (``rule_alpha.seen.SeenClasses``) when it leads
+    the runner-up by ``seen_classes_lead`` items, lying flat;
+    "seen-smallest": the smallest seen hard class by footprint.  Either
+    falls back to the fixed window while fewer than
+    ``seen_classes_min_hard`` hard boxes have been seen.  The cliff
+    veto's band reads the same window."""
     phase_switch_resort_first: bool = True
     phase_switch_seconds: float = 1.5
     count_cover_priority: bool = True
@@ -2208,6 +2216,20 @@ class RuleAlphaConfig:
     come.  Needs ``phase_switch``; without its reading the prior speaks."""
     pocket_guard_phase_items: float = 10.0
 
+    pocket_mix: str = "fixed"
+    """Where the pocket guard's class frequencies come from.  "fixed": the
+    guard's own Dirichlet count (``pocket_guard_prior`` pseudo-items over
+    the sample's hard classes, plus every item seen from the first), the
+    shipped behaviour.  "seen": the shared tracker's reading
+    (``rule_alpha.seen.SeenClasses``) with the foresight scheme: the
+    sample's hard classes at ``pocket_mix_prior`` pseudo-items, and the
+    seen hard classes by their counts once ``pocket_mix_min_seen`` items
+    (soft ones too) have been seen, the prior alone before that.  The
+    expected stream length and the arrival probabilities are read as in
+    the fixed mode."""
+    pocket_mix_prior: float = 10.0
+    pocket_mix_min_seen: int = 10
+
     count_mode: bool = False
     """The platform scores every component but the fill as zero for an
     episode that places fewer than a certain number of items (the fit
@@ -2691,7 +2713,30 @@ class RuleAlphaConfig:
     "auto": chosen per container from the class depths (0.56, 0.45,
     0.40, 0.35, 0.30) as the set that uses the most of the floor's depth
     with a 0.56 m row first -- the fixed set fits two rows in a 1.38 m
-    floor and leaves 0.32 m at the front no hard box uses."""
+    floor and leaves 0.32 m at the front no hard box uses.
+    "seen": the table of the hard classes the stream has shown
+    (``rule_alpha.seen.SeenClasses``: the pool and the packed items, each
+    once; a class's flat depth is its middle dimension) together with
+    the fixed set as the prior, distinct, the deepest first, laid back
+    to front like the fixed set: a stream of the sample's classes gives
+    exactly the fixed table at every call, a stream with the 0.80 x 0.60
+    box adds a 0.60 m row, one with the 0.35 x 0.25 box a 0.25 m row;
+    the fixed table alone while fewer than ``seen_classes_min_hard``
+    hard boxes have been seen.  Rows already holding a box never move: a
+    container's rows through the last occupied one are kept as they
+    were laid, and only the rows in front of it are laid again from the
+    table as it stands (``RuleAlphaAgent._seen_row_lines``)."""
+
+    seen_classes_min_hard: int = 6
+    """How many hard boxes the stream must have shown before the "seen"
+    modes of ``online_row_depths`` and ``phase_switch_window`` leave the
+    sample's tables (``rule_alpha.seen``)."""
+
+    seen_classes_lead: int = 2
+    """``phase_switch_window`` "seen": the most frequent hard class must
+    lead the runner-up by this many items, else the sample's window
+    stands (the sample's A and B classes run neck and neck: 15 to 14
+    over the official B stream, B ahead once at the seventh hard box)."""
 
     online_rows_hard_only: bool = True
     """The online rows policy places hard cargo only; soft cargo goes to

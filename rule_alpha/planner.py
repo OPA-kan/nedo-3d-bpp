@@ -1301,15 +1301,17 @@ def _replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict
     return None
 
 
-def online_row_lines(model, config, depths: list[float]) -> list[tuple[float, float]]:
+def online_row_lines(model, config, depths: list[float], y_back: float | None = None) -> list[tuple[float, float]]:
     """Fixed row lines for the online rows policy: the given depths laid
-    from the back wall to the opening as far as the floor's depth allows."""
+    from the back wall (or from ``y_back``, the front edge of the rows
+    already laid) to the opening as far as the floor's depth allows."""
     rect = model.floor_rect
     gap = config.settled_clearance + config.anchor_slack
     slack = config.anchor_slack
     y_front = rect.y_min + slack
     lines = []
-    y_back = rect.y_max - slack
+    if y_back is None:
+        y_back = rect.y_max - slack
     if not depths:
         # "auto": the set of class depths that uses the most of this
         # floor's depth, a 0.56 m row (the largest class lies flat in no

@@ -125,6 +125,15 @@ class RuleAlphaAgent:
         self._passed_over: dict[int, int] = {}
         self._deferred_now: set[int] = set()
         self.last_shadow: dict | None = None
+        # the classes the stream has shown (rule_alpha/seen.py), read by
+        # the "seen" modes of online_row_depths, pocket_mix and
+        # phase_switch_window; updated once a policy call
+        from .seen import SeenClasses
+
+        self.seen_classes = SeenClasses()
+        # the "seen" row lines per container, as last laid (the rows that
+        # hold a box are kept from these)
+        self._seen_rows: dict[int, list] = {}
 
     def _resize_zones_for_what_is_left(self) -> None:
         """Re-sizes the reserved strips from the cargo still to come.
@@ -946,6 +955,14 @@ class RuleAlphaAgent:
         containers = observation.get("container_list", [])
         pool = observation.get("pool_list", [])
         self._pool = pool
+        # the seen-class tracker (rule_alpha/seen.py): the pool and the
+        # packed items, each once, for the "seen" modes
+        seen_modes = self._seen_modes()
+        if seen_modes:
+            try:
+                self.seen_classes.observe(pool, containers)
+            except Exception as exc:
+                print(f"[seen] observe failed: {exc!r}", flush=True)
         # the count threshold's volume reading (config.count_mode_stream_volume):
         # the volume of every item the stream has shown, the pool and the
         # packed items, by index
@@ -962,7 +979,8 @@ class RuleAlphaAgent:
         # the pocket guard's class frequencies: every item seen so far
         if self.pocket is not None:
             try:
-                self.pocket.observe(pool, len(containers))
+                self.pocket.observe(pool, len(containers),
+                                    seen=self.seen_classes if "pocket" in seen_modes else None)
             except Exception as exc:
                 print(f"[pocket] observe failed: {exc!r}", flush=True)
         # rebuild from the observation so the plan always reflects the settled
@@ -1106,11 +1124,12 @@ class RuleAlphaAgent:
 
             import re
 
-            spec = str(getattr(self.config, "online_row_depths", "0.56,0.45,0.4"))
+            spec = str(getattr(self.config, "online_row_depths", "0.56,0.45,0.4")).strip()
             # "auto": the row lines chosen per container (planner.online_row_lines);
-            # "mix": the planner's layout over the expected manifest (once a container)
-            depths = [] if spec.strip() in ("auto", "mix") else [float(d) for d in re.split(r"[,;+|]", spec) if d]
-            if spec.strip() == "mix" and getattr(self, "_mix_rows", None) is None:
+            # "mix": the planner's layout over the expected manifest (once a container);
+            # "seen": the table of the hard classes seen so far (_seen_row_lines)
+            depths = [] if spec in ("auto", "mix", "seen") else [float(d) for d in re.split(r"[,;+|]", spec) if d]
+            if spec == "mix" and getattr(self, "_mix_rows", None) is None:
                 from .planner import mix_row_lines
 
                 self._mix_rows = {ci: mix_row_lines(self, self.board, ci, self.config) for ci in range(len(self.board.models))}
@@ -1127,7 +1146,12 @@ class RuleAlphaAgent:
                 hit = None
                 for container_idx in layer1.routing_order(profile, self.board, self.config):
                     model = self.board.model(container_idx)
-                    lines = self._mix_rows[container_idx] if spec.strip() == "mix" else online_row_lines(model, self.config, depths)
+                    if spec == "mix":
+                        lines = self._mix_rows[container_idx]
+                    elif spec == "seen":
+                        lines = self._seen_row_lines(container_idx)
+                    else:
+                        lines = online_row_lines(model, self.config, depths)
                     box, orientation = online_row_pose(self.board, container_idx, profile, self.config, lines,
                                                        standing=bool(getattr(self.config, "plan_standing", True)))
                     if box is not None:
@@ -2733,6 +2757,80 @@ class RuleAlphaAgent:
             base = int(math.ceil(float(total) * share - 1e-9))
         return base + int(getattr(self.config, "count_mode_margin", 0))
 
+    # -- the "seen" modes (rule_alpha/seen.py) -------------------------------
+    def _seen_modes(self) -> frozenset:
+        """Which of the "seen" modes the config asks for: ``rows``
+        (online_row_depths), ``pocket`` (pocket_mix), ``window``
+        (phase_switch_window).  The tracker is updated only when one is."""
+        modes = set()
+        if str(getattr(self.config, "online_row_depths", "")).strip() == "seen":
+            modes.add("rows")
+        if str(getattr(self.config, "pocket_mix", "fixed")).strip() == "seen":
+            modes.add("pocket")
+        if str(getattr(self.config, "phase_switch_window", "")).strip().lower() in ("seen", "seen-smallest"):
+            modes.add("window")
+        return frozenset(modes)
+
+    def _phase_window(self) -> str:
+        """The phase switch's window (config.phase_switch_window): the spec
+        as given, or with "seen" / "seen-smallest" the tracker's reading
+        of the stream, the sample's window as the fallback."""
+        spec = str(getattr(self.config, "phase_switch_window", "0.40x0.55x0.24")).strip()
+        mode = spec.lower()
+        if mode not in ("seen", "seen-smallest"):
+            return spec
+        from .seen import SAMPLE_WINDOW
+
+        window = self.seen_classes.window(int(getattr(self.config, "seen_classes_min_hard", 6)), mode, SAMPLE_WINDOW,
+                                          lead=int(getattr(self.config, "seen_classes_lead", 2)))
+        if window != SAMPLE_WINDOW:
+            self.phase_stats["seen_window_steps"] = self.phase_stats.get("seen_window_steps", 0) + 1
+            self.phase_stats["seen_window"] = window
+        return window
+
+    def _seen_row_lines(self, container_idx: int) -> list:
+        """The online rows' lines for one container from the seen table
+        (config.online_row_depths "seen"): the rows laid last time that
+        hold a box, and every row behind them, stay as they were; the rows
+        in front are laid again from the table as it stands, less the
+        depths the kept rows already took, from the kept rows' front edge.
+        So no row that holds a box moves when the table changes, and a
+        container no box has reached yet follows the table entirely."""
+        from ._reuse import packed_aabbs_local
+        from .planner import online_row_lines
+        from .seen import SAMPLE_ROW_DEPTHS
+
+        model = self.board.model(container_idx)
+        table = self.seen_classes.row_depth_table(int(getattr(self.config, "seen_classes_min_hard", 6)),
+                                                  SAMPLE_ROW_DEPTHS)
+        previous = self._seen_rows.get(container_idx) or []
+        kept: list = []
+        if previous:
+            occupied = -1
+            for box, _soft, _prio in packed_aabbs_local(self.board.container(container_idx)):
+                cy = float(box.center[1])
+                for i, (y_back, depth) in enumerate(previous):
+                    if y_back - depth - 1e-6 <= cy <= y_back + 1e-6:
+                        occupied = max(occupied, i)
+                        break
+            kept = list(previous[: occupied + 1])
+        rest = list(table)
+        for _y, depth in kept:
+            for i, d in enumerate(rest):
+                if abs(d - depth) < 1e-6:
+                    del rest[i]
+                    break
+        if kept:
+            gap = self.config.settled_clearance + self.config.anchor_slack
+            y_back, depth = kept[-1]
+            lines = kept + online_row_lines(model, self.config, rest, y_back=y_back - depth - gap)
+        else:
+            lines = online_row_lines(model, self.config, rest)
+        if lines != previous:
+            self.phase_stats["seen_rows_relaid"] = self.phase_stats.get("seen_rows_relaid", 0) + 1
+        self._seen_rows[container_idx] = lines
+        return lines
+
     def _low_phase(self, containers: list) -> bool:
         """Any container's usable surface under phase_switch_surface of its
         floor area (``surface.usable_surface_ratio``, about 1 ms a container)."""
@@ -2741,7 +2839,7 @@ class RuleAlphaAgent:
         if self.board is None:
             return False
         limit = float(getattr(self.config, "phase_switch_surface", 0.2))
-        window = str(getattr(self.config, "phase_switch_window", "0.40x0.55x0.24"))
+        window = self._phase_window()
         low = False
         for ci in range(len(self.board.models)):
             try:
@@ -2766,7 +2864,7 @@ class RuleAlphaAgent:
             return frozenset()
         low = float(getattr(self.config, "cliff_veto_low", 0.25))
         high = float(getattr(self.config, "cliff_veto_high", 0.6))
-        window = str(getattr(self.config, "phase_switch_window", "0.40x0.55x0.24"))
+        window = self._phase_window()
         t0 = time.perf_counter()
         band = set()
         for ci in range(len(self.board.models)):
