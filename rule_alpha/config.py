@@ -3430,6 +3430,61 @@ class RuleAlphaConfig:
     fill stood at the standing layer's right edge on x80-s0003 is the
     slot a priority box of the same class takes."""
 
+    plan_count_secure_dense_adaptive: bool = False
+    """Task A: the ``dense`` tokens of ``plan_count_secure_blocks`` are
+    rewritten from the manifest (``count_secure.adaptive_dense_tokens``,
+    ``reports/wedge/a-mix.md``) instead of carrying the sample mix's
+    numbers.  A token's ``plan_standing_rows_max_height`` (the shipped
+    0.40: the 0.55 x 0.40 x 0.24 class on edge, where two flat soft layers
+    fit under the c1 ceiling) becomes ``plan_count_secure_dense_soft_layers``
+    = the soft layers the manifest needs (two when the soft boxes' flat
+    footprints cover more than three quarters of the floor, else one),
+    and the plan resolves the cap after its flat layers, for the count
+    the layers can hold, from their actual top, the standing poses of the
+    frame's hard classes and the flat heights of the manifest's soft
+    boxes; a token's
+    ``plan_count_secure_dense_soft_thin`` (the shipped 0.25) becomes the
+    manifest's own split between its flat and tall soft classes
+    (``count_secure.soft_thin_threshold``).  Tokens without those fields
+    (``plain``, the uncapped ``dense``) stay as they are; the token count
+    does not grow.  On the sample mix the rewritten tokens resolve to the
+    shipped values (0.40 and 0.25), so the plans are the shipped ones."""
+
+    plan_count_secure_dense_soft_layers: int = 0
+    """The ``dense`` plan's standing cap derived in the plan
+    (``count_secure.dense_standing_cap``) once the flat layers are laid:
+    among no standing layer and every standing pose height of the
+    frame's normal hard classes left (all hard classes left when the
+    frame has none), the cap whose layers hold the most items by an
+    estimate -- the standing slots of the tallest pose under the cap that
+    the simulator can carry in (``count_secure.carry_in_ok``: the ceiling
+    margin and lift clip, the mid-height band, the sweep's clearance) and
+    that keeps under the soft headroom reserve, in rows over the floor;
+    plus up to this many flat soft layers of the manifest's median soft
+    height over the tops, each carried in and resting under the re-plan's
+    soft cap, each the floor's area at the mean soft footprint; no more
+    than the boxes of either kind.  The lower cap on a tie.  On the
+    sample mix the estimate reads 0.40 (11 on edge, two soft layers)
+    over 0.55 (15 on end, one layer) and over no standing layer (the
+    soft on the 0.54 m flat top ends in the mid-height band): the
+    shipped choice.  0: the configured ``plan_standing_rows_max_height``.
+    Set by the adaptive tokens; a token may carry it directly
+    ("dense@plan_count_secure_dense_soft_layers=2")."""
+
+    plan_row_depths_from_manifest: bool = False
+    """Task A: the online rows policy's class-depth table ("auto",
+    ``planner.online_row_lines``: 0.56, 0.45, 0.40, 0.35, 0.30, the sample
+    mix's) and its fixed default ("0.56,0.45,0.4", the sample's hard
+    classes' flat depths) are read off the manifest handed to
+    ``optimize``: the distinct values of the hard boxes' two smallest
+    dimensions (the flat depth and the on-edge depth), descending, for
+    the table; the distinct flat depths (the middle dimension),
+    descending, for the default.  The table's fallback stands when the
+    manifest holds no hard box, and an ``online_row_depths`` set to
+    anything but the default is kept.  Tasks B and C see no manifest and
+    keep the table.  The shipped A arm runs neither the rows policy nor
+    the pool planner, so this changes nothing in its plans."""
+
     transport_clearance: float = 0.0
     """Clearance of the transport sweep from packed cargo and shelves when
     positive; otherwise ``settled_clearance``.  Set by the plan replay,

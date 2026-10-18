@@ -85,6 +85,20 @@ To measure a change, append `,field=value` to the ship arm's line.
   appended); records `adenser30-dense-a` / `-core-a` / `-hard-a`, priced
   against `adense30-*`: dense-a +3.40 [+2.46, +4.41] (placement +28,
   the same 47 counted), core-a +0.19, hard-a -0.18 n.s.
+- `arm_amix_a.txt`: the v59 A form (`arm_adenser_a`) with the dense
+  plan's numbers read off the manifest instead of the sample mix's
+  (`plan_count_secure_dense_adaptive`: the standing cap chosen in the
+  plan for the count its layers can hold, from the flat layers' actual
+  top, the frame's hard classes' standing poses and the manifest's soft
+  heights; the thin-soft threshold from the manifest's own split; and
+  `plan_row_depths_from_manifest` for the online rows' class table, which
+  the A arm does not run; `reports/wedge/a-mix.md`).  On the sample mix
+  the derived numbers are the shipped ones (0.40 and 0.25), so the plans
+  are v59's plan for plan.  Measured at the platform's regime
+  (`,offline_budget_seconds=30` appended) on the new `dense-mix-a` suite
+  (dense single-container manifests of the hard suite's four mixes,
+  `bench.scenes.make_dmix_scene`) and on dense-a / core-a / hard-a;
+  records `amix30-*`, priced against `adenser30-*`.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.

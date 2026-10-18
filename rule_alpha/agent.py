@@ -388,6 +388,13 @@ class RuleAlphaAgent:
         profiles = self._prepare_manifest(item_list)
         self._manifest_total = len(item_list) if item_list else None
         self._manifest = {int(i["index"]): i for i in item_list} if item_list else None
+        self._manifest_row_depths = None
+        if getattr(self.config, "plan_row_depths_from_manifest", False):
+            # the online rows policy's class depths from the manifest
+            # (planner.manifest_row_depths)
+            from .planner import manifest_row_depths
+
+            self._manifest_row_depths = manifest_row_depths(item_list)
         if self.pocket is not None:
             # Task A: the pocket guard counts the classes still to come
             # from the manifest instead of estimating them
@@ -1110,6 +1117,11 @@ class RuleAlphaAgent:
             # "auto": the row lines chosen per container (planner.online_row_lines);
             # "mix": the planner's layout over the expected manifest (once a container)
             depths = [] if spec.strip() in ("auto", "mix") else [float(d) for d in re.split(r"[,;+|]", spec) if d]
+            # plan_row_depths_from_manifest (Task A): the manifest's own
+            # class depths for the table, its flat depths for the default
+            manifest_depths = getattr(self, "_manifest_row_depths", None)
+            if manifest_depths and spec.strip() == str(DEFAULT_CONFIG.online_row_depths):
+                depths = list(manifest_depths[1])
             if spec.strip() == "mix" and getattr(self, "_mix_rows", None) is None:
                 from .planner import mix_row_lines
 
@@ -1127,7 +1139,8 @@ class RuleAlphaAgent:
                 hit = None
                 for container_idx in layer1.routing_order(profile, self.board, self.config):
                     model = self.board.model(container_idx)
-                    lines = self._mix_rows[container_idx] if spec.strip() == "mix" else online_row_lines(model, self.config, depths)
+                    lines = self._mix_rows[container_idx] if spec.strip() == "mix" else online_row_lines(
+                        model, self.config, depths, classes=manifest_depths[0] if manifest_depths else None)
                     box, orientation = online_row_pose(self.board, container_idx, profile, self.config, lines,
                                                        standing=bool(getattr(self.config, "plan_standing", True)))
                     if box is not None:
@@ -2267,7 +2280,9 @@ class RuleAlphaAgent:
                 if spec == "mix":
                     rows[ci] = mix_row_lines(self, scratch, ci, self.config)
                 elif spec == "auto":
-                    rows[ci] = online_row_lines(model, self.config, [])
+                    manifest_depths = getattr(self, "_manifest_row_depths", None)
+                    rows[ci] = online_row_lines(model, self.config, [],
+                                                classes=manifest_depths[0] if manifest_depths else None)
                 else:
                     rows[ci] = []
             self._pool_rows = rows
