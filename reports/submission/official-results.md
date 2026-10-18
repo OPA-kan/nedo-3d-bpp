@@ -47,6 +47,7 @@
 | v56 (0cadbbda: v54 plus the count-secured re-plan with the typed-standing gallery for Task A; not kept, superseded by v57) | 39.24 | 63.95 | 77.66 | 52.55 | 50.75 | 0.6538 | 74.4 | 7.05 |
 | diag-A-planner (7916e502: the v56 form with the planner alone, no dry-run; a diagnostic) | 38.66 | 64.83 | 77.94 | 51.15 | 52.4 | 0.6460 | 35.2 | 6.99 |
 | diag-A-dryrun (7916e502: the v56 form with the ladder's dry-run alone, no planner; a diagnostic) | 40.60 | 53.22 | 69.41 | 35.75 | 34.05 | 0.6281 | 48.1 | 6.99 |
+| v60 (815e9e88: v59's Task A form -- the planner alone, the dense count-secured plan with its priority strip -- plus Task B's content levers, no priority covers and the pool deferral at 6; **the best so far**; v57-v59 were not submitted) | 35.25 | 65.82 | 74.68 | 63.0 | 61.8 | 0.6119 | 52.4 | 6.76 |
 
 v41's total was 50.32 (v39 52.71, -2.39): cog -3.69, stability -4.28,
 placement -3.4, fill -1.01, soft +0.65, the fraction placed 0.6153 ->
@@ -752,3 +753,26 @@ shipped B form: core-b +3.41 [+2.17, +4.78] with 48 of 48 counted
 (placement +13.8, soft +18.8, cog +3.5, fill -5.8), sample-b +11.03,
 hard2-b +0.71 n.s. (reports/wedge/b-content.md).  Expected at the task
 shares: about +1.6 on the platform total.
+
+v60 scored 58.01 on 2026-10-18 (fill 35.25, cog 65.82, stability 74.68,
+placement 63.0, soft 61.8, placed fraction 0.6119, the optimize 52.4 s,
+policy 6.76 s), +1.70 over v56 and +1.58 over the planner-alone
+diagnostic (the v57 form), the best so far.  v57, v58 and v59 were not
+submitted, so the A side (the dense plan and its strip) and the B side
+(the content levers) read together.  Against the planner-alone
+diagnostic: placement +11.85 and soft +9.4 (the B levers' share at
+11/23 of core-b's +13.8 / +18.8 is about +6.6 / +9.0; the placement
+left over, about +5, is the size of the dense strip's priority credit
+at 4/23 of dense-a's +28), cog +1.0, fill -3.41 (the B levers' fill
+cost -5.8 at 11/23 is -2.8 of it), stability -3.26.  The stability
+lattice reads 18 counted episodes (74.68 / 18 = 4.149, no topple
+deficit; 19 would need 3.93 an episode, under every reading so far),
+one fewer than the diagnostic's 19: either no dense A episode crossed
+and one episode elsewhere dropped under the count (the B levers'
+hard2-b crossings were 7 up / 7 down on the bench), or dense crossings
+were offset by more losses.  The placed fraction -0.034 (about 0.8 of
+an episode's worth) and the optimize 52.4 s (the planner alone was
+35.2 s on the same manifests; the three dense tokens take the rest,
+which with the sample's 41 items at 10 s says the platform's A
+manifests are far bigger) are consistent with both.  v59 (the same A
+side, B as v54) separates the two if submitted.
