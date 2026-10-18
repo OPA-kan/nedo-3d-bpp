@@ -93,6 +93,24 @@ class ClassFrequencies:
             self.counts[key] = self.counts.get(key, 0.0) + 1.0
             self.seen_by_class[key] = self.seen_by_class.get(key, 0) + 1
 
+    def set_seen(self, seen, prior_weight: float, min_seen: int) -> None:
+        """config.pocket_mix "seen": the counts from the shared tracker
+        (``rule_alpha.seen.SeenClasses``) with the foresight scheme --
+        ``prior_weight`` pseudo-items over the sample's hard classes, the
+        seen hard classes by their counts once ``min_seen`` items have
+        been seen, the prior alone before that.  What ``observe`` counts
+        (the items seen, the expected remainder) stays."""
+        total = float(sum(w for _l, _w, _h, soft, w in SKU_MIX if not soft))
+        counts: dict[tuple, float] = {}
+        for l, w, h, soft, weight in SKU_MIX:
+            if not soft:
+                counts[self._key(l, w, h)] = float(prior_weight) * weight / total
+        if int(seen.total) >= int(min_seen):
+            for (l, w, h), n in seen.hard_classes():
+                key = self._key(l, w, h)
+                counts[key] = counts.get(key, 0.0) + float(n)
+        self.counts = counts
+
     @property
     def remaining(self) -> float:
         return max(0.0, self.expected_total - self.seen_count, self.phase_floor)
@@ -196,8 +214,14 @@ class PocketGuard:
         """Task A: the whole stream is known."""
         self._ensure(containers).set_manifest(items)
 
-    def observe(self, pool: list, containers: int) -> None:
-        self._ensure(containers).observe(pool)
+    def observe(self, pool: list, containers: int, seen=None) -> None:
+        """Every pool item, once; with ``seen`` (config.pocket_mix "seen")
+        the class frequencies are then taken from that tracker."""
+        freq = self._ensure(containers)
+        freq.observe(pool)
+        if seen is not None:
+            freq.set_seen(seen, float(getattr(self.config, "pocket_mix_prior", 10.0)),
+                          int(getattr(self.config, "pocket_mix_min_seen", 10)))
 
     def set_phase(self, phase_low: bool | None, containers: int) -> None:
         """The phase switch's reading (config.pocket_guard_phase_prior): in
