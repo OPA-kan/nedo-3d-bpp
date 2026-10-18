@@ -688,8 +688,11 @@ class RuleAlphaAgent:
         self._deferred_now = set()
         if k <= 0 or len(ordered) < 2:
             return ordered
+        # config.pool_defer_soft_only: the priority cargo keeps the pool order
+        soft_only = bool(getattr(self.config, "pool_defer_soft_only", False))
         front = [(pi, pr) for pi, pr in ordered
-                 if pr.cargo_class != cls.NORMAL_HARD and self._passed_over.get(int(pr.index), 0) >= k]
+                 if pr.cargo_class != cls.NORMAL_HARD and (not soft_only or pr.is_soft)
+                 and self._passed_over.get(int(pr.index), 0) >= k]
         if not front:
             return ordered
         self._deferred_now = {int(pr.index) for _pi, pr in front}
@@ -702,6 +705,28 @@ class RuleAlphaAgent:
                 seen.add(index)
                 self._defer_stat("items")
         return front + [pp for pp in ordered if pp not in front]
+
+    def _defer_floor_hold(self, pool: list, pool_index: int, placement) -> bool:
+        """config.pool_defer_floor_secured: whether this pose of a deferred
+        item is held -- on the floor while the packed count is under the
+        count mode's threshold.  Held, the item's passed-over count
+        restarts (it is asked again after k more calls) and it leaves this
+        call's deferred front."""
+        if not getattr(self.config, "pool_defer_floor_secured", False) or not self._deferred_now:
+            return False
+        try:
+            index = int(pool[int(pool_index)]["index"])
+        except (IndexError, KeyError, TypeError, ValueError):
+            return False
+        if index not in self._deferred_now or str(getattr(placement, "surface", "")) != "floor":
+            return False
+        threshold = self._count_threshold()
+        if threshold is None or int(getattr(self, "_placed_now", 0)) >= int(threshold):
+            return False
+        self._passed_over[index] = 0
+        self._deferred_now.discard(index)
+        self._defer_stat("floor_held")
+        return True
 
     def _note_passed_over(self, pool: list, action: dict | None) -> None:
         """After a call that placed something: every other pool item was
@@ -946,6 +971,8 @@ class RuleAlphaAgent:
         containers = observation.get("container_list", [])
         pool = observation.get("pool_list", [])
         self._pool = pool
+        # the packed count, for the deferral's floor hold (config.pool_defer_floor_secured)
+        self._placed_now = sum(len(c.get("packed_items", []) or []) for c in containers)
         # the count threshold's volume reading (config.count_mode_stream_volume):
         # the volume of every item the stream has shown, the pool and the
         # packed items, by index
@@ -1316,6 +1343,8 @@ class RuleAlphaAgent:
             for pool_index, profile in ordered:
                 decision = self.wedge_option.propose(self.board, profile)
                 if decision is not None:
+                    if self._defer_floor_hold(pool, pool_index, decision.placement):
+                        continue
                     self.last_decision = decision
                     action = self._emit(pool_index, decision.placement)
                     if action is not None:
@@ -1334,7 +1363,11 @@ class RuleAlphaAgent:
                 # the pair reservation's first half (config.pair_reserve)
                 decision = self._pair_reserve(decision, pool, pool_index, profile)
             self.last_decision = decision
-            action = self._emit(pool_index, self._pocket_guarded(pool, pool_index, profile, decision))
+            placement = self._pocket_guarded(pool, pool_index, profile, decision)
+            # the deferral's floor hold (config.pool_defer_floor_secured)
+            if self._defer_floor_hold(pool, pool_index, placement):
+                continue
+            action = self._emit(pool_index, placement)
             if action is not None:
                 if self._pair_pending is not None:
                     self._pair_commit()

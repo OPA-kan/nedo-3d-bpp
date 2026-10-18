@@ -2635,6 +2635,37 @@ class RuleAlphaConfig:
     (the deferred item placed; ``_soft`` / ``_priority`` and by
     archetype), ``defer_passed`` (passed over again)."""
 
+    pool_defer_soft_only: bool = False
+    """The deferral (``pool_defer_max``) for the soft cargo only: a
+    priority pool item keeps the pool order however often it is passed
+    over.  On the v60 form's hard2-b record (reports/wedge/b-keep-count.md)
+    five of the seven crossings lost had priority boxes pulled forward by
+    the deferral onto the floor (``priority-edge`` poses at the floor on
+    b-hard2-s0087 and s0050, where the base had placed none of them and
+    the hard cargo lost 15 and 9 places), while on core-b the priority
+    fires bought about +1.2 of placement (the never-cover rule had already
+    stopped the covers: nck +13.8 against ncl's +12.6) and the priority
+    boxes placed were level (4.81 -> 4.79 a scene).  Off: soft and
+    priority as before."""
+
+    pool_defer_floor_secured: bool = False
+    """A deferred item (``pool_defer_max``) may take the floor only once the
+    count is secured: while the packed count is under the count mode's
+    threshold (``_count_threshold``: the agent's estimate, so the fixed
+    prior or the stream's volume reading), a deferred item at the front of
+    the ladder's order whose ladder pose (or wedge-option pose) rests on
+    the floor is held -- the pose is not emitted, the next item is tried,
+    and the item's passed-over count restarts, so it is asked again after
+    k more calls rather than costing a ladder decision every call.  A
+    pose on a shelf or on cargo is emitted as before, and the rescue
+    stages (the resort, the count pass, the grid rescue) keep their
+    poses.  On the v60 form's hard2-b record the deferral's fires on the
+    floor under the threshold were 25 of the 36 fires on the seven
+    crossings lost (b-hard2-s0059: four ``pocket-soft`` boxes on the floor
+    at steps 12-15, the hard cargo 47 -> 36 placed) against 29 % of the
+    fires on core-b.  Without ``count_mode`` there is no threshold and
+    nothing is held.  Phase stat: ``defer_floor_held``."""
+
     soft_first_restricted_share: float = 0.3
     """The share of the policy budget the restricted pass may use (its
     ladder decisions stop when the slowest one so far would carry past
