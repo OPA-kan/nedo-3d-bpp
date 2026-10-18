@@ -697,3 +697,175 @@ class DensePriorityStripTest(unittest.TestCase):
                 orientation = next(o for o in profile.orientations if o.index == entry["orientation"])
                 board.apply(_placement(_Pose(box, orientation, model.z_floor), 1, profile, entry["container_idx"],
                                        model))
+
+
+class AdaptiveDenseTest(unittest.TestCase):
+    """``plan_count_secure_dense_adaptive`` (reports/wedge/a-mix.md): the
+    dense tokens' standing cap and thin-soft threshold read off the
+    manifest; the shipped values on the sample mix, other values on
+    another mix."""
+
+    ARM = pathlib.Path(REPO_ROOT, "reports", "bench", "arms", "arm_adenser_a.txt").read_text().strip() \
+        + ",offline_budget_seconds=30"
+    TOKENS = ["plain", "dense", "dense@plan_standing_rows_max_height=0.4",
+              "dense@plan_standing_rows_max_height=0.4&plan_count_secure_dense_priority_rows=1"
+              "&plan_count_secure_dense_soft_thin=0.25"]
+
+    @staticmethod
+    def _synthetic(hard: tuple, n_hard: int = 40, n_soft: int = 40):
+        """``n_hard`` boxes of one hard class and ``n_soft`` soft boxes of
+        the sample's four soft classes, a priority item in ten."""
+        import random
+
+        from bench.scenes import SKUS
+
+        rng = random.Random(7)
+        soft_skus = [s for s in SKUS if s[5]]
+        items = []
+        for k in range(n_hard + n_soft):
+            if k < n_hard:
+                l, w, h, mass, soft, physics = hard[0], hard[1], hard[2], 12, False, dict(SKUS[0][6])
+            else:
+                _n, l, w, h, mass, soft, physics, _w = soft_skus[k % len(soft_skus)]
+            items.append({"index": k, "length": l, "width": w, "height": h, "mass": mass, "is_soft": soft,
+                          "is_prioritized": rng.random() < 0.1, **physics})
+        rng.shuffle(items)
+        for k, item in enumerate(items):
+            item["index"] = k
+        return items
+
+    def _dense_plan(self, scene, items, extra: str):
+        import time
+
+        agent = make_arm(PLANNER + ",plan_standing_rows=true,plan_soft_own_rows=true,plan_count_secure_soft_cap=1.6"
+                         + extra)(scene)
+        containers = scene.rule_alpha_containers()
+        agent.get_init_states({"container_list": containers})
+        agent._prepare_manifest(items)
+        agent._manifest_total = len(items)
+        agent.plan_source = "planner"
+        frame = count_secure.count_frame(items, len(items) // 2 + 1 + 2)
+        with count_secure._plan_soft_cap(agent.config):
+            _order, plan, info = count_secure.plan_dense(agent, items, time.perf_counter() + 120, frame)
+        return agent, plan, info
+
+    def test_defaults_off(self):
+        self.assertFalse(DEFAULT_CONFIG.plan_count_secure_dense_adaptive)
+        self.assertEqual(DEFAULT_CONFIG.plan_count_secure_dense_soft_layers, 0)
+        self.assertFalse(DEFAULT_CONFIG.plan_row_depths_from_manifest)
+
+    def test_sample_mix_derives_the_shipped_numbers(self):
+        scene = make_scene(0, "sample", "A")
+        items = [dict(i) for i in scene.items]
+        agent = make_arm(self.ARM)(scene)
+        agent.get_init_states({"container_list": scene.rule_alpha_containers()})
+        tokens, derived = count_secure.adaptive_dense_tokens(agent, items, self.TOKENS)
+        self.assertEqual(tokens, ["plain", "dense", "dense@plan_count_secure_dense_soft_layers=2",
+                                  "dense@plan_count_secure_dense_soft_layers=2&plan_count_secure_dense_priority_rows=1"
+                                  "&plan_count_secure_dense_soft_thin=0.25"])
+        self.assertEqual(derived["soft_layers"], 2)
+        self.assertAlmostEqual(derived["soft_thin"], 0.25)
+        # the thin threshold: the first class 1.4 times the next; none -> one pass
+        from rule_alpha import classify as cls
+        soft = [cls.classify_item(int(i["index"]), i, agent.config) for i in items if i["is_soft"]]
+        self.assertAlmostEqual(count_secure.soft_thin_threshold(soft), 0.25)
+        flat = [p for p in soft if min(o.dz for o in p.orientations) < 0.3]
+        self.assertEqual(count_secure.soft_thin_threshold(flat), 0.0)
+        self.assertEqual(count_secure.soft_layers_needed(agent.board, soft), 2)
+        self.assertEqual(count_secure.soft_layers_needed(agent.board, soft[:4]), 1)
+        # the cap in the plan: the on-edge 0.40 of the 0.55 x 0.40 x 0.24
+        # class over the flat layers' 0.54 m top (11 standing, two soft
+        # layers of 8) over 0.55 on end (15 standing, one layer: the
+        # second would top 1.55 m, over the carry-in ceiling of 1.5255)
+        # and over no standing layer (a soft layer on the flat top ends
+        # in the mid-height band)
+        model = agent.board.model(0)
+        container = agent.board.container(0)
+        self.assertAlmostEqual(count_secure.carry_in_ceiling(model, agent.config), 1.5255, places=4)
+        self.assertTrue(count_secure.carry_in_ok(0.94, 1.17, model, container, agent.config))
+        self.assertTrue(count_secure.carry_in_ok(1.17, 1.40, model, container, agent.config))
+        self.assertFalse(count_secure.carry_in_ok(1.32, 1.55, model, container, agent.config))
+        self.assertFalse(count_secure.carry_in_ok(0.54, 0.77, model, container, agent.config))
+        self.assertFalse(count_secure.carry_in_ok(0.86, 1.09, model, container, agent.config))
+        hard = [cls.classify_item(int(i["index"]), i, agent.config) for i in items
+                if not i["is_soft"] and abs(i["length"] - 0.55) < 1e-9]
+        with count_secure._plan_soft_cap(agent.config):   # the re-plan's 1.6 m soft cap
+            cap, info = count_secure.dense_standing_cap(model, container, agent.config, hard, soft, 0.54, 2)
+            self.assertAlmostEqual(cap, 0.40)
+            self.assertEqual((info["layers"], info["standing"], info["soft"]), (2, 10, 13))
+            by_cap = {c["cap"]: c for c in info["candidates"]}
+            self.assertEqual((by_cap[0.55]["standing"], by_cap[0.55]["layers"]), (13, 1))
+            self.assertEqual(by_cap[0.0]["soft"], 0)
+            cap, info = count_secure.dense_standing_cap(model, container, agent.config, hard, soft, 0.54, 1)
+            self.assertAlmostEqual(cap, 0.55)
+            self.assertEqual(info["layers"], 1)
+        # under the online cap (0.7 m) soft carries no second layer up there
+        cap, info = count_secure.dense_standing_cap(model, container, agent.config, hard, soft, 0.54, 2)
+        self.assertAlmostEqual(cap, 0.55)
+        # the plan itself: the sample's dense plan with the layers field is
+        # the plan with the fixed cap
+        _a, fixed, _i = self._dense_plan(scene, items, ",plan_standing_rows_max_height=0.4")
+        _b, adaptive, info = self._dense_plan(scene, items, ",plan_count_secure_dense_soft_layers=2")
+        self.assertAlmostEqual(info["standing_cap"]["cap"], 0.40)
+        self.assertEqual([(e["index"], e["center"], e["size"]) for e in fixed],
+                         [(e["index"], e["center"], e["size"]) for e in adaptive])
+
+    def test_official_sample_plan_is_unchanged_under_the_flag(self):
+        scene = make_scene(0, "sample", "A")
+        base, _c, base_order = _plan(scene, self.ARM)
+        adaptive, _c2, order = _plan(scene, self.ARM + ",plan_count_secure_dense_adaptive=true,"
+                                     "plan_row_depths_from_manifest=true")
+        log = adaptive.count_secure_log
+        self.assertTrue(log["replanned"])
+        self.assertEqual(log["adaptive"]["tokens"][:2], ["plain", "dense"])
+        self.assertTrue(log["chosen"].startswith("dense"))
+        self.assertEqual(base.count_secure_log["chosen"].split("@")[0], log["chosen"].split("@")[0])
+        self.assertEqual(order, base_order)
+        self.assertEqual([(e["index"], e["center"], e["size"]) for e in adaptive.plan],
+                         [(e["index"], e["center"], e["size"]) for e in base.plan])
+        self.assertEqual(adaptive._manifest_row_depths, ([0.56, 0.45, 0.4, 0.27, 0.25, 0.24], [0.56, 0.45, 0.4]))
+        self.assertIsNone(base._manifest_row_depths)
+
+    def test_another_hard_class_gets_its_own_cap_and_a_fuller_plan(self):
+        scene = make_scene(0, "sample", "A")
+        items = self._synthetic((0.60, 0.50, 0.25))
+        _a, fixed, info_fixed = self._dense_plan(scene, items, ",plan_standing_rows_max_height=0.4")
+        _b, adaptive, info = self._dense_plan(scene, items, ",plan_count_secure_dense_soft_layers=2")
+        # no standing pose of the 0.60 x 0.50 x 0.25 class is under 0.40,
+        # so the fixed cap stands nothing and the soft rows on the 0.54 m
+        # flat top end in the mid-height band; the 0.50 m pose stands ten
+        # with one soft layer over them under the soft headroom reserve
+        self.assertEqual(info_fixed["standing"], 0)
+        self.assertAlmostEqual(info["standing_cap"]["cap"], 0.50)
+        self.assertEqual(info["standing_cap"]["layers"], 1)
+        self.assertGreater(info["standing"], 0)
+        self.assertGreater(len(adaptive), len(fixed))
+        agent = make_arm(self.ARM)(scene)
+        agent.get_init_states({"container_list": scene.rule_alpha_containers()})
+        tokens, _d = count_secure.adaptive_dense_tokens(agent, items, self.TOKENS)
+        self.assertEqual(len(tokens), 4)
+        self.assertIn("plan_count_secure_dense_soft_layers=", tokens[2])
+        self.assertNotIn("plan_standing_rows_max_height", ";".join(tokens))
+
+
+class ManifestRowDepthsTest(unittest.TestCase):
+    def test_table_and_default_from_the_hard_classes(self):
+        from rule_alpha.planner import ROW_DEPTH_CLASSES, manifest_row_depths, online_row_lines
+
+        scene = make_scene(0, "sample", "A")
+        table, flat = manifest_row_depths(scene.items)
+        self.assertEqual(table, [0.56, 0.45, 0.4, 0.27, 0.25, 0.24])
+        self.assertEqual(flat, [0.56, 0.45, 0.4])
+        self.assertIsNone(manifest_row_depths([i for i in scene.items if i["is_soft"]]))
+        self.assertEqual(manifest_row_depths([{"length": 0.7, "width": 0.5, "height": 0.3, "is_soft": False}]),
+                         ([0.5, 0.3], [0.5]))
+        self.assertEqual(ROW_DEPTH_CLASSES, [0.56, 0.45, 0.40, 0.35, 0.30])
+        agent = make_arm("ladder-stable")(scene)
+        agent.get_init_states({"container_list": scene.rule_alpha_containers()})
+        model = agent.board.model(0)
+        default = online_row_lines(model, agent.config, [])
+        self.assertEqual(default, online_row_lines(model, agent.config, [], classes=None))
+        other = online_row_lines(model, agent.config, [], classes=[0.5, 0.3])
+        self.assertTrue(other)
+        self.assertTrue(all(d in (0.5, 0.3) for _y, d in other))
+        self.assertAlmostEqual(other[0][1], 0.5)

@@ -81,6 +81,33 @@ class SceneTests(unittest.TestCase):
         self.assertNotEqual(resampled.items, make_scene(4, "sample", "A").items)
         self.assertEqual(len(build_suite("sample-a")), 12)
 
+    def test_dense_mix_scenes_are_dense_single_container_manifests_of_varied_mixes(self):
+        from bench.scenes import DMIX_COUNTS, DMIX_DEMAND_MAX, EXTRA_SKUS, frame_demand
+
+        suite = build_suite("dense-mix-a")
+        self.assertEqual(len(suite), 48)
+        self.assertEqual(len({s.name for s in suite}), 48)
+        dims = {(s[1], s[2], s[3], s[5]) for s in SKUS + EXTRA_SKUS}
+        mixes = set()
+        for scene in suite:
+            self.assertEqual(scene.task, "A")
+            self.assertTrue(scene.optimize)
+            self.assertEqual(len(scene.containers), 1)
+            self.assertFalse(scene.containers[0]["is_prioritized"])
+            self.assertIn(len(scene.items), DMIX_COUNTS)
+            self.assertEqual([i["index"] for i in scene.items], list(range(len(scene.items))))
+            for item in scene.items:
+                self.assertIn((item["length"], item["width"], item["height"], item["is_soft"]), dims)
+            self.assertLessEqual(scene.spec["demand"], DMIX_DEMAND_MAX)
+            self.assertAlmostEqual(scene.spec["demand"], frame_demand(scene.items, scene.containers), places=3)
+            mixes.add(scene.spec["mix"])
+        self.assertEqual(mixes, {"sample", "big", "small", "extra"})
+        a, b = make_scene(5, "dmix", "A"), make_scene(5, "dmix", "A")
+        self.assertEqual(a.items, b.items)
+        self.assertEqual(a.containers, b.containers)
+        self.assertEqual(a.name, "a-dmix-s0005")
+        self.assertNotEqual(make_scene(5, "dmix", "A").items, make_scene(6, "dmix", "A").items)
+
 
 class ArmTests(unittest.TestCase):
     def test_override_parsing(self):

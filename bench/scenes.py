@@ -381,6 +381,95 @@ def make_hard2_scene(seed: int, task: str = "C") -> Scene:
                  items=items, containers=containers, spacing=spacing, spec=spec)
 
 
+DMIX_MIXES = ["sample", "big", "small", "extra"]
+DMIX_DEMAND_MAX = 0.55
+DMIX_DEMAND_BAND = (0.30, 0.50)   # dense-a's: c1x50 about 0.30, c1x80 0.45
+DMIX_COUNTS = (60, 70, 80, 90, 100, 110, 120)
+
+
+def frame_demand(items: list[dict], containers: list[dict]) -> float:
+    """The volume of the smallest ``len(items) // 2 + 1`` items over the
+    containers' volume: what the count threshold asks of a Task A agent,
+    which orders the manifest itself and can take the smallest items
+    first (``threshold_demand`` reads the stream's order, Task C's)."""
+    thr = len(items) // 2 + 1
+    vols = sorted(i["length"] * i["width"] * i["height"] for i in items)
+    cap = sum(c["length"] * c["width"] * c["height"] for c in containers)
+    return sum(vols[:thr]) / max(cap, 1e-9)
+
+
+def make_dmix_scene(seed: int, task: str = "A") -> Scene:
+    """The dense single-container manifests of ``dense-a`` with the SKU
+    mix varied (``dense-mix-a``): the mix one of the hard suite's four
+    (the sample's, big-heavy, small, or with the extra SKUs) at equal
+    odds; one container scaled from the ULDs as the hard suite scales
+    them (length 0.85-1.25x, width 0.85-1.15x, height 0.85-1.2x, the
+    chamfer 0.7-1.3x; a shelf one time in four), no priority container;
+    the soft share 10-60 %, the priority rate 0-30 %; the items in a
+    random order, their count the one of ``DMIX_COUNTS`` (60-120) whose
+    smallest half-plus-one items by volume come closest to a demand drawn
+    in ``DMIX_DEMAND_BAND`` (``frame_demand``: the share of the
+    container's volume the count asks of a Task A agent, which orders
+    the manifest itself; dense-a's c1x50-c1x80 ask 0.30-0.45, the small
+    mix's 90 items 0.16-0.26).  A draw whose demand still exceeds
+    ``DMIX_DEMAND_MAX`` (a big mix with little soft cargo) is redrawn
+    with the same mix, so the suite reads the planner, not the volume;
+    the demand and the draws travel in the spec.  The dense plan's
+    numbers (reports/wedge/a-dense.md) were tuned on the sample mix;
+    this suite asks what they are worth on another
+    (reports/wedge/a-mix.md)."""
+    if task not in TASK_LOOKAHEAD:
+        raise KeyError(f"unknown task {task!r}; known: A, B, C")
+    rng = random.Random(40_000 + seed)
+    skus = SKUS + EXTRA_SKUS
+    mix = rng.choice(DMIX_MIXES)
+    weights = [s[7] for s in SKUS] + [0, 0, 0]
+    if mix == "big":
+        weights = [2, 8, 12, 2, 1, 5, 3, 6, 0, 2]
+    elif mix == "small":
+        weights = [14, 4, 1, 2, 8, 3, 6, 0, 10, 1]
+    elif mix == "extra":
+        weights = [8, 6, 3, 2, 2, 4, 3, 5, 5, 4]
+    soft_pool = [(w, sk) for w, sk in zip(weights, skus) if sk[5]]
+    hard_pool = [(w, sk) for w, sk in zip(weights, skus) if not sk[5]]
+    for attempt in range(1, 100):
+        shelf = rng.random() < 0.25
+        base = ULD_SHELF if shelf else ULD
+        container = {
+            "index": 0,
+            "length": round(base["length"] * rng.uniform(0.85, 1.25), 2),
+            "width": round(base["width"] * rng.uniform(0.85, 1.15), 2),
+            "height": round(base["height"] * rng.uniform(0.85, 1.2), 2),
+            "thickness": base["thickness"],
+            "cut_x": round(base["cut_x"] * rng.uniform(0.7, 1.3), 2),
+            "cut_y": round(base["cut_y"] * rng.uniform(0.7, 1.3), 2),
+            "buffer": 0.0, "packed_items": [], "require_shelf": shelf, "is_prioritized": False,
+        }
+        soft_share = rng.choice([0.1, 0.2, 0.32, 0.45, 0.6])
+        prio_rate = rng.choice([0.0, 0.05, 0.1, 0.2, 0.3])
+        target = rng.uniform(*DMIX_DEMAND_BAND)
+        stream = []
+        for index in range(max(DMIX_COUNTS)):
+            pool = soft_pool if rng.random() < soft_share else hard_pool
+            sku = rng.choices([sk for _w, sk in pool], weights=[w for w, _sk in pool], k=1)[0]
+            _name, length, width, height, mass, soft, physics, _w = sku
+            stream.append({"index": index, "length": length, "width": width, "height": height, "mass": mass,
+                           "is_prioritized": rng.random() < prio_rate, "is_soft": soft, **physics})
+        total, demand = min(((n, frame_demand(stream[:n], [container])) for n in DMIX_COUNTS),
+                            key=lambda t: (abs(t[1] - target), t[0]))
+        items = stream[:total]
+        if demand <= DMIX_DEMAND_MAX:
+            break
+    pool_size = rng.choice([3, 5, 10, 20]) if task == "B" else TASK_LOOKAHEAD[task]
+    name = f"{task.lower()}-dmix-s{seed:04d}"
+    spec = {"containers_n": 1, "priority_container": False, "shelves": int(shelf),
+            "dims": [(container["length"], container["width"], container["height"])],
+            "base_count": total, "soft_share": soft_share, "priority_rate": prio_rate,
+            "mix": mix, "order": "random", "pool": pool_size, "demand": round(demand, 3), "draws": attempt}
+    return Scene(name=name, seed=seed, layout="dmix", task=task, look_ahead=pool_size,
+                 items=items, containers=[container], spacing=container["length"] + 0.5, spec=spec)
+
+
 SAMPLE_CONFIG = pathlib.Path(__file__).resolve().parents[1] / "reports" / "submission" / "abc_config.json"
 SAMPLE_ENTRY = {"A": "000", "B": "001", "C": "002"}
 
@@ -420,6 +509,8 @@ def make_scene(seed: int, layout: str = "c1", task: str = "C",
         return make_hard2_scene(seed, task)
     if layout == "sample":
         return make_sample_scene(seed, task)
+    if layout == "dmix":
+        return make_dmix_scene(seed, task)
     base = layout
     if layout.startswith("c1x") and layout[3:].isdigit():
         # the dense single-container manifests (``dense-a``): ``c1x60`` is
@@ -464,6 +555,9 @@ SUITES = {
     # platform's Task A episodes under the count look like
     # (reports/wedge/stability-lattice.md)
     "dense-a": [("A", f"c1x{n}", seed) for n in (50, 60, 70, 80) for seed in range(1, 13)],
+    # dense single-container Task A manifests with the SKU mix varied
+    # (make_dmix_scene): the dense plan's numbers off the sample mix
+    "dense-mix-a": [("A", "dmix", seed) for seed in range(1, 49)],
     # the hard2 suites: 96 situations a task, the count chosen for the
     # demand the threshold makes (HARD2_STRATA)
     "hard2": [("C", "hard2", seed) for seed in range(1, 97)],

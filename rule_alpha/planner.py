@@ -1301,10 +1301,36 @@ def _replay(agent, board: layer1.Board, pool_profiles: list, plan_by_index: dict
     return None
 
 
-def online_row_lines(model, config, depths: list[float], y_back: float | None = None) -> list[tuple[float, float]]:
+ROW_DEPTH_CLASSES = [0.56, 0.45, 0.40, 0.35, 0.30]
+"""The class depths of the "auto" row lines: the sample mix's flat depths
+(0.56, 0.45, 0.40) and the soft widths that fill a floor's depth.
+``plan_row_depths_from_manifest`` reads them off the manifest instead."""
+
+
+def manifest_row_depths(item_list: list[dict]) -> tuple[list[float], list[float]] | None:
+    """``plan_row_depths_from_manifest``: (the class-depth table, the fixed
+    default's depths) from the manifest's hard boxes: the distinct values
+    of their two smallest dimensions (a flat row's depth and an on-edge
+    row's), descending; the distinct middle dimensions (the flat depths),
+    descending.  None when the manifest holds no hard box."""
+    table, flat = set(), set()
+    for item in item_list or []:
+        if item.get("is_soft"):
+            continue
+        dims = sorted(round(float(item[k]), 4) for k in ("length", "width", "height"))
+        table.update(dims[:2])
+        flat.add(dims[1])
+    if not table:
+        return None
+    return sorted(table, reverse=True), sorted(flat, reverse=True)
+
+
+def online_row_lines(model, config, depths: list[float], classes: list[float] | None = None,
+                     y_back: float | None = None) -> list[tuple[float, float]]:
     """Fixed row lines for the online rows policy: the given depths laid
     from the back wall (or from ``y_back``, the front edge of the rows
-    already laid) to the opening as far as the floor's depth allows."""
+    already laid) to the opening as far as the floor's depth allows.
+    ``classes``: the "auto" table (``ROW_DEPTH_CLASSES`` when None)."""
     rect = model.floor_rect
     gap = config.settled_clearance + config.anchor_slack
     slack = config.anchor_slack
@@ -1314,14 +1340,15 @@ def online_row_lines(model, config, depths: list[float], y_back: float | None = 
         y_back = rect.y_max - slack
     if not depths:
         # "auto": the set of class depths that uses the most of this
-        # floor's depth, a 0.56 m row (the largest class lies flat in no
-        # other) first, the deeper second row on a tie.  The fixed
+        # floor's depth, a row of the largest class (which lies flat in
+        # no other) first, the deeper second row on a tie.  The fixed
         # "0.56,0.45,0.4" fits two rows in a 1.38 m floor and leaves 0.32
         # m at the front that no hard box uses; 0.56 + 0.45 + 0.30 fits.
         import itertools
 
         usable = (rect.y_max - slack) - y_front
-        classes = [0.56, 0.45, 0.40, 0.35, 0.30]
+        classes = list(classes) if classes else list(ROW_DEPTH_CLASSES)
+        largest = max(classes)
         best = None
         for n in range(1, 5):
             for combo in itertools.combinations_with_replacement(classes, n):
@@ -1329,7 +1356,7 @@ def online_row_lines(model, config, depths: list[float], y_back: float | None = 
                 used = sum(combo) + gap * (n - 1)
                 if used > usable + 1e-9:
                     continue
-                key = (1 if combo[0] >= 0.56 - 1e-9 else 0, round(used, 3), combo[1] if n > 1 else 0.0)
+                key = (1 if combo[0] >= largest - 1e-9 else 0, round(used, 3), combo[1] if n > 1 else 0.0)
                 if best is None or key > best[0]:
                     best = (key, combo)
         depths = best[1] if best else []

@@ -460,6 +460,229 @@ def priority_strip(model, config, priority: list, max_rows: int) -> tuple[float,
     return rows * (pose.dy + gap), rows
 
 
+def _flat_height(profile) -> float:
+    return min(o.dz for o in profile.orientations)
+
+
+def _median(values: list[float]) -> float:
+    values = sorted(values)
+    return values[(len(values) - 1) // 2]
+
+
+def carry_in_lift(bottom: float, top: float, container: dict) -> float:
+    """The lift (m) the simulator carries a box in with at this height
+    (``transport.transport_lifts``, read at the planned pose): the
+    nominal drop height, 0 where the bottom is within 0.05 m over a
+    resting level (the floor, the mid-height shelf level: the box slides
+    in at its own height), and the clearance under a ceiling surface
+    (the mid-height level, the ceiling) less the margin where the top is
+    within the drop height of one.  A box on a packed top needs a lift
+    of at least the sweep's clearance, or it touches its support on the
+    way in."""
+    from ._reuse import _production as prod
+    from .transport import EDGE
+
+    height = float(container["height"])
+    thickness = float(container["thickness"])
+    buffer = float(container.get("buffer", 0.0))
+    lifts = [float(prod.SIMULATOR_DROP_HEIGHT)]
+    for resting_z in (thickness + buffer, height / 2.0 + thickness + buffer):
+        if -EDGE <= bottom - resting_z <= 0.05 + EDGE:
+            lifts.append(0.0)
+    margin = float(prod.SIMULATOR_CEILING_MARGIN) + float(prod.SIMULATOR_CEILING_CLIP_EPS)
+    for ceiling_z in (height / 2.0 + buffer, height + buffer - thickness):
+        clearance = ceiling_z - top
+        if -EDGE <= clearance < float(prod.SIMULATOR_DROP_HEIGHT) + margin + EDGE:
+            lifts.append(max(0.0, clearance - margin))
+    return min(lifts)
+
+
+def _sweep_clearance(config) -> float:
+    return float(getattr(config, "transport_clearance", 0.0) or 0.0) or float(config.settled_clearance)
+
+
+def carry_in_ok(bottom: float, top: float, model, container: dict, config) -> bool:
+    """A box resting on packed cargo between ``bottom`` and ``top`` can be
+    carried in: under the ceiling by the inclusion clearance, and lifted
+    by at least the sweep's clearance (the c1 container's 1.57 m ceiling
+    takes tops to 1.5255 m; the tops at 0.73-0.81 m under the mid-height
+    level cannot be carried in either, the flat third layer of the
+    sample mix)."""
+    wall = float(config.inclusion_clearance) + float(config.anchor_slack)
+    if top > float(model.z_ceiling) - wall + 1e-9:
+        return False
+    return carry_in_lift(bottom, top, container) >= _sweep_clearance(config) - 1e-9
+
+
+def carry_in_ceiling(model, config) -> float:
+    """The highest top (m, container frame) a box on packed cargo can be
+    carried in at (``carry_in_ok``): the ceiling less the simulator's
+    margin and lift clip and the sweep's clearance (c1: 1.5255)."""
+    from ._reuse import _production as prod
+
+    return float(model.z_ceiling) - float(prod.SIMULATOR_CEILING_MARGIN) - float(prod.SIMULATOR_CEILING_CLIP_EPS) \
+        - _sweep_clearance(config)
+
+
+def soft_thin_threshold(soft_profiles: list) -> float:
+    """``plan_count_secure_dense_soft_thin`` read off the manifest: the
+    flat soft heights sorted, a class is tall when it is at least 1.4
+    times the next thinner one, and the threshold is the tallest height
+    under the first such jump (the sample mix: 0.20, 0.23, 0.25 | 0.40 ->
+    0.25).  0 when no class is tall (one pass, as without the lever)."""
+    heights = sorted({round(_flat_height(p), 4) for p in soft_profiles})
+    for low, high in zip(heights, heights[1:]):
+        if high >= 1.4 * low - 1e-9:
+            return low
+    return 0.0
+
+
+def soft_layers_needed(board, soft_profiles: list, share: float = 0.75) -> int:
+    """How many flat soft layers the manifest's soft boxes need over the
+    standing tops: two when their flat footprints cover more than
+    ``share`` of the normal containers' floor, else one (the sample mix's
+    13 soft boxes on the c1 floor: 2.5 m^2 on 2.0)."""
+    floor = sum(m.floor_rect.area for m in board.models if not m.is_prioritized) \
+        or sum(m.floor_rect.area for m in board.models)
+    area = 0.0
+    for p in soft_profiles:
+        dz = _flat_height(p)
+        o = next(o for o in p.orientations if abs(o.dz - dz) < 1e-9)
+        area += o.dx * o.dy
+    return 2 if area > share * floor else 1
+
+
+def _row_slots(model, config, dx: float, dy: float) -> int:
+    """How many boxes of this footprint a layer over the floor holds in
+    rows (``priority_strip``'s arithmetic over the floor's depth, the
+    footprint either way round)."""
+    gap = config.settled_clearance + config.anchor_slack
+    rect = model.floor_rect
+    width = rect.x_max - rect.x_min - 2.0 * config.anchor_slack
+    depth = rect.y_max - rect.y_min - 2.0 * config.anchor_slack
+    best = 0
+    for a, b in ((dx, dy), (dy, dx)):
+        per_row = int((width + gap) / (a + gap) + 1e-9)
+        rows = int((depth + gap) / (b + gap) + 1e-9)
+        best = max(best, per_row * rows)
+    return best
+
+
+def dense_standing_cap(model, container: dict, config, hard_profiles: list, soft_profiles: list,
+                       flat_top: float, layers: int, hard_limit: float | None = None) -> tuple[float, dict]:
+    """``plan_count_secure_dense_soft_layers``: the standing layer's cap
+    chosen for the count the layers over the flat top can hold.  The
+    candidates are no standing layer (cap 0) and every standing pose
+    height of ``hard_profiles`` (the frame's normal hard boxes left after
+    the flat layers).  A candidate's count: the standing slots of the
+    tallest pose under the cap that can be carried in (``carry_in_ok``)
+    and keeps under ``hard_limit`` (the soft headroom reserve), by the
+    rows the floor holds (``_row_slots``; the taller the pose, the
+    smaller its footprint), no more than the boxes; plus up to ``layers``
+    flat soft layers over the standing tops (over the flat top when
+    nothing stands), each of the manifest's median soft height, each
+    carried in and resting on a top under the re-plan's soft cap
+    (``stability.SOFT_STRUCTURE_MAX_TOP``) from the second on, each
+    holding the floor's area at the mean soft footprint, no more than
+    the soft boxes.  The highest count wins, the lower cap on a tie (more
+    soft layers, a lower load).  On the sample mix over the 0.54 m flat
+    top: 0.40 (11 on edge and two layers of 8) over 0.55 (15 on end and
+    one layer) and over no standing layer (the first soft layer's top in
+    the mid-height band).  Returns the cap and the estimate."""
+    from . import stability
+
+    fixed = float(getattr(config, "plan_standing_rows_max_height", 10.0))
+    poses = sorted({(round(o.dz, 4), round(o.dx, 4), round(o.dy, 4)) for p in hard_profiles for o in _standing_poses_of(p)})
+    if not poses:
+        return fixed, {"cap": fixed, "layers": 0, "why": "no standing pose"}
+    wall = float(config.inclusion_clearance) + float(config.anchor_slack)
+    limit = float(model.z_ceiling) - wall if hard_limit is None else min(float(hard_limit), float(model.z_ceiling) - wall)
+    soft_cap = stability.SOFT_STRUCTURE_MAX_TOP
+    n_hard = len(hard_profiles)
+    n_soft = len(soft_profiles)
+    s = _median([_flat_height(p) for p in soft_profiles]) if soft_profiles else 0.0
+    soft_area = 0.0
+    for p in soft_profiles:
+        o = next(o for o in p.orientations if abs(o.dz - _flat_height(p)) < 1e-9)
+        soft_area += o.dx * o.dy
+    per_layer = int(0.8 * model.floor_rect.area / (soft_area / n_soft)) if n_soft else 0
+    heights = sorted({h for h, _dx, _dy in poses})
+    best = None
+    estimates = []
+    for cap in [0.0] + heights:
+        standing, top, pose = 0, flat_top, None
+        for h, dx, dy in sorted((q for q in poses if q[0] <= cap + 1e-9), reverse=True):
+            if flat_top + h <= limit + 1e-9 and carry_in_ok(flat_top, flat_top + h, model, container, config):
+                pose = (h, dx, dy)
+                break
+        if pose is not None:
+            # the boxes of the classes the cap admits
+            admitted = sum(1 for p in hard_profiles if any(o.dz <= cap + 1e-9 for o in _standing_poses_of(p)))
+            standing = min(_row_slots(model, config, pose[1], pose[2]), admitted, n_hard)
+            top = flat_top + pose[0]
+        soft, soft_layers = 0, 0
+        z = top
+        for k in range(max(0, int(layers))):
+            if soft >= n_soft or s <= 0.0:
+                break
+            if k > 0 and soft_cap is not None and z > float(soft_cap) + 1e-9:
+                break
+            if not carry_in_ok(z, z + s, model, container, config):
+                break
+            soft += min(per_layer, n_soft - soft)
+            soft_layers += 1
+            z += s
+        count = standing + soft
+        estimates.append({"cap": cap, "standing": standing, "soft": soft, "layers": soft_layers,
+                          "top": round(top, 3)})
+        if best is None or count > best[0]:
+            best = (count, cap, estimates[-1])
+    _count, cap, chosen = best
+    return cap, {"cap": cap, "layers": chosen["layers"], "standing": chosen["standing"], "soft": chosen["soft"],
+                 "flat_top": round(flat_top, 3), "soft_height": round(s, 3), "limit": round(limit, 3),
+                 "candidates": estimates}
+
+
+def _standing_poses_of(profile) -> list:
+    from .planner import _standing_poses
+
+    return _standing_poses(profile)
+
+
+def adaptive_dense_tokens(agent, item_list: list[dict], tokens: list[str]) -> tuple[list[str], dict]:
+    """``plan_count_secure_dense_adaptive``: the ``dense`` tokens rewritten
+    from the manifest.  A token's ``plan_standing_rows_max_height`` field
+    becomes ``plan_count_secure_dense_soft_layers`` (``soft_layers_needed``:
+    the cap itself is resolved in the plan, ``dense_standing_cap``); its
+    ``plan_count_secure_dense_soft_thin`` becomes ``soft_thin_threshold``;
+    other fields and other tokens stay; a rewritten token equal to an
+    earlier one is dropped.  Returns the tokens and what was derived."""
+    profiles = [cls.classify_item(int(i["index"]), i, agent.config) for i in item_list]
+    soft = [p for p in profiles if p.is_soft]
+    layers = soft_layers_needed(agent.board, soft) if soft else 1
+    thin = soft_thin_threshold(soft) if soft else 0.0
+    out: list[str] = []
+    for token in tokens:
+        side, at, extra = token.partition("@")
+        if side != "dense" or not at:
+            if token not in out:
+                out.append(token)
+            continue
+        fields = []
+        for pair in extra.split("&"):
+            key, _eq, raw = pair.partition("=")
+            if key == "plan_standing_rows_max_height":
+                fields.append(f"plan_count_secure_dense_soft_layers={layers}")
+            elif key == "plan_count_secure_dense_soft_thin":
+                fields.append(f"plan_count_secure_dense_soft_thin={thin:g}")
+            elif key:
+                fields.append(pair)
+        rewritten = "dense@" + "&".join(fields) if fields else "dense"
+        if rewritten not in out:
+            out.append(rewritten)
+    return out, {"soft_layers": layers, "soft_thin": thin, "soft": len(soft)}
+
+
 def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
                log=None) -> tuple[list[int], list[dict], dict]:
     """The ``dense`` count-secured plan (``plan_count_secure_blocks`` token
@@ -515,6 +738,7 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
     flat_config = dataclasses.replace(config, plan_standing_rows=False, plan_standing=False)
     prio_rows = int(getattr(config, "plan_count_secure_dense_priority_rows", 0))
     thin_cap = float(getattr(config, "plan_count_secure_dense_soft_thin", 0.0))
+    soft_layers = int(getattr(config, "plan_count_secure_dense_soft_layers", 0))
 
     def left_of(pool):
         done = set(planned)
@@ -553,10 +777,27 @@ def plan_dense(agent, item_list: list[dict], deadline: float, frame: list[int],
         n0 = len(planned)
         standing_config = dataclasses.replace(config, plan_standing_rows=True)
         model = board.model(ci)
+        if soft_layers > 0:
+            # plan_count_secure_dense_soft_layers: the cap from the flat
+            # layers' actual top, the frame's hard classes left and the
+            # manifest's soft heights (dense_standing_cap)
+            flat_top = max([float(e["center"][2]) + float(e["size"][2]) / 2.0
+                            for e in plan if int(e["container_idx"]) == ci and e["archetype"] == "plan"
+                            and not by_index[int(e["index"])].get("is_soft")] or [model.z_floor])
+            layer_hard = [p for p in left_of(hard) if not p.is_prioritized and p.index in in_frame] \
+                or [p for p in left_of(hard) if not p.is_prioritized] or left_of(hard)
+            reserve = agent._soft_headroom_reserve(board.containers, ci)
+            cap, cap_info = dense_standing_cap(model, board.container(ci), config, layer_hard,
+                                               left_of(soft_frame) + soft_rest + soft_prio, flat_top, soft_layers,
+                                               hard_limit=model.z_ceiling - reserve if reserve > 0 else None)
+            standing_config = dataclasses.replace(standing_config, plan_standing_rows_max_height=cap)
+            info["standing_cap"] = cap_info
+            if log:
+                log(f"  [dense] container {ci} standing cap {cap:.2f} ({cap_info})")
         gap = config.settled_clearance + config.anchor_slack
         strip = None
         if prio_rows > 0:
-            strip = priority_strip(model, config, [p for p in left_of(hard) if p.is_prioritized], prio_rows)
+            strip = priority_strip(model, standing_config, [p for p in left_of(hard) if p.is_prioritized], prio_rows)
         soft_floor_line = None
         if strip is None:
             pack_rows(agent, board, ci, left_of(hard), standing_config, plan, planned, deadline, log, row_lines=lines)
@@ -735,6 +976,12 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
     record["frame"] = len(frame)
     scorer = getattr(agent, "plan_score", None)
     sides = [s for s in re.split(r"[,+|;]", str(getattr(config, "plan_count_secure_blocks", "plain"))) if s]
+    if getattr(config, "plan_count_secure_dense_adaptive", False):
+        # the dense tokens from the manifest (reports/wedge/a-mix.md)
+        sides, derived = adaptive_dense_tokens(agent, item_list, sides)
+        record["adaptive"] = dict(derived, tokens=list(sides))
+        if log:
+            log(f"  [count-secure] adaptive dense tokens {sides} ({derived})")
     by_index = {int(i["index"]): i for i in item_list}
     changes = {}
     if getattr(config, "plan_count_secure_standing_rows", True):
@@ -802,6 +1049,8 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
                      "seconds": round(time.perf_counter() - t0, 1)}
         if side == "dense":
             entry_log["layers"] = {k: info.get(k) for k in ("flat", "ledge", "standing", "soft")}
+            if info.get("standing_cap"):
+                entry_log["standing_cap"] = info["standing_cap"]
         if info.get("soft_capped"):
             entry_log["soft_capped"] = info["soft_capped"]
         record["variants"].append(entry_log)
