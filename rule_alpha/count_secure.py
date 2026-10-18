@@ -584,11 +584,15 @@ def dense_standing_cap(model, container: dict, config, hard_profiles: list, soft
     carried in and resting on a top under the re-plan's soft cap
     (``stability.SOFT_STRUCTURE_MAX_TOP``) from the second on, each
     holding the floor's area at the mean soft footprint, no more than
-    the soft boxes.  The highest count wins, the lower cap on a tie (more
-    soft layers, a lower load).  On the sample mix over the 0.54 m flat
-    top: 0.40 (11 on edge and two layers of 8) over 0.55 (15 on end and
-    one layer) and over no standing layer (the first soft layer's top in
-    the mid-height band).  Returns the cap and the estimate."""
+    the soft boxes.  A cap whose tops take ``layers`` soft layers comes
+    first (the token is the plan with that many layers beside the
+    uncapped plan, which the rank weighs against it), then the highest
+    count, then the lower cap (a lower load).  On the sample mix over
+    the 0.54 m flat top: 0.40 (11 on edge and two layers of 8) over 0.55
+    (15 on end and one layer, even where the manifest's few soft boxes
+    would make it the higher count) and over no standing layer (the
+    first soft layer's top in the mid-height band).  Returns the cap and
+    the estimate."""
     from . import stability
 
     fixed = float(getattr(config, "plan_standing_rows_max_height", 10.0))
@@ -620,24 +624,29 @@ def dense_standing_cap(model, container: dict, config, hard_profiles: list, soft
             admitted = sum(1 for p in hard_profiles if any(o.dz <= cap + 1e-9 for o in _standing_poses_of(p)))
             standing = min(_row_slots(model, config, pose[1], pose[2]), admitted, n_hard)
             top = flat_top + pose[0]
-        soft, soft_layers = 0, 0
+        # the soft layers the geometry allows over the top (``fits``) and
+        # the boxes they hold
+        soft, fits = 0, 0
         z = top
         for k in range(max(0, int(layers))):
-            if soft >= n_soft or s <= 0.0:
+            if s <= 0.0:
                 break
             if k > 0 and soft_cap is not None and z > float(soft_cap) + 1e-9:
                 break
             if not carry_in_ok(z, z + s, model, container, config):
                 break
-            soft += min(per_layer, n_soft - soft)
-            soft_layers += 1
+            fits += 1
+            soft += min(per_layer, max(0, n_soft - soft))
             z += s
         count = standing + soft
-        estimates.append({"cap": cap, "standing": standing, "soft": soft, "layers": soft_layers,
-                          "top": round(top, 3)})
-        if best is None or count > best[0]:
-            best = (count, cap, estimates[-1])
-    _count, cap, chosen = best
+        estimates.append({"cap": cap, "standing": standing, "soft": soft, "layers": fits, "top": round(top, 3)})
+        # a cap whose tops take the layers asked first (the token is the
+        # two-layer plan beside the uncapped one), then the count, then
+        # the lower cap
+        key = (fits >= max(0, int(layers)), count, -cap)
+        if best is None or key > best[0]:
+            best = (key, cap, estimates[-1])
+    _key, cap, chosen = best
     return cap, {"cap": cap, "layers": chosen["layers"], "standing": chosen["standing"], "soft": chosen["soft"],
                  "flat_top": round(flat_top, 3), "soft_height": round(s, 3), "limit": round(limit, 3),
                  "candidates": estimates}

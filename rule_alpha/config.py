@@ -3539,8 +3539,10 @@ class RuleAlphaConfig:
     plus up to this many flat soft layers of the manifest's median soft
     height over the tops, each carried in and resting under the re-plan's
     soft cap, each the floor's area at the mean soft footprint; no more
-    than the boxes of either kind.  The lower cap on a tie.  On the
-    sample mix the estimate reads 0.40 (11 on edge, two soft layers)
+    than the boxes of either kind.  A cap whose tops take this many
+    layers comes first (the token stands beside the uncapped plan, which
+    the rank weighs against it), then the count, then the lower cap.  On
+    the sample mix the estimate reads 0.40 (11 on edge, two soft layers)
     over 0.55 (15 on end, one layer) and over no standing layer (the
     soft on the 0.54 m flat top ends in the mid-height band): the
     shipped choice.  0: the configured ``plan_standing_rows_max_height``.
