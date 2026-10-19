@@ -192,8 +192,12 @@ To measure a change, append `,field=value` to the ship arm's line.
   arms' hard-suite baselines, run in the same batch).  Not kept as a
   pair: the sample suites are unchanged, the window alone reads small
   and positive where it fires, the pocket prior's reweighting swings
-  counts (hard-b -2.38, two crossings).  The next arm is the shipped
-  form plus `phase_switch_window=seen` alone.
+  counts (hard-b -2.38, two crossings).  `arm_bwin_b.txt` /
+  `arm_cwin_c.txt`: the same shipped forms plus `phase_switch_window=seen`
+  alone (`pocket_mix` fixed, the rows untouched); records
+  `reports/bench/bwin-{hard-b,hard2-b}` and `cwin-{hard,hard2}`, priced
+  against `nck-hard-b` / `nck-hard2-b` and `ship-hard` / `ship-hard2`
+  (`bc-mix.md`, section 7).
 
 ## Judging a run
 

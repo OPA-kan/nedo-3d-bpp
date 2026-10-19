@@ -377,3 +377,88 @@ the day the online rows ship.  What could not be finished: that
 window-only measurement (the ten-run budget went on the combined arms
 and the two missing baselines), and the `seen-smallest` variant, which
 would adapt the small and extra mixes the way `seen` adapts the big.
+
+## 7. The window alone (`arm_bwin_b`, `arm_cwin_c`)
+
+The follow-up section 6 asked for: the shipped forms plus
+`phase_switch_window=seen` alone, `pocket_mix` fixed and the rows
+untouched, so that on every scene where no class leads by two the arm
+is the shipped form string for string.  Four CI runs in one batch
+(physics, budget 4.5, 6 shards), priced against the same baselines as
+section 5 (`nck-hard-b` / `nck-hard2-b` from the first batch, `ship-hard`
+from the first batch, `ship-hard2` the older record).
+
+### 7.1 The suites
+
+| suite | n | base | new | delta [95 % CI] | counted | up / down | fill | cog | stability | placement | soft | placed | policy max |
+|---|---:|---:|---:|---|---|---|---:|---:|---:|---:|---:|---:|---|
+| hard-b | 48 | 34.37 | 34.41 | +0.04 [-3.57, +3.74] | 21 -> 21 | 7 / 7 | -0.1 | +0.1 | +0.4 | -0.7 | +0.6 | -0.35 | 7.3 -> 7.3 s |
+| hard2-b | 96 | 35.39 | 33.33 | **-2.06 [-4.30, -0.04]** | 47 -> 44 | 10 / 15 | -0.2 | -2.6 | -3.1 | -2.4 | -3.2 | -0.42 | 7.4 -> 7.5 s |
+| hard | 48 | 44.85 | 44.58 | -0.27 [-0.77, +0.08] | 30 -> 30 | 10 / 15 | -0.5 | +0.3 | -0.6 | -0.7 | +0.3 | -0.71 | 6.2 -> 6.1 s |
+| hard2 | 96 | 34.77 | 36.06 | +1.28 [-0.93, +4.01] | 47 -> 49 | 23 / 24 | +0.2 | +1.6 | +2.2 | +0.4 | +2.5 | +0.18 | 6.2 -> 6.2 s |
+
+### 7.2 By mix, and by whether the window fired
+
+| suite | mix | n | delta [95 % CI] | counted | of which window fired: n, delta, counted, identical | window stayed: n, delta, counted, identical |
+|---|---|---:|---|---|---|---|
+| hard-b | all | 48 | +0.04 [-3.57, +3.74] | 21 -> 21 | 32, +0.02 [-5.43, +5.56], 15 -> 15, 23 | 16, +0.07 [-1.05, +1.24], 6 -> 6, 11 |
+| | big | 12 | 0 (identical) | 2 -> 2 | 12, 0, 2 -> 2, 12 | - |
+| | extra | 9 | +6.26 [-0.85, +19.76] | 2 -> 3 | 6, +9.77, 2 -> 3, 4 | 3, -0.76, 0 -> 0, 2 |
+| | sample | 18 | -0.38 [-1.11, +0.06] | 10 -> 10 | 10, -0.06, 7 -> 7, 6 | 8, -0.77, 3 -> 3, 6 |
+| | small | 9 | -5.31 [-18.81, +2.33] | 7 -> 6 | 4, -14.35, 4 -> 3, 1 | 5, +1.92, 3 -> 3, 3 |
+| hard2-b | all | 96 | -2.06 [-4.30, -0.04] | 47 -> 44 | 56, **+0.09 [-0.09, +0.30]**, 26 -> 26, 46 | 40, **-5.07 [-10.36, -0.19]**, 21 -> 18, 25 |
+| | big | 20 | +0.03 [-0.10, +0.19] | 13 -> 13 | 16, +0.03, 10 -> 10, 13 | 4, 0, 3 -> 3, 4 |
+| | extra | 20 | -0.17 [-1.03, +0.53] | 12 -> 12 | 10, +0.18, 5 -> 5, 7 | 10, -0.52, 7 -> 7, 7 |
+| | sample | 41 | -4.67 [-10.78, +0.02] | 17 -> 14 | 19, +0.18 [-0.00, +0.43], 7 -> 7, 16 | 22, -8.86 [-18.36, -0.12], 10 -> 7, 12 |
+| | small | 15 | -0.23 [-0.56, +0.00] | 5 -> 5 | 11, -0.05, 4 -> 4, 10 | 4, -0.73, 1 -> 1, 2 |
+| hard | all | 48 | -0.27 [-0.77, +0.08] | 30 -> 30 | 30, -0.05 [-0.45, +0.27], 17 -> 17, 15 | 18, -0.65 [-1.73, +0.07], 13 -> 13, 8 |
+| | big | 12 | +0.22 [+0.00, +0.48] | 3 -> 3 | 12, +0.22, 3 -> 3, 8 | - |
+| | extra | 9 | -0.58 [-1.68, +0.23] | 4 -> 4 | 6, -0.87, 3 -> 3, 1 | 3, -0.01, 1 -> 1, 1 |
+| | sample | 18 | -0.07 [-0.54, +0.35] | 15 -> 15 | 9, +0.14, 8 -> 8, 5 | 9, -0.27, 7 -> 7, 4 |
+| | small | 9 | -1.04 [-2.93, -0.02] | 8 -> 8 | 3, -0.07, 3 -> 3, 1 | 6, -1.53, 5 -> 5, 3 |
+| hard2 | all | 96 | +1.28 [-0.93, +4.01] | 47 -> 49 | 55, +1.21 [-0.67, +3.86], 28 -> 29, 29 | 41, +1.38 [-3.01, +6.79], 19 -> 20, 20 |
+| | big | 20 | +2.86 [-0.62, +9.13] | 12 -> 13 | 17, +3.36, 10 -> 11, 10 | 3, 0, 2 -> 2, 3 |
+| | extra | 20 | +2.74 [-1.10, +9.68] | 10 -> 11 | 8, +0.23, 4 -> 4, 4 | 12, +4.42, 6 -> 7, 6 |
+| | sample | 41 | +0.31 [-3.53, +3.97] | 19 -> 19 | 19, +0.47, 10 -> 10, 11 | 22, +0.17, 9 -> 9, 9 |
+| | small | 15 | -0.10 [-3.46, +3.24] | 6 -> 6 | 11, -0.11, 4 -> 4, 4 | 4, -0.06, 2 -> 2, 2 |
+
+### 7.3 Reading it
+
+The arm is the shipped form on every scene where the window did not
+fire, so those columns measure the runs' own spread -- and it is
+large: hard2-b's three lost crossings (`b-hard2-s0009` 59 -> 49 of 104,
+`s0030` 79 -> 67 of 156, `s0036` 96 -> 81 of 164: long, soft-heavy
+streams, pools of 3-20) are all scenes on which the window never left
+the sample's, with the policy time at the budget (`s0030`'s mean step
+0.53 -> 1.17 s, 0 -> 8 steps over 4.5 s: a slower runner, and the
+deadline-bound stage order flips the course).  `c-hard-s0044` is the
+same thing seen twice: the pair and the window-only run both place 28
+of 43 against the base's 43, identical to each other, with the first 24
+steps the base's and step 25 a `grid-rescue-cover` where the base took
+a `count-mode` pose, every step about twice as slow.  The crossings the
+C arm gains on hard2 (`c-hard2-s0020`, `s0030`, `s0044`) are the pair's
+three as well, two of them settle failures in the older `ship-hard2`
+record, so they are the baseline's age as much as the window.
+
+Where the window fired the readings are the small ones: hard2-b +0.09
+[-0.09, +0.30] with 46 of 56 scenes identical and the same 26 counted;
+hard-b +0.02 with 23 of 32 identical, the big-mix dozen identical
+again, one extra-mix crossing gained (`b-hard-s0007`) and one small-mix
+lost (`b-hard-s0041`, 62 -> 58 of 117, a settle failure in both runs,
+under the 0.35 x 0.25 box's window for 17 steps); C hard -0.05 with 15
+of 30 identical and the big stratum +0.22 [+0.00, +0.48]; C hard2
++1.21 with 29 of 55 identical and the big stratum +3.36 (one
+crossing).  So the window alone changes little and what it changes
+leans positive on C's big-mix scenes, which is where the sample's
+window was wrong (section 4); on B it is inert on the big mix and a
+coin on the small one.
+
+**Verdict on the window alone: not kept either.**  The sample suites
+would be untouched (the arm is the shipped form wherever no class
+leads by two, and section 5 showed the fired window changing no
+single-container core-b placement), but the gain on the varied suites
+is a C-only +0.2 to +3 on the big stratum (3 of 23 platform episodes
+are C, and the platform's mix is unknown) against a measurement whose
+own spread on the long B streams is three crossings a suite.  The
+levers stay in the tree, off, with the tracker; if the platform's mix
+turns out big-box heavy, `arm_cwin_c` is the arm to ship for C.
