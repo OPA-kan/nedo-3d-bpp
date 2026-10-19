@@ -282,3 +282,87 @@ By count (`ci_afill_huge.md`, `ci_amix_huge.md`):
 - The adaptive form on huge-a: +1.38 n.s. (one crossing gained,
   a-huge-s0022 45 -> 51 of 100, +50.3; the fill -0.7; three topples
   more), the optimize 5 s shorter on average.
+
+### 6a. Fill-first with the dense tokens kept (`arm_afillk_a`)
+
+`plan_count_secure_fill_first=0.85` with
+`plan_count_secure_fill_first_skip_dense=false`: the dense plans are
+made and every plan under the threshold is ranked by its volume, a plan
+over the threshold still first.  Records `afillk-huge-a`,
+`afillk30-dense-a`, `afillk30-core-a` (`ci_afillk_huge.md`):
+
+| suite | v59 | `afillk` | delta [95 % CI] | counted | up / down | fill | placed | optimize s mean (max) |
+|---|---:|---:|---|---|---|---|---|---|
+| huge-a (140 s) | 14.45 | 14.45 | +0.01 [-0.08, +0.08] | 2 -> 2 | 3 / 1 | 39.03 -> 39.06 | 44.1 -> 43.9 | 49.6 (139.6) -> 41.3 (139.5) |
+| dense-a (30 s) | 69.64 | 69.64 | +0.00 [+0.00, +0.00] | 47 -> 47 | 0 / 0 | 54.27 -> 54.27 | 38.5 -> 38.5 | 13.3 (22.9) -> 13.0 (23.4) |
+| core-a (30 s) | 67.21 | 67.21 | +0.00 [+0.00, +0.00] | 48 -> 48 | 0 / 0 | 34.63 -> 34.63 | 37.8 -> 37.8 | 3.7 (18.5) -> 3.7 (12.0) |
+
+Harmless and worthless: the volume rank picks the plan the count rank
+picked on 32 of the 36 huge scenes (the dense plan with the most items
+is the one with the most volume), the fill moves +0.03, the crossings
+and dense-a / core-a are v59's episode for episode.  The ranking was
+never the problem on the huge manifests; the budget is (the plans cut
+at 140 s on the 130-160-item manifests either way).
+
+**The planner alone at the 140 s budget on the slowest huge manifests**
+(`huge140.jsonl`, this machine): a-huge-s0017 (130 items) v59 139.8 s /
+63 planned, adaptive 136.9 s / 59, fill-first 63.4 s / 46, kept-dense
+135.8 s / 63; s0021 (160) 130.9 / 73, 129.2 / 73, 67.9 / 58, 133.1 / 73;
+s0023 (130) 139.5 / 61, 106.3 / 73, 68.3 / 57, 139.8 / 61; s0036 (160)
+105.9 / 76, 137.7 / 76, 55.9 / 67, 105.4 / 76.  The budget is the
+deadline on these: the planner's own variants and the plain re-plan
+take 60-70 s on 130-160 items here (the fill-first form's time), and
+the dense plans take what is left to the 140 s.  On the platform (1.4x
+slower) the dense plans would be cut or skipped by the start-factor
+guard on such manifests, as hard-a's 88-120-item manifests already show
+at the 30 s proxy (`a-dense.md`, section 5).
+
+## 7. Verdict
+
+- **(1) What the shipped dense plan loses off the sample mix**: on
+  `dense-mix-a` it counts 12 of 48 against 47 of 48 on dense-a (the
+  sample mix in scaled containers 6 of 16, big 1 of 8, extra 3 of 10,
+  small 2 of 14; nothing over a demand of 0.45).  The loss is the
+  containers and the counts, not the fixed numbers: the standing layer
+  has no room under the soft headroom reserve in a 1.3-1.5 m container
+  (the derived cap reads "no standing layer" on 36 of 51 dense plans),
+  and the mixes' boxes tile the floor worse than c1's.
+- **(2) Reading the numbers off the manifest recovers nothing
+  measurable**: dense-mix-a **+0.04 [-3.47, +3.66]** (12 counted either
+  way, one big-mix crossing lost and one extra-mix crossing gained),
+  dense-a **+0.00 [+0.00, +0.00]** -- the plans are v59's pose for pose
+  on all 48 scenes and on the official sample -- core-a +0.02 [+0.00,
+  +0.07], hard-a **-1.28 [-3.88, +0.02]** with one crossing lost
+  (a-hard-s0016, a 42-item strip plan replaying to 40 instead of 41 at a
+  threshold of 41; the derived cap 0.0 against the fixed 0.40, one box
+  of the fill), huge-a +1.38 [-0.34, +4.45] n.s.  The ship rule for A
+  (no crossing lost on core-a / dense-a / hard-a) is broken on hard-a by
+  that one knife-edge scene, and the mix suite does not pay for it:
+  **not kept**.  The shipped plans on the sample mix are unchanged plan
+  for plan (dense-a identical episode for episode, the official sample's
+  plan equal pose for pose), so the form *is* safe to ship blind on the
+  sample's kind of manifest; it just has nothing to give elsewhere.
+  Arm `arm_amix_a.txt`; the flags stay off.
+- **`plan_count_secure_fill_first` as specified** (the dense tokens
+  skipped under 0.85 of the threshold): huge-a **-1.77 [-2.53, -1.08]**,
+  the fill 39.0 -> 33.4 (-5.7: the dense plans carry the volume there
+  too, 33 of 36 picks), for the optimize 49.6 -> 25.9 s (max 139.6 ->
+  69.8, every scene under 100 s); dense-a -27.31 (22 crossings lost),
+  core-a -0.05.  **Not kept.**  With the dense tokens kept
+  (`arm_afillk_a`): huge-a +0.01, dense-a and core-a identical --
+  harmless, worthless.
+- **What the huge suite says about the platform's uncounted A
+  episodes**: at 100-160 items in a scaled container the best plans
+  hold 23-64 of the 51-81 asked and the fill is 20-58 (mean 39); the
+  v59 optimize runs to its 140 s budget on 6 of 36 scenes here (the
+  130-160-item ones), 1.4x that on the platform, so the plans there are
+  cut.  A time lever that keeps the dense plans' fill is still open:
+  skipping the strip and the uncapped dense tokens only where the count
+  is out of reach (the on-edge plan alone carries most of the fill),
+  not measured here.
+- **The fixed-number audit** (section 1): of the dense plan's numbers,
+  the standing cap and the thin-soft threshold were the sample's and
+  are now derivable; the ledge, the strip's rows and the flat layers
+  were already the board's and the manifest's; the row-depth table is
+  derivable but unused by the A arm; the soft cap 1.6 and the strip's
+  one row are not mix numbers.
