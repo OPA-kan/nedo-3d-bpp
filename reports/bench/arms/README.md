@@ -159,6 +159,21 @@ To measure a change, append `,field=value` to the ship arm's line.
   `reports/bench/nc-*`, `ncl-*`, `k3-*`, `k6-*`, `k9-*`, `nck-*` on
   `sample-b`, `core-b`, `hard2-b`, priced against `ship-sample-b` /
   `shipr-core-b` / `shipr-hard2-b`.
+- `arm_bkeep1_b.txt` / `arm_bkeep2_b.txt` / `arm_bkeep3_b.txt` /
+  `arm_bkeep4_b.txt`: the keep-count variants of the v60 B form
+  (`reports/wedge/b-keep-count.md`), each `arm_nck_b` plus: the
+  deferral for the soft cargo only (`pool_defer_soft_only`: the
+  priority boxes keep the pool order); the deferral's floor hold
+  (`pool_defer_floor_secured`: a deferred item's ladder pose on the
+  floor is held while the packed count is under the count mode's
+  threshold, the item asked again after k more calls); the stream's
+  volume reading of the count threshold (`count_mode_stream_volume=0.54`,
+  an existing field: the never-cover rule's covers of priority stay
+  allowed under the longer estimate on small-box streams); all three.
+  Records `reports/bench/bkeep<n>-{hard2-b,core-b,sample-b}`, priced
+  against the `nck-*` records (what is kept of v60's gain) and against
+  `shipr-hard2-b` / `shipr-core-b` / `ship-sample-b` (what is lost of
+  the count).
 
 ## Judging a run
 
