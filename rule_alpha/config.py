@@ -3560,7 +3560,16 @@ class RuleAlphaConfig:
     manifests read as 100 items and more, where the optimize ran 52 s
     and no dense plan was ever ranked over the plain one; the v59
     diagnostic).  The early re-plan's pick against the variants' choice
-    is read the same way.  0: off.  ``reports/wedge/a-mix.md``."""
+    is read the same way.  A plan over the threshold still ranks first,
+    so a crossing within reach is never traded for volume.  0: off.
+    Measured (``reports/wedge/a-mix.md``): with the dense tokens skipped
+    the fill falls 5.7 points on the huge manifests (the dense plans
+    carry the most volume there too) for 24 s of the optimize saved."""
+
+    plan_count_secure_fill_first_skip_dense: bool = True
+    """With ``plan_count_secure_fill_first``: the ``dense`` tokens are
+    skipped where the rule fires (the time saved).  Off: they are planned
+    and ranked by their volume with the rest."""
 
     plan_row_depths_from_manifest: bool = False
     """Task A: the online rows policy's class-depth table ("auto",

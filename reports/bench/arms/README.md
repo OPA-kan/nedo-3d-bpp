@@ -108,7 +108,11 @@ To measure a change, append `,field=value` to the ship arm's line.
   `bench.scenes.make_huge_scene`) at the arm's own 140 s budget -- the
   verdict there the fill and the optimize time -- as `adenser-huge-a` /
   `amix-huge-a` / `afill-huge-a`, and at 30 s on dense-a / core-a
-  (`afill30-*`) for no change.
+  (`afill30-*`) for no change.  `arm_afillk_a.txt`: the same with the
+  dense tokens kept (`plan_count_secure_fill_first_skip_dense=false`:
+  the volume rank among the plans under the threshold, a crossing plan
+  still first); records `afillk-huge-a`, `afillk30-dense-a`,
+  `afillk30-core-a`.
 - `arm_adry_a.txt` / `arm_aplan_a.txt`: the shipped A form with the ladder's
   dry-run alone (`offline_planner=` empty) / the row planner alone
   (`offline_dry_run=false`); records `reports/bench/adry-*`, `aplan-*`.
