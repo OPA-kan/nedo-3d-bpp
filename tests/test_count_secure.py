@@ -879,11 +879,29 @@ class FillFirstTest(unittest.TestCase):
 
     def test_default_off_and_rank_by_fill(self):
         self.assertEqual(DEFAULT_CONFIG.plan_count_secure_fill_first, 0.0)
+        self.assertTrue(DEFAULT_CONFIG.plan_count_secure_fill_first_skip_dense)
         big = ((0.0, 2), [], [{"size": [0.7, 0.5, 0.3]}, {"size": [0.7, 0.5, 0.3]}])
         many = ((0.0, 3), [], [{"size": [0.3, 0.2, 0.1]}] * 3)
         self.assertGreater(count_secure._rank(many, 10, 12), count_secure._rank(big, 10, 12))
         self.assertGreater(count_secure._rank(big, 10, 12, by_fill=True), count_secure._rank(many, 10, 12, by_fill=True))
         self.assertAlmostEqual(count_secure.plan_volume(big[2]), 0.21)
+        # a plan over the threshold still comes first under the fill rank
+        crossing = ((0.0, 3), [], [{"size": [0.3, 0.2, 0.1]}] * 3)
+        self.assertGreater(count_secure._rank(crossing, 3, 5, by_fill=True), count_secure._rank(big, 3, 5, by_fill=True))
+
+    def test_dense_tokens_kept_and_ranked_by_volume_when_not_skipped(self):
+        scene = make_scene(3, "huge", "A")
+        # (the budget wide enough for the dense plans of 160 items)
+        fill, _c, _o = _plan(scene, self.ARM + ",plan_count_secure_fill_first=0.85,"
+                             "plan_count_secure_fill_first_skip_dense=false,offline_budget_seconds=120")
+        log = fill.count_secure_log
+        self.assertTrue(log["fill_first"])
+        dense = [v for v in log["variants"] if v["side"].startswith("dense")]
+        self.assertTrue(dense)
+        self.assertFalse(any(v.get("fill_first") for v in dense))
+        self.assertTrue(any(not v.get("skipped") for v in dense))
+        planned = [v for v in log["variants"] if not v.get("skipped")]
+        self.assertGreaterEqual(count_secure.plan_volume(fill.plan), max(v["volume"] for v in planned) - 1e-6)
 
     def test_huge_manifest_skips_the_dense_plans_and_ranks_by_volume(self):
         scene = make_scene(3, "huge", "A")   # 160 items in a scaled container

@@ -941,7 +941,9 @@ def _rank(entry, threshold: int, gate: int, by_fill: bool = False) -> tuple:
     with more items comes first.  ``by_fill`` (``plan_count_secure_fill_first``:
     the count out of reach): the planned volume first, then the count."""
     n = len(entry[2])
-    if by_fill:
+    if by_fill and n < threshold:
+        # the count lost: the volume decides (a plan over the threshold
+        # still comes first, so a crossing within reach is never traded)
         return (False, False, round(plan_volume(entry[2]), 6), n)
     if n >= threshold:
         return (n >= gate, True, entry[0][0], n)
@@ -1004,6 +1006,7 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
     # are not planned
     fill_share = float(getattr(config, "plan_count_secure_fill_first", 0.0) or 0.0)
     by_fill = fill_share > 0.0 and base_n < fill_share * threshold
+    skip_dense = by_fill and bool(getattr(config, "plan_count_secure_fill_first_skip_dense", True))
     record["fill_first"] = by_fill
     frame = count_frame(item_list, gate + int(getattr(config, "plan_count_secure_extra", 0)))
     record["frame"] = len(frame)
@@ -1029,7 +1032,7 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
     factor = float(getattr(config, "plan_count_secure_start_factor", 1.2))
     best = chosen
     for token in sides:
-        if by_fill and token.partition("@")[0] == "dense":
+        if skip_dense and token.partition("@")[0] == "dense":
             record["variants"].append({"side": token, "skipped": True, "fill_first": True})
             continue
         if (token.partition("@")[0] == "dense" and getattr(config, "plan_count_secure_dense_when_short", True)
