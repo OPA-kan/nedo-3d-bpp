@@ -4886,7 +4886,7 @@ def choose_for_item(board: Board, profile: cls.ItemProfile, config,
             pool_for_archetype = [c for c in survivors if name in c.archetypes]
             if not pool_for_archetype:
                 continue
-            rung_ordered = rung_order(name, pool_for_archetype, config)
+            rung_ordered = rung_order(name, pool_for_archetype, config, board)
             chosen = rung_ordered[0]
             chosen_archetype = name
             break
@@ -5085,7 +5085,7 @@ def rung_pick(name: str, pool_for_archetype: list, config) -> Candidate:
     return rung_order(name, pool_for_archetype, config)[0]
 
 
-def rung_order(name: str, pool_for_archetype: list, config) -> list:
+def rung_order(name: str, pool_for_archetype: list, config, board: "Board | None" = None) -> list:
     """One rung's candidates in its order: its key, with the opening-sparing
     tie-break in front (a candidate that leaves the opening alone beats
     one that does not), sorted stably."""
@@ -5125,16 +5125,86 @@ def rung_order(name: str, pool_for_archetype: list, config) -> list:
         # and the second level forms a patch a footprint wide
         key_fn = _with_level(key_fn, _LEVEL_KEY_POSITION[name],
                              float(getattr(config, "level_key_bucket", 0.03)))
-    return sorted(
-        pool_for_archetype,
-        key=_stable_key(
-            lambda c: (
-                c.features.get("corridor_overlap", 0.0) > 1e-4,
-                *key_fn(c),
-            ),
-            config,
-        ),
+    full_key = lambda c: (  # noqa: E731
+        c.features.get("corridor_overlap", 0.0) > 1e-4,
+        *key_fn(c),
     )
+    ordered = sorted(pool_for_archetype, key=_stable_key(full_key, config))
+    if (board is not None and len(ordered) > 1
+            and float(getattr(config, "ladder_com_weight", 0.0) or 0.0) > 0.0
+            and getattr(board, "ladder_com_active", True)):
+        ordered = com_band_order(ordered, full_key, board, config)
+    return ordered
+
+
+def _load_moment(board: "Board") -> tuple[float, float]:
+    """(mass, mass x height ratio) of the packed load over every container:
+    each box's centre height above its container's floor over the
+    container's height, the quantity the platform's cog component prices
+    (``bench.metrics.terminal_metrics``).  Cached on the board per packed
+    count."""
+    packed = sum(len(c.get("packed_items") or []) for c in board.containers)
+    cached = getattr(board, "_load_moment_cache", None)
+    if cached is not None and cached[0] == packed:
+        return cached[1], cached[2]
+    mass = 0.0
+    moment = 0.0
+    for idx, container in enumerate(board.containers):
+        model = board.models[idx]
+        height = max(float(model.height), 1e-9)
+        floor = float(model.z_floor)
+        for item in container.get("packed_items") or []:
+            try:
+                m = float(item.get("mass", 1.0) or 1.0)
+                z = float(item["pos"][2])
+            except (KeyError, TypeError, ValueError, IndexError):
+                continue
+            mass += m
+            moment += m * (z - floor) / height
+    board._load_moment_cache = (packed, mass, moment)
+    return mass, moment
+
+
+def load_ratio_after(candidate: "Candidate", board: "Board") -> float:
+    """The packed load's mass-weighted centre height ratio with the
+    candidate's box added (``ladder_com_weight``)."""
+    mass, moment = _load_moment(board)
+    model = board.models[candidate.container_idx]
+    m = float(candidate.profile.mass or 1.0)
+    z = float(candidate.box.center[2])
+    add = m * (z - float(model.z_floor)) / max(float(model.height), 1e-9)
+    return (moment + add) / (mass + m)
+
+
+def com_band_order(ordered: list, key, board: "Board", config) -> list:
+    """``config.ladder_com_weight``: the rung's candidates whose leading key
+    term (after the corridor flag; the footprint on the floor rungs, the
+    depth on the back corner) is within ``ladder_com_band`` of the best's
+    are re-ranked by the resulting load's centre height ratio, bucketed at
+    ``ladder_com_step`` (a tie in the bucket keeps the rung's own order);
+    the candidates outside the band follow in the rung's order, so the
+    count and the structural terms keep the priority."""
+    best = key(ordered[0])
+    band = float(getattr(config, "ladder_com_band", 0.0) or 0.0)
+    weight = float(config.ladder_com_weight)
+    step = max(float(getattr(config, "ladder_com_step", 0.0005) or 0.0005), 1e-9)
+
+    def near(c) -> bool:
+        k = key(c)
+        if k[0] != best[0]:
+            return False
+        try:
+            return abs(float(k[1]) - float(best[1])) <= band + 1e-9
+        except (TypeError, ValueError):
+            return k[1] == best[1]
+
+    inside, outside = [], []
+    for c in ordered:
+        (inside if near(c) else outside).append(c)
+    if len(inside) < 2:
+        return ordered
+    ranked = sorted(inside, key=lambda c: round(weight * load_ratio_after(c, board) / step))
+    return ranked + outside
 
 
 def ladder_pick(survivors: list, ladder: list, config, names) -> tuple:

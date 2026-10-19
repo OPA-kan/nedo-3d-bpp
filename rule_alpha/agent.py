@@ -715,6 +715,58 @@ class RuleAlphaAgent:
                 self._defer_stat("items")
         return front + [pp for pp in ordered if pp not in front]
 
+    def _count_secured(self) -> bool:
+        """The packed count is at or over the count mode's threshold (False
+        without the count mode, which has no threshold)."""
+        threshold = self._count_threshold()
+        return threshold is not None and int(getattr(self, "_placed_now", 0)) >= int(threshold)
+
+    def _com_order(self, ordered: list) -> list:
+        """config.pool_com_order: the hard items of the order, heaviest first
+        in the hard items' own slots, while the count is secured.  Sets
+        ``_com_promoted`` (the indices that moved ahead of the item the
+        usual order tried first) and ``_com_first`` (that item)."""
+        self._com_promoted = set()
+        self._com_first = None
+        if getattr(self.config, "pool_com_secured", True) and not self._count_secured():
+            return ordered
+        slots = [n for n, (_pi, pr) in enumerate(ordered)
+                 if pr.cargo_class == cls.NORMAL_HARD and int(pr.index) not in self._deferred_now]
+        if len(slots) < 2:
+            return ordered
+        hards = [ordered[n] for n in slots]
+        by_mass = sorted(hards, key=lambda pair: -round(float(pair[1].mass), 6))
+        if by_mass == hards:
+            return ordered
+        out = list(ordered)
+        for n, pair in zip(slots, by_mass):
+            out[n] = pair
+        first = hards[0][1]
+        self._com_first = int(first.index)
+        # promoted: every hard item the new order tries before the old first
+        for pair in by_mass:
+            if int(pair[1].index) == self._com_first:
+                break
+            self._com_promoted.add(int(pair[1].index))
+        self.phase_stats["com_order_calls"] = self.phase_stats.get("com_order_calls", 0) + 1
+        return out
+
+    def _com_hold(self, profile, placement) -> bool:
+        """config.pool_com_order: a promoted item whose pose is not low is
+        skipped (the item the usual order tried first never is)."""
+        promoted = getattr(self, "_com_promoted", None)
+        if not promoted or int(profile.index) not in promoted:
+            return False
+        try:
+            model = self.board.models[int(placement.container_idx)]
+            low = float(placement.box.minimum[2]) - float(model.z_floor)
+        except (AttributeError, IndexError, TypeError, ValueError):
+            return False
+        if low <= float(getattr(self.config, "pool_com_low_z", 0.05)) + 1e-9:
+            return False
+        self.phase_stats["com_order_held"] = self.phase_stats.get("com_order_held", 0) + 1
+        return True
+
     def _defer_floor_hold(self, pool: list, pool_index: int, placement) -> bool:
         """config.pool_defer_floor_secured: whether this pose of a deferred
         item is held -- on the floor while the packed count is under the
@@ -1018,6 +1070,11 @@ class RuleAlphaAgent:
         self.board = layer1.Board(soft_floor_board_view(self, containers), self.config)
         self._reapply_zone_scales()
         self._resize_zones_for_what_is_left()
+        # the centre-of-mass tie-break (config.ladder_com_weight) applies once
+        # the count is secured, unless the config asks for every phase
+        if float(getattr(self.config, "ladder_com_weight", 0.0) or 0.0) > 0.0:
+            self.board.ladder_com_active = (
+                self._count_secured() if getattr(self.config, "ladder_com_secured", True) else True)
 
         profiles = []
         for pool_index, item in enumerate(pool):
@@ -1063,6 +1120,10 @@ class RuleAlphaAgent:
         if (int(getattr(self.config, "pool_defer_max", 0) or 0) > 0 and len(pool) > 1
                 and not (self.plan_by_index and self.plan_source == "planner")):
             ordered = self._defer_order(ordered)
+        self._com_promoted = set()
+        self._com_first = None
+        if getattr(self.config, "pool_com_order", False) and len(pool) > 1:
+            ordered = self._com_order(ordered)
         reserve = self._soft_headroom_reserve(containers)
         self.board.soft_headroom_reserve = reserve
         self.board.soft_headroom_reserve_by_container = {
@@ -1391,8 +1452,13 @@ class RuleAlphaAgent:
             # the deferral's floor hold (config.pool_defer_floor_secured)
             if self._defer_floor_hold(pool, pool_index, placement):
                 continue
+            # the pool order's low-pose hold (config.pool_com_order)
+            if self._com_hold(profile, placement):
+                continue
             action = self._emit(pool_index, placement)
             if action is not None:
+                if getattr(self, "_com_promoted", None) and int(profile.index) in self._com_promoted:
+                    self.phase_stats["com_order_fired"] = self.phase_stats.get("com_order_fired", 0) + 1
                 if self._pair_pending is not None:
                     self._pair_commit()
                 return action

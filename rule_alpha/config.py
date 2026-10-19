@@ -2688,6 +2688,60 @@ class RuleAlphaConfig:
     fires on core-b.  Without ``count_mode`` there is no threshold and
     nothing is held.  Phase stat: ``defer_floor_held``."""
 
+    ladder_com_weight: float = 0.0
+    """A centre-of-mass tie-break in the ladder's rung order (0: off).  The
+    platform's cog component is 125 - 137 x the load's mass-weighted
+    centre height over the container's height and nothing else (the
+    horizontal offset is not priced, ``bench/platform_score.py``), so the
+    lever is the height.  With a weight above 0 the candidates of the
+    chosen rung that are tied with the rung's best on its leading term
+    (the footprint on the floor rungs, the depth on the back corner; the
+    corridor flag equal, within ``ladder_com_band``) are re-ranked by the
+    packed load's centre height ratio with the candidate added (the
+    mass-weighted mean of the packed boxes' centres and the candidate's,
+    over the container height), bucketed at ``ladder_com_step`` after
+    the weight multiplies it; equal buckets keep the rung's order.  The
+    candidates outside the band follow in the rung's order, so the count
+    and the structural terms keep the priority: only poses the rung ranks
+    alike are told apart.  A floor pose beats a top of equal footprint,
+    a low top a high one."""
+
+    ladder_com_band: float = 0.0
+    """The slack of ``ladder_com_weight``'s band on the rung's leading key
+    term, in that term's unit (m^2 of footprint on the floor rungs, m of
+    depth on the back corner).  0: exact ties only."""
+
+    ladder_com_step: float = 0.0005
+    """The bucket of ``ladder_com_weight``'s height ratio: differences
+    below it keep the rung's own order."""
+
+    ladder_com_secured: bool = True
+    """``ladder_com_weight`` applies only while the packed count is at or
+    over the count mode's threshold (``_count_threshold``, the agent's
+    own estimate), so the low phase is untouched.  Without
+    ``count_mode`` there is no threshold and the term is off.  False: the
+    term applies in every phase."""
+
+    pool_com_order: bool = False
+    """Task B's pool order toward a lower centre of mass.  Once the count
+    is secured (``pool_com_secured``), the hard items of the ladder's
+    order are tried heaviest first (the slots of the hard items stay
+    where they were; the soft and priority items and the deferred front
+    keep theirs), and a promoted item whose ladder pose lies higher than
+    ``pool_com_low_z`` above the floor is skipped -- the next item is
+    tried, down to the item the usual order tried first, which is never
+    held -- so a heavy box goes ahead only when it has a low pose.
+    Phase stats: ``com_order_calls``, ``com_order_held``,
+    ``com_order_fired`` (a promoted item placed)."""
+
+    pool_com_low_z: float = 0.05
+    """A promoted item's pose is low (``pool_com_order``) when the box's
+    bottom is at most this many metres above the container's floor level."""
+
+    pool_com_secured: bool = True
+    """``pool_com_order`` applies only while the packed count is at or
+    over the count mode's threshold.  False: in every phase."""
+
     soft_first_restricted_share: float = 0.3
     """The share of the policy budget the restricted pass may use (its
     ladder decisions stop when the slowest one so far would carry past
