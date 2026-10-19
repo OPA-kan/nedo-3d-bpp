@@ -173,7 +173,12 @@ To measure a change, append `,field=value` to the ship arm's line.
   which do not set `online_planner`).  Records `reports/bench/bmix-*`
   (`sample-b`, `core-b`, `hard-b`, `hard2-b`) and `cmix-*` (`sample-c`,
   `core`, `hard`, `hard2`), priced against `nck-*` / `nck-hard-b` and
-  `ship-*` / `ship-hard`.
+  `ship-*` / `ship-hard` (`nck-hard-b` and `ship-hard` are the shipped
+  arms' hard-suite baselines, run in the same batch).  Not kept as a
+  pair: the sample suites are unchanged, the window alone reads small
+  and positive where it fires, the pocket prior's reweighting swings
+  counts (hard-b -2.38, two crossings).  The next arm is the shipped
+  form plus `phase_switch_window=seen` alone.
 
 ## Judging a run
 
