@@ -1031,10 +1031,14 @@ def secure_count(agent, item_list: list[dict], deadline: float, chosen: tuple, l
 
     factor = float(getattr(config, "plan_count_secure_start_factor", 1.2))
     best = chosen
+    if skip_dense:
+        # logged before the loop, so the record names them whether or not
+        # the budget lets the loop reach them
+        for token in sides:
+            if token.partition("@")[0] == "dense":
+                record["variants"].append({"side": token, "skipped": True, "fill_first": True})
+        sides = [token for token in sides if token.partition("@")[0] != "dense"]
     for token in sides:
-        if skip_dense and token.partition("@")[0] == "dense":
-            record["variants"].append({"side": token, "skipped": True, "fill_first": True})
-            continue
         if (token.partition("@")[0] == "dense" and getattr(config, "plan_count_secure_dense_when_short", True)
                 and best is not None and len(best[2]) >= gate):
             # a plan so far holds the threshold plus the margin: the dense
